@@ -170,6 +170,8 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   #legend .hint { font-size:8.5px; }
   #hud { top:8px; right:8px; }
   #focus-panel { max-width:94%; padding:8px 12px; gap:8px; flex-wrap:wrap; }
+  #route-picker { top:8px; max-width:94%; width:94%; }
+  #route-picker .picker-row { padding:12px 14px; font-size:12.5px; }
   #focus-title { font-size:12px; }
 }
 
@@ -213,6 +215,30 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #focus-dropdown .move-bar { width:3px; height:16px; border-radius:2px; }
 #focus-dropdown .move-person { font-family:var(--font-display); font-style:italic; color:var(--border-stroke); }
 #focus-dropdown .move-place { color:var(--ink); }
+
+#route-picker {
+  position:absolute; top:56px; left:50%; transform:translateX(-50%); z-index:15;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.5); border-radius:8px;
+  box-shadow:0 10px 26px rgba(60,45,20,0.35); max-width:520px; width:90%;
+  max-height:min(60vh, 460px); overflow-y:auto; display:none;
+}
+#route-picker.active { display:block; }
+#route-picker .picker-header {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:9px 14px; font-family:var(--font-mono); font-size:11px; color:var(--muted);
+  border-bottom:1px solid rgba(156,122,46,0.3); position:sticky; top:0; background:var(--panel-bg);
+}
+#route-picker .picker-close { color:var(--muted); cursor:pointer; font-size:15px; line-height:1; }
+#route-picker .picker-close:hover { color:var(--border-stroke); }
+#route-picker .picker-row {
+  display:block; padding:8px 14px; font-family:var(--font-mono); font-size:11.5px; color:var(--ink);
+  border-bottom:1px solid rgba(156,122,46,0.15); cursor:pointer;
+}
+#route-picker .picker-row:last-child { border-bottom:none; }
+#route-picker .picker-row:hover { background:rgba(156,122,46,0.15); }
+#route-picker .picker-dest { font-family:var(--font-display); font-weight:600; color:var(--border-stroke); }
+#route-picker .picker-year { color:var(--muted); float:right; }
+#route-picker .picker-people { display:block; margin-top:1px; color:var(--ink); }
 </style>
 </head>
 <body>
@@ -253,6 +279,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <button id="focus-clear">&times; clear</button>
   </div>
   <div id="focus-dropdown"></div>
+  <div id="route-picker"></div>
   <div id="tooltip"></div>
   <div id="hud">
     <button class="hud-btn" id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
@@ -971,6 +998,9 @@ searchInput.addEventListener("keydown", (e) => {
 document.addEventListener("click", (e) => {
   if (!e.target.closest("#search-box")) searchResults.classList.remove("active");
 });
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#route-picker") && !e.target.closest("#zoom-capture")) closeRoutePicker();
+});
 
 // --- Time period mode: highlight every voyage whose arrival year falls
 // within the entered range, using the same dim-everything-else rendering
@@ -1333,6 +1363,7 @@ function findHitCluster(mx, my, threshold) {
 function handleClick(e) {
   const rect = mapWrap.getBoundingClientRect();
   const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+  closeRoutePicker();
   const hitCluster = findHitCluster(mx, my, 9);
   if (hitCluster) {
     // zoom in just past the aggregation threshold, centered where you clicked,
@@ -1340,16 +1371,50 @@ function handleClick(e) {
     applyZoomAt(mx, my, (AGGREGATE_ZOOM_THRESHOLD + 1.5) / currentTransform.k);
     return;
   }
-  let best=null, bestDist=8;
+  const threshold = 8;
+  const matches = [];
   for (const r of ROUTES) {
     const pts = r._screen; if (!pts) continue;
+    let bestForThisRoute = Infinity;
     for (let i=0;i<pts.length-1;i++) {
       const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
-      if (d<bestDist) { bestDist=d; best=r; }
+      if (d < bestForThisRoute) bestForThisRoute = d;
     }
+    if (bestForThisRoute < threshold) matches.push(r);
   }
+  if (matches.length > 1) { showRoutePicker(matches); return; }
+  const best = matches[0];
+  closeRoutePicker();
   if (best && best.anchor) focusThread(best.anchor);
   else if (focusActive) clearFocus(); // clicked empty space while focused -> clear
+}
+function showRoutePicker(matches) {
+  hideTip();
+  const sorted = matches.slice().sort((a,b) => a.min_year - b.min_year);
+  const panel = document.getElementById("route-picker");
+  panel.innerHTML = "";
+  const header = document.createElement("div");
+  header.className = "picker-header";
+  header.innerHTML = `<span>${sorted.length} voyages on this line \u2014 pick one to follow</span><span class="picker-close" title="Close">&times;</span>`;
+  header.querySelector(".picker-close").addEventListener("click", closeRoutePicker);
+  panel.appendChild(header);
+  sorted.forEach(d => {
+    const row = document.createElement("div");
+    row.className = "picker-row";
+    const peopleLine = d.family_group ? d.family_group.join(" & ") : (d.people||[]).join(", ");
+    const yearLine = d.min_year===d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
+    row.innerHTML = `<span class="picker-year">${yearLine}</span><span class="picker-dest">\u2192 ${d.to}</span>` +
+                     `<span class="picker-people">${peopleLine}</span>`;
+    row.addEventListener("click", () => {
+      closeRoutePicker();
+      if (d.anchor) focusThread(d.anchor);
+    });
+    panel.appendChild(row);
+  });
+  panel.classList.add("active");
+}
+function closeRoutePicker() {
+  document.getElementById("route-picker").classList.remove("active");
 }
 function applyZoomAt(mx, my, factor) {
   const k0 = currentTransform.k;
