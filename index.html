@@ -57,6 +57,11 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 }
 #tooltip .t-name { font-family:var(--font-display); font-weight:600; color:var(--border-stroke); display:block; margin-bottom:2px; }
 #tooltip .t-year { font-family:var(--font-mono); color:var(--muted); font-size:11px; }
+#tooltip.t-multi { max-width:320px; }
+#tooltip .t-multi-row { padding-top:6px; margin-top:6px; border-top:1px solid rgba(156,122,46,0.25); }
+#tooltip .t-multi-row:first-of-type { border-top:none; margin-top:4px; padding-top:0; }
+#tooltip .t-multi-dest { font-weight:600; color:var(--border-stroke); }
+#tooltip .t-multi-more { font-family:var(--font-mono); color:var(--muted); font-size:10.5px; margin-top:6px; padding-top:6px; border-top:1px solid rgba(156,122,46,0.25); }
 
 #hud { position:absolute; top:14px; right:14px; display:flex; flex-direction:column; gap:8px; z-index:10; align-items:flex-end; }
 .hud-btn {
@@ -98,6 +103,41 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
 }
 #search-input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; width:200px; }
+#year-range-box { display:flex; align-items:center; gap:5px; }
+#year-range-box input {
+  font-family:var(--font-mono); font-size:12px; padding:7px 8px; width:62px; text-align:center;
+  border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
+  -moz-appearance:textfield;
+}
+#year-range-box input::-webkit-outer-spin-button, #year-range-box input::-webkit-inner-spin-button {
+  -webkit-appearance:none; margin:0;
+}
+#year-range-box input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; }
+#year-range-box .yr-dash { color:var(--muted); font-family:var(--font-mono); font-size:12px; }
+#era-person-filter { margin-top:6px; position:relative; }
+#era-person-input {
+  font-family:var(--font-mono); font-size:12px; padding:7px 10px; width:150px;
+  border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
+}
+#era-person-input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; width:200px; }
+#era-person-chip {
+  display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:11.5px;
+  color:var(--border-stroke); background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45);
+  border-radius:6px; padding:6px 8px; max-width:200px;
+}
+#era-person-chip-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#era-person-chip .chip-clear { color:var(--muted); cursor:pointer; margin-left:auto; flex-shrink:0; }
+#era-person-chip .chip-clear:hover { color:var(--border-stroke); }
+#era-person-results {
+  position:absolute; top:38px; left:0; width:260px; max-height:220px; overflow-y:auto;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45); border-radius:6px;
+  box-shadow:0 8px 20px rgba(60,45,20,0.3); display:none; z-index:11;
+}
+#era-person-results.active { display:block; }
+#era-person-results .sr-item { padding:7px 10px; font-size:12px; cursor:pointer; border-bottom:1px solid rgba(156,122,46,0.15); }
+#era-person-results .sr-item:last-child { border-bottom:none; }
+#era-person-results .sr-item:hover, #era-person-results .sr-item.sel { background:rgba(156,122,46,0.15); }
+#era-person-results .sr-years { color:var(--muted); font-family:var(--font-mono); font-size:10.5px; }
 #search-results {
   position:absolute; top:73px; left:0; width:260px; max-height:280px; overflow-y:auto;
   background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45); border-radius:6px;
@@ -119,6 +159,10 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   #search-input { width:110px; padding:14px 10px; font-size:13px; }
   #search-input:focus { width:150px; }
   #search-results { top:108px; }
+  #year-range-box input { width:52px; padding:14px 6px; font-size:13px; }
+  #era-person-input { width:130px; padding:14px 10px; font-size:13px; }
+  #era-person-input:focus { width:170px; }
+  #era-person-results { top:51px; }
   .hud-btn { width:44px; height:44px; font-size:20px; }
   #legend { max-width:200px; padding:8px 10px; left:8px; bottom:8px; }
   #legend .cb-gradient, #legend .cb-labels { width:120px; }
@@ -187,9 +231,20 @@ svg#overlay-svg .interactive { pointer-events:auto; }
       <button class="mode-btn active" data-mode="target" title="Click a result to make them the map's target">Family journey</button>
       <button class="mode-btn" data-mode="life" title="Click a result to see just their own movement">Life journey</button>
       <button class="mode-btn" data-mode="path" title="Pick two people to isolate the path between them">Path between</button>
+      <button class="mode-btn" data-mode="era" title="Enter a year range to highlight journeys taken then">Time period</button>
     </div>
     <div id="path-status"></div>
     <input id="search-input" type="text" placeholder="Find an ancestor..." aria-label="Search for an ancestor by name" autocomplete="off">
+    <div id="year-range-box" style="display:none;">
+      <input id="year-from" type="number" placeholder="From" aria-label="Start year" inputmode="numeric">
+      <span class="yr-dash">&ndash;</span>
+      <input id="year-to" type="number" placeholder="To" aria-label="End year" inputmode="numeric">
+    </div>
+    <div id="era-person-filter" style="display:none;">
+      <input id="era-person-input" type="text" placeholder="Limit to one person's ancestors (optional)..." aria-label="Optional: limit to one person's ancestors" autocomplete="off">
+      <div id="era-person-chip" style="display:none;"><span id="era-person-chip-name"></span><span class="chip-clear" title="Remove this filter">&times;</span></div>
+      <div id="era-person-results" role="listbox"></div>
+    </div>
     <div id="search-results" role="listbox"></div>
   </div>
   <div id="focus-panel">
@@ -678,14 +733,15 @@ function computeFocusSegs(pid) {
 // Renders any already-assembled chain of people as the focused thread --
 // shared by click-to-anchor (chain = deepest ancestors -> target) and the
 // explicit path-between-two-people tool (chain = findPath(A,B) directly).
-function renderFocusedChain(segs, titleHTML) {
+function renderFocusedChain(segs, titleHTML, peopleLabel) {
+  peopleLabel = peopleLabel || "generation";
   currentFocusSegs = segs;
   focusActive = segs.length > 0;
   const years = segs.map(s=>s.year);
   const people = [...new Set(segs.map(s=>s.person))];
   document.getElementById("focus-title").innerHTML = titleHTML;
   document.getElementById("focus-sub").innerHTML =
-    (years.length ? `${Math.min(...years)}\u2013${Math.max(...years)} \u00b7 ${people.length} generation${people.length!==1?'s':''} \u00b7 ${segs.length} moves` : "") +
+    (years.length ? `${Math.min(...years)}\u2013${Math.max(...years)} \u00b7 ${people.length} ${peopleLabel}${people.length!==1?'s':''} \u00b7 ${segs.length} moves` : "") +
     ` <span class="chevron">\u25be</span>`;
   document.getElementById("focus-panel").classList.add("active");
   buildFocusDropdown(segs);
@@ -815,7 +871,7 @@ function runSearch(q) {
   });
   searchResults.classList.add("active");
 }
-let searchMode = "target"; // "target" | "life" | "path"
+let searchMode = "target"; // "target" | "life" | "path" | "era"
 let pathPickA = null;
 
 function updatePathStatus() {
@@ -887,9 +943,18 @@ document.querySelectorAll(".mode-btn").forEach(btn => {
     searchMode = btn.dataset.mode;
     pathPickA = null;
     updatePathStatus();
-    searchInput.placeholder = searchMode === "target" ? "Find someone to set as target..."
-      : searchMode === "life" ? "Find someone to see their life journey..." : "Find the first person...";
-    searchInput.focus();
+    const isEra = searchMode === "era";
+    searchInput.style.display = isEra ? "none" : "";
+    document.getElementById("year-range-box").style.display = isEra ? "flex" : "none";
+    document.getElementById("era-person-filter").style.display = isEra ? "block" : "none";
+    if (isEra) {
+      searchResults.classList.remove("active");
+      yearFromInput.focus();
+    } else {
+      searchInput.placeholder = searchMode === "target" ? "Find someone to set as target..."
+        : searchMode === "life" ? "Find someone to see their life journey..." : "Find the first person...";
+      searchInput.focus();
+    }
   });
 });
 searchInput.addEventListener("input", () => runSearch(searchInput.value));
@@ -906,6 +971,122 @@ searchInput.addEventListener("keydown", (e) => {
 document.addEventListener("click", (e) => {
   if (!e.target.closest("#search-box")) searchResults.classList.remove("active");
 });
+
+// --- Time period mode: highlight every voyage whose arrival year falls
+// within the entered range, using the same dim-everything-else rendering
+// as Path between (renderFocusedChain), but sourced from every person's
+// legs rather than one connected genealogical chain. ---
+const yearFromInput = document.getElementById("year-from");
+const yearToInput = document.getElementById("year-to");
+let yearRangeDebounce = null;
+let eraPersonFilterID = null;
+
+function computeYearRangeSegs(minYear, maxYear, ancestorSet) {
+  const segs = [];
+  for (const pid in PERSON_LEGS) {
+    if (ancestorSet && !ancestorSet.has(pid)) continue;
+    const legs = PERSON_LEGS[pid];
+    if (!legs || !legs.length) continue;
+    const name = (GRAPH.people[pid] && GRAPH.people[pid].name) || "?";
+    for (const l of legs) {
+      if (l.year >= minYear && l.year <= maxYear) segs.push(Object.assign({ person: name }, l));
+    }
+  }
+  return segs;
+}
+
+function applyYearRange() {
+  const fromVal = yearFromInput.value.trim(), toVal = yearToInput.value.trim();
+  if (!fromVal || !toVal) { return; } // wait for both bounds before rendering anything
+  let a = parseInt(fromVal, 10), b = parseInt(toVal, 10);
+  if (isNaN(a) || isNaN(b)) return;
+  const minYear = Math.min(a, b), maxYear = Math.max(a, b); // forgiving of bounds entered backwards
+  focusedAnchor = null;
+  focusedStationaryPoint = null;
+  const ancestorSet = eraPersonFilterID ? ancestorSetOf(eraPersonFilterID) : null;
+  const segs = computeYearRangeSegs(minYear, maxYear, ancestorSet);
+  const personName = eraPersonFilterID ? ((GRAPH.people[eraPersonFilterID]||{}).name || "?") : null;
+  const scopeText = personName ? `${personName}\u2019s ancestors\u2019 journeys` : "Journeys";
+  const title = segs.length
+    ? `${scopeText}, ${minYear}\u2013${maxYear}`
+    : `${personName ? personName + "\u2019s ancestors have " : "There are "}no recorded journeys between ${minYear} and ${maxYear}`;
+  if (segs.length) zoomToFitSegs(segs);
+  renderFocusedChain(segs, title, "ancestor");
+}
+function scheduleYearRangeApply() {
+  clearTimeout(yearRangeDebounce);
+  yearRangeDebounce = setTimeout(applyYearRange, 500);
+}
+[yearFromInput, yearToInput].forEach(inp => {
+  inp.addEventListener("input", scheduleYearRangeApply);
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { clearTimeout(yearRangeDebounce); applyYearRange(); inp.blur(); }
+  });
+});
+
+// optional person filter within Time period mode: a small, self-contained
+// search (separate from the main search-input, which is hidden in this mode)
+const eraPersonInput = document.getElementById("era-person-input");
+const eraPersonResults = document.getElementById("era-person-results");
+const eraPersonChip = document.getElementById("era-person-chip");
+const eraPersonChipName = document.getElementById("era-person-chip-name");
+let eraPersonMatches = [], eraPersonSelIdx = -1;
+
+function runEraPersonSearch(q) {
+  q = q.trim().toLowerCase();
+  eraPersonResults.innerHTML = "";
+  eraPersonSelIdx = -1;
+  if (!q) { eraPersonResults.classList.remove("active"); return; }
+  eraPersonMatches = SEARCH_INDEX.filter(p => p.nameLower.includes(q)).slice(0, 25);
+  if (!eraPersonMatches.length) {
+    eraPersonResults.innerHTML = '<div class="sr-empty">No ancestor matches "' + q.replace(/</g,"") + '"</div>';
+    eraPersonResults.classList.add("active");
+    return;
+  }
+  eraPersonMatches.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "sr-item";
+    row.setAttribute("role","option");
+    row.innerHTML = `${p.name}${p.birt ? ` <span class="sr-years">b. ${p.birt}</span>` : ""}`;
+    row.addEventListener("click", () => selectEraPerson(i));
+    eraPersonResults.appendChild(row);
+  });
+  eraPersonResults.classList.add("active");
+}
+function selectEraPerson(i) {
+  const p = eraPersonMatches[i];
+  if (!p) return;
+  eraPersonFilterID = p.id;
+  eraPersonInput.value = "";
+  eraPersonResults.classList.remove("active");
+  eraPersonInput.style.display = "none";
+  eraPersonChipName.textContent = p.name;
+  eraPersonChip.style.display = "flex";
+  applyYearRange();
+}
+eraPersonChip.querySelector(".chip-clear").addEventListener("click", () => {
+  eraPersonFilterID = null;
+  eraPersonChip.style.display = "none";
+  eraPersonInput.style.display = "";
+  applyYearRange();
+});
+eraPersonInput.addEventListener("input", () => runEraPersonSearch(eraPersonInput.value));
+eraPersonInput.addEventListener("keydown", (e) => {
+  const rows = eraPersonResults.querySelectorAll(".sr-item");
+  if (e.key === "ArrowDown") { e.preventDefault(); eraPersonSelIdx = Math.min(eraPersonSelIdx+1, rows.length-1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); eraPersonSelIdx = Math.max(eraPersonSelIdx-1, 0); }
+  else if (e.key === "Enter") { if (eraPersonSelIdx>=0) selectEraPerson(eraPersonSelIdx); return; }
+  else if (e.key === "Escape") { eraPersonResults.classList.remove("active"); eraPersonInput.blur(); return; }
+  else return;
+  rows.forEach((r,i) => r.classList.toggle("sel", i===eraPersonSelIdx));
+  if (rows[eraPersonSelIdx]) rows[eraPersonSelIdx].scrollIntoView({block:"nearest"});
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#era-person-filter")) eraPersonResults.classList.remove("active");
+});
+
+
+
 
 
 
@@ -1201,26 +1382,43 @@ function distToSeg(px,py,x1,y1,x2,y2) {
   const cx=x1+t*dx, cy=y1+t*dy;
   return Math.hypot(px-cx, py-cy);
 }
-function findHitFocusedSeg(mx, my, threshold) {
-  if (!currentFocusSegs) return null;
-  let best=null, bestDist=threshold;
+function findHitFocusedSegs(mx, my, threshold) {
+  if (!currentFocusSegs) return [];
+  const matches = [];
   for (const s of currentFocusSegs) {
     const curve = s.waypts ? { mode:"path", coords:s.waypts }
       : s.ocean ? { mode:"path", coords:[[s.x1,s.y1],[s.x2,s.y2]] }
       : { mode:"bow", x1:s.x1,y1:s.y1,cx:s.cx,cy:s.cy,x2:s.x2,y2:s.y2 };
     const pts = curveScreenPts(curve);
+    let bestForThisSeg = Infinity;
     for (let i=0;i<pts.length-1;i++) {
       const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
-      if (d<bestDist) { bestDist=d; best=s; }
+      if (d < bestForThisSeg) bestForThisSeg = d;
     }
+    if (bestForThisSeg < threshold) matches.push(s);
   }
-  return best;
+  return matches;
 }
 function showSegTip(event, s) {
+  tooltip.classed("t-multi", false);
   tooltip.html(
     `<span class="t-name">${s.from} &rarr; ${s.to}</span>${s.person}<br>` +
     `<span class="t-year">arrived ${s.year}</span>`
   );
+  const rect = mapWrap.getBoundingClientRect();
+  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+}
+function showMultiSegTip(event, segs) {
+  const sorted = segs.slice().sort((a,b) => a.year - b.year);
+  const CAP = 8;
+  const shown = sorted.slice(0, CAP);
+  const rows = shown.map(s =>
+    `<div class="t-multi-row"><span class="t-multi-dest">\u2192 ${s.to}</span> ` +
+    `<span class="t-year">${s.year}</span><br>${s.person}</div>`
+  ).join("");
+  const more = sorted.length > CAP ? `<div class="t-multi-more">+ ${sorted.length - CAP} more voyage${sorted.length-CAP>1?"s":""} on this line</div>` : "";
+  tooltip.classed("t-multi", true);
+  tooltip.html(`<span class="t-name">${segs.length} voyages bundled on this line</span>` + rows + more);
   const rect = mapWrap.getBoundingClientRect();
   tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
 }
@@ -1233,23 +1431,30 @@ function doHover(e) {
     // while a thread/path is focused, only the highlighted line itself is
     // hoverable -- the dimmed background is visual context, not
     // interactive, so grazing one shouldn't pop up an unrelated tooltip
-    const hitSeg = findHitFocusedSeg(mx, my, 8);
-    if (hitSeg) showSegTip(e, hitSeg); else hideTip();
+    const hitSegs = findHitFocusedSegs(mx, my, 8);
+    if (hitSegs.length > 1) showMultiSegTip(e, hitSegs);
+    else if (hitSegs.length === 1) showSegTip(e, hitSegs[0]);
+    else hideTip();
     return;
   }
   const hitCluster = findHitCluster(mx, my, 8);
   if (hitCluster) { showClusterTip(e, hitCluster); return; }
-  let best=null, bestDist=7;
+  const threshold = 7;
+  const matches = [];
   for (const r of ROUTES) {
     const pts = r._screen; if (!pts) continue;
+    let bestForThisRoute = Infinity;
     for (let i=0;i<pts.length-1;i++) {
       const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
-      if (d<bestDist) { bestDist=d; best=r; }
+      if (d < bestForThisRoute) bestForThisRoute = d;
     }
+    if (bestForThisRoute < threshold) matches.push(r);
   }
-  if (best) showTip(e, best); else hideTip();
+  if (matches.length > 1) { showMultiTip(e, matches); return; }
+  if (matches.length === 1) showTip(e, matches[0]); else hideTip();
 }
 function showClusterTip(event, c) {
+  tooltip.classed("t-multi", false);
   const years = c._visYears;
   tooltip.html(
     `<span class="t-name">${c.from} &rarr; ${c.to}</span>${c._visCount} ancestors made this general journey<br>` +
@@ -1258,7 +1463,26 @@ function showClusterTip(event, c) {
   const rect = mapWrap.getBoundingClientRect();
   tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
 }
+function showMultiTip(event, matches) {
+  const sorted = matches.slice().sort((a,b) => a.min_year - b.min_year);
+  const CAP = 8;
+  const shown = sorted.slice(0, CAP);
+  const rows = shown.map(d => {
+    const peopleLine = d.family_group ? d.family_group.join(" & ") : (d.people||[]).join(", ");
+    const yearLine = d.min_year===d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
+    return `<div class="t-multi-row"><span class="t-multi-dest">\u2192 ${d.to}</span> ` +
+           `<span class="t-year">${yearLine}</span><br>${peopleLine}</div>`;
+  }).join("");
+  const more = sorted.length > CAP ? `<div class="t-multi-more">+ ${sorted.length - CAP} more voyage${sorted.length-CAP>1?"s":""} on this line</div>` : "";
+  tooltip.classed("t-multi", true);
+  tooltip.html(
+    `<span class="t-name">${matches.length} voyages bundled on this line</span>` + rows + more
+  );
+  const rect = mapWrap.getBoundingClientRect();
+  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+}
 function showTip(event, d) {
+  tooltip.classed("t-multi", false);
   const peopleLine = d.family_group
     ? `<span style="color:var(--gold)">\u2693 traveling together:</span> ${d.family_group.join(" & ")}`
     : (d.people||[]).join(", ");
