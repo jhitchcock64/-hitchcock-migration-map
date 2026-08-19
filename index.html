@@ -650,17 +650,22 @@ function drawRoutes() {
 
   const relevant = ROUTES.filter((r,idx) => isRouteRelevant(r) && !hiddenByCluster.has(idx));
   const sorted = relevant.slice().sort((a,b) => b.count - a.count); // thick/rare first (bottom), thin/common last (top)
-  for (const r of ROUTES) r._screen = null; // clear stale hit-test data from any previously-visible, now-filtered-out routes
-  for (const c of CLUSTERS) c._screen = null;
+  if (!isDragging) {
+    for (const r of ROUTES) r._screen = null; // clear stale hit-test data from any previously-visible, now-filtered-out routes
+    for (const c of CLUSTERS) c._screen = null;
+  }
 
+  let dashSet = false;
   for (const r of sorted) {
-    r._screen = curveScreenPts(r.curve); // cache for hit-testing
-    ctx.strokeStyle = dimmed ? "#8a7248" : colorForYear(r.mean_year);
+    if (!isDragging) r._screen = curveScreenPts(r.curve); // cache for hit-testing; skipped mid-drag since hover isn't reachable then
+    const color = dimmed ? "#8a7248" : colorForYear(r.mean_year); // computed once, reused below instead of 3x
+    ctx.strokeStyle = color;
     ctx.globalAlpha = dimmed ? 0.12 : 0.72;
     const w = dimmed ? 1 : lwFor(r.count);
     ctx.lineWidth = Math.max(w * 0.42, 1.1);
     ctx.lineJoin = "round"; ctx.lineCap = "round";
-    ctx.setLineDash(r.oscillation && !dimmed ? [w*1.4, w*1.1] : []);
+    if (r.oscillation && !dimmed) { ctx.setLineDash([w*1.4, w*1.1]); dashSet = true; }
+    else if (dashSet) { ctx.setLineDash([]); dashSet = false; }
     if (r.family_group && !dimmed) {
       strokeTwin(r.curve, Math.max(w * 0.55, 1.6));
     } else {
@@ -668,11 +673,11 @@ function drawRoutes() {
       ctx.lineWidth = w;
       ctx.stroke();
     }
-    ctx.setLineDash([]);
+    if (dashSet) { ctx.setLineDash([]); dashSet = false; }
     if (!dimmed) {
       const alen = Math.max(9, lwFor(r.count) * 1.3);
-      drawArrowhead(curveEndAngle(r.curve), alen, colorForYear(r.mean_year));
-      if (r.oscillation) drawArrowhead(curveStartAngle(r.curve), alen, colorForYear(r.mean_year));
+      drawArrowhead(curveEndAngle(r.curve), alen, color);
+      if (r.oscillation) drawArrowhead(curveStartAngle(r.curve), alen, color);
     }
   }
 
@@ -1405,6 +1410,7 @@ window.addEventListener("mouseup", (e) => {
   if (isDragging) {
     isDragging = false; zoomCapture.classList.remove("dragging");
     if (dragMoved < 4) handleClick(e); // negligible movement = a click, not a pan
+    else redrawAll(); // refresh hit-test data now that dragging (which skips it) has ended
     scheduleLabelUpdate();
   }
 });
@@ -1449,6 +1455,8 @@ zoomCapture.addEventListener("touchend", (e) => {
     isDragging = false; zoomCapture.classList.remove("dragging");
     if (dragMoved < 4 && e.changedTouches.length) {
       handleClick({ clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY });
+    } else {
+      redrawAll(); // refresh hit-test data now that dragging (which skips it) has ended
     }
     scheduleLabelUpdate();
   }
