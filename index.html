@@ -1385,13 +1385,19 @@ zoomCapture.addEventListener("mousedown", (e) => {
   dragStart = [e.clientX, e.clientY]; transformStart = currentTransform;
   dragMoved = 0;
 });
+let redrawRafPending = false;
+function scheduleRedraw() {
+  if (redrawRafPending) return;
+  redrawRafPending = true;
+  requestAnimationFrame(() => { redrawRafPending = false; redrawAll(); });
+}
 let lastDragLabelUpdate = 0;
 window.addEventListener("mousemove", (e) => {
   if (!isDragging) { handleHover(e); return; }
   const dx = e.clientX - dragStart[0], dy = e.clientY - dragStart[1];
   dragMoved = Math.max(dragMoved, Math.hypot(dx, dy));
   currentTransform = d3.zoomIdentity.translate(transformStart.x + dx/base.scale, transformStart.y + dy/base.scale).scale(transformStart.k);
-  redrawAll();
+  scheduleRedraw();
   const now = performance.now();
   if (now - lastDragLabelUpdate > 100) { lastDragLabelUpdate = now; updateLabels(); }
 });
@@ -1426,7 +1432,7 @@ zoomCapture.addEventListener("touchmove", (e) => {
     const dx = e.touches[0].clientX - dragStart[0], dy = e.touches[0].clientY - dragStart[1];
     dragMoved = Math.max(dragMoved, Math.hypot(dx, dy));
     currentTransform = d3.zoomIdentity.translate(transformStart.x + dx/base.scale, transformStart.y + dy/base.scale).scale(transformStart.k);
-    redrawAll();
+    scheduleRedraw();
     const now = performance.now();
     if (now - lastDragLabelUpdate > 100) { lastDragLabelUpdate = now; updateLabels(); }
   } else if (e.touches.length === 2 && touchStartDist) {
@@ -1526,7 +1532,7 @@ function applyZoomAt(mx, my, factor) {
   const dataX = (vx - currentTransform.x) / currentTransform.k;
   const dataY = (vy - currentTransform.y) / currentTransform.k;
   currentTransform = d3.zoomIdentity.translate(vx - dataX*k1, vy - dataY*k1).scale(k1);
-  redrawAll();
+  scheduleRedraw();
   const now = performance.now();
   if (now - lastDragLabelUpdate > 100) { lastDragLabelUpdate = now; updateLabels(); }
   else scheduleLabelUpdate(); // ensures one final settle-update after the gesture stops
