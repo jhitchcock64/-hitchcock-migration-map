@@ -74,7 +74,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   position:absolute; left:14px; bottom:14px; background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4);
   border-radius:8px; padding:12px 16px; z-index:10; max-width:300px;
 }
-#legend .cb-gradient { width:160px; height:10px; border-radius:3px; background:linear-gradient(to right, #313695, #74add1, #fee090, #f46d43, #a50026); }
+#legend .cb-gradient { width:160px; height:10px; border-radius:3px; background:linear-gradient(to right, #471365, #3f4788, #2c728e, #1f998a, #44bf70); }
 #legend .cb-labels { display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:9px; color:var(--muted); width:160px; margin-bottom:8px; }
 #legend .lw-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:3px; }
 #legend .lw-swatch { width:22px; height:0; border-top-style:solid; border-color:#8a7248; }
@@ -333,17 +333,22 @@ REF_CITIES.forEach((p,i)=>{ p._i = i; });
 for (const p of SEARCH_INDEX) p.nameLower = p.name.toLowerCase();
 const YEAR_MIN = d3.min(ROUTES, d => d.mean_year);
 const YEAR_MAX = d3.max(ROUTES, d => d.mean_year);
-// d3.interpolateRdYlBu is non-trivial (parses + interpolates two colors per
-// call). Routes share far fewer distinct years than there are routes, so we
-// memoize by rounded year -- collapsing ~895 interpolations/frame into a few
-// dozen cache hits. Keyed to whole years; sub-year precision is invisible here.
+// Route color encodes era (old -> new). We use viridis constrained to its
+// 0.05-0.70 sub-range (dark purple -> teal -> green): unlike RdYlBu, whose pale
+// yellow midpoint washed out against the light parchment at this alpha, every
+// era here stays high-contrast over the land (worst-case route/land contrast
+// ~1.35 vs ~1.02 before). d3.interpolateViridis is non-trivial (parses +
+// interpolates two colors per call), and routes share far fewer distinct years
+// than there are routes, so we memoize by rounded year -- collapsing ~895
+// interpolations/frame into a few dozen cache hits. Sub-year precision is
+// invisible here.
 const _colorCache = new Map();
 function colorForYear(y) {
   const key = Math.round(y);
   let c = _colorCache.get(key);
   if (c === undefined) {
-    const t = (key - YEAR_MIN) / (YEAR_MAX - YEAR_MIN);
-    c = d3.interpolateRdYlBu(1 - t);
+    const t = (key - YEAR_MIN) / (YEAR_MAX - YEAR_MIN); // 0 = oldest, 1 = newest
+    c = d3.interpolateViridis(0.05 + t * 0.65);
     _colorCache.set(key, c);
   }
   return c;
