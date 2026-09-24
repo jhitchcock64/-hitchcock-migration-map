@@ -1,0 +1,2003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Migration Lines to Margaret Jean Hitchcock -- Interactive</title>
+<style>
+:root {
+  --bg: #ece2c8; --panel-bg: #f5eeda; --land: #d9cca2; --land-stroke: #8a7248;
+  --state-stroke: #a3906a; --border-stroke: #9c3c2e; --lake: #aac3cf;
+  --ink: #2c2417; --muted: #6b5d43; --gold: #9c7a2e;
+  --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+  --font-body: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', 'Consolas', 'Menlo', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:var(--font-body); height:100%; overflow:hidden; }
+body { display:flex; flex-direction:column; height:100vh; }
+header { padding:16px 24px 12px; border-bottom:1px solid rgba(156,122,46,0.3); flex-shrink:0; background:var(--panel-bg); }
+header h1 { font-family:var(--font-display); font-weight:600; font-size:clamp(18px,2.2vw,26px); margin:0 0 4px; }
+header p { margin:0; color:var(--muted); font-size:13px; max-width:900px; line-height:1.4; }
+header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:4px; }
+
+#map-wrap { position:relative; flex:1; min-height:0; overflow:hidden; }
+.map-layer { position:absolute; top:0; left:0; width:100%; height:100%; }
+/* The stage holds everything drawn in map coordinates, rendered with an
+   overscan margin on every side (sized in computeBase). During a pan or zoom
+   the finished stage is moved with a CSS transform -- a compositor-only
+   operation -- and redrawn sharp once the gesture settles. Each layer is its
+   own GPU layer, so a change to one (e.g. place dots fading in) never forces
+   the others to be painted again. */
+/* The basemap is a separate bitmap, drawn off the main thread (see
+   "basemap" in the script); it sits under the stage with the same geometry
+   and keeps its own transform, since a new bitmap can arrive a few frames
+   after the routes have been redrawn. */
+#map-stage, #basemap-canvas { position:absolute; transform-origin:0 0; will-change:transform; }
+#basemap-canvas { z-index:0; }
+#map-stage { z-index:1; }
+#map-stage > .map-layer { will-change:transform; }
+canvas#routes-canvas { z-index:2; }
+svg#overlay-svg { z-index:3; pointer-events:none; }
+svg#overlay-svg .interactive { pointer-events:auto; }
+#zoom-capture { z-index:4; background:transparent; cursor:grab; touch-action:none; }
+#zoom-capture.dragging { cursor:grabbing; }
+
+.land { fill:var(--land); stroke:var(--land-stroke); stroke-width:0.012; opacity:1; }
+.river { stroke:var(--lake); stroke-width:0.018; opacity:0.85; stroke-linecap:round; stroke-linejoin:round; }
+.lake { fill:var(--lake); stroke:var(--land-stroke); stroke-width:0.02; }
+.state-border { fill:none; stroke:var(--state-stroke); stroke-width:0.026; stroke-dasharray:0.2 0.15; opacity:0.75; }
+
+.place-dot { fill:var(--border-stroke); opacity:0; transition:opacity 0.2s ease; }
+.ref-city-dot { fill:#a8998a; opacity:0; transition:opacity 0.2s ease; }
+.ref-city-dot.visible { opacity:0.55; }
+.ref-label { color:#a8998a !important; font-style:italic; }
+.place-dot.visible { opacity:0.9; }
+.place-label-html {
+  position:absolute; font-family:var(--font-mono); font-size:12px; color:var(--ink);
+  text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg), 0 0 3px var(--bg), 0 0 3px var(--bg);
+  pointer-events:none; white-space:nowrap; z-index:5;
+  /* positioned by transform (not left/top) so moving a label during a
+     gesture is a compositor-only change, never a layout or repaint */
+  left:0; top:0; will-change:transform;
+}
+
+.convergence-ring { fill:none; stroke:var(--border-stroke); stroke-width:1.6; vector-effect:non-scaling-stroke; }
+
+#tooltip {
+  position:absolute; pointer-events:none; background:var(--panel-bg); border:1px solid rgba(156,122,46,0.5);
+  border-radius:4px; padding:8px 12px; font-size:13px; line-height:1.5; max-width:260px; color:var(--ink);
+  opacity:0; transform:translate(-50%,-100%); transition:opacity 0.1s ease; z-index:20;
+  box-shadow:0 6px 18px rgba(60,45,20,0.25);
+}
+#tooltip .t-name { font-family:var(--font-display); font-weight:600; color:var(--border-stroke); display:block; margin-bottom:2px; }
+#tooltip .t-year { font-family:var(--font-mono); color:var(--muted); font-size:11px; }
+#tooltip.t-multi { max-width:320px; }
+#tooltip .t-multi-row { padding-top:6px; margin-top:6px; border-top:1px solid rgba(156,122,46,0.25); }
+#tooltip .t-multi-row:first-of-type { border-top:none; margin-top:4px; padding-top:0; }
+#tooltip .t-multi-dest { font-weight:600; color:var(--border-stroke); }
+#tooltip .t-multi-more { font-family:var(--font-mono); color:var(--muted); font-size:10.5px; margin-top:6px; padding-top:6px; border-top:1px solid rgba(156,122,46,0.25); }
+
+#hud { position:absolute; top:14px; right:14px; display:flex; flex-direction:column; gap:8px; z-index:10; align-items:flex-end; }
+.hud-btn {
+  width:34px; height:34px; border-radius:6px; background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45);
+  color:var(--gold); font-size:18px; font-family:var(--font-mono); cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.hud-btn:hover { background:#efe4c4; }
+#zoomLevel { font-family:var(--font-mono); font-size:11px; color:var(--muted); background:var(--panel-bg); padding:3px 8px; border-radius:4px; border:1px solid rgba(156,122,46,0.3); }
+
+#legend {
+  position:absolute; left:14px; bottom:14px; background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4);
+  border-radius:8px; padding:12px 16px; z-index:10; max-width:300px;
+}
+#legend .cb-gradient { display:block; width:160px; height:10px; border-radius:3px; }
+#legend .cb-labels { display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:9px; color:var(--muted); width:160px; margin-bottom:8px; }
+#legend .lw-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:3px; }
+#legend .lw-swatch { width:22px; height:0; border-top-style:solid; border-color:#8a7248; }
+#legend .twin-swatch { width:22px; height:6px; border:none; background:
+  linear-gradient(#8a7248,#8a7248) top/100% 2px no-repeat,
+  linear-gradient(#8a7248,#8a7248) bottom/100% 2px no-repeat; }
+#legend .hint { font-family:var(--font-mono); font-size:10px; color:var(--muted); margin-top:8px; border-top:1px solid rgba(156,122,46,0.25); padding-top:6px; }
+
+#search-box { position:absolute; top:14px; left:14px; z-index:10; max-width:220px; }
+#search-modes { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:5px; }
+.mode-btn {
+  font-family:var(--font-mono); font-size:9.5px; padding:4px 7px; border-radius:5px; cursor:pointer;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4); color:var(--muted);
+}
+.mode-btn.active { background:var(--border-stroke); color:var(--panel-bg); border-color:var(--border-stroke); }
+.mode-btn:hover:not(.active) { background:rgba(156,122,46,0.15); }
+#path-status {
+  font-family:var(--font-mono); font-size:10.5px; color:var(--border-stroke); margin-bottom:4px; display:none;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4); border-radius:5px; padding:5px 8px;
+}
+#path-status.active { display:block; }
+#path-status .clear-path { color:var(--muted); cursor:pointer; text-decoration:underline; margin-left:6px; }
+#search-input {
+  font-family:var(--font-mono); font-size:12px; padding:7px 10px; width:150px;
+  border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
+}
+#search-input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; width:200px; }
+#surname-input {
+  font-family:var(--font-mono); font-size:12px; padding:7px 10px; width:150px;
+  border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
+}
+#surname-input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; width:200px; }
+#year-range-box { display:flex; align-items:center; gap:5px; }
+#year-range-box input {
+  font-family:var(--font-mono); font-size:12px; padding:7px 8px; width:62px; text-align:center;
+  border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
+  -moz-appearance:textfield;
+}
+#year-range-box input::-webkit-outer-spin-button, #year-range-box input::-webkit-inner-spin-button {
+  -webkit-appearance:none; margin:0;
+}
+#year-range-box input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; }
+#era-play-btn {
+  font-size:11px; padding:7px 9px; border:1px solid rgba(156,122,46,0.45); border-radius:6px;
+  background:var(--panel-bg); color:var(--border-stroke); cursor:pointer; line-height:1;
+}
+#era-play-btn:hover { background:rgba(156,122,46,0.15); }
+#era-play-btn.playing { background:var(--border-stroke); color:var(--panel-bg); }
+#year-range-box .yr-dash { color:var(--muted); font-family:var(--font-mono); font-size:12px; }
+#era-person-filter { margin-top:6px; position:relative; }
+#era-person-input {
+  font-family:var(--font-mono); font-size:12px; padding:7px 10px; width:150px;
+  border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
+}
+#era-person-input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; width:200px; }
+#era-person-chip {
+  display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:11.5px;
+  color:var(--border-stroke); background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45);
+  border-radius:6px; padding:6px 8px; max-width:200px;
+}
+#era-person-chip-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#era-person-chip .chip-clear { color:var(--muted); cursor:pointer; margin-left:auto; flex-shrink:0; }
+#era-person-chip .chip-clear:hover { color:var(--border-stroke); }
+#era-person-results {
+  position:absolute; top:38px; left:0; width:260px; max-height:220px; overflow-y:auto;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45); border-radius:6px;
+  box-shadow:0 8px 20px rgba(60,45,20,0.3); display:none; z-index:11;
+}
+#era-person-results.active { display:block; }
+#era-person-results .sr-item { padding:7px 10px; font-size:12px; cursor:pointer; border-bottom:1px solid rgba(156,122,46,0.15); }
+#era-person-results .sr-item:last-child { border-bottom:none; }
+#era-person-results .sr-item:hover, #era-person-results .sr-item.sel { background:rgba(156,122,46,0.15); }
+#era-person-results .sr-years { color:var(--muted); font-family:var(--font-mono); font-size:10.5px; }
+#search-results {
+  position:absolute; top:73px; left:0; width:260px; max-height:280px; overflow-y:auto;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45); border-radius:6px;
+  box-shadow:0 8px 20px rgba(60,45,20,0.3); display:none;
+}
+#search-results.active { display:block; }
+#search-results .sr-item {
+  padding:7px 10px; font-size:12px; cursor:pointer; border-bottom:1px solid rgba(156,122,46,0.15);
+}
+#search-results .sr-item:last-child { border-bottom:none; }
+#search-results .sr-item:hover, #search-results .sr-item.sel { background:rgba(156,122,46,0.15); }
+#search-results .sr-years { color:var(--muted); font-family:var(--font-mono); font-size:10px; }
+#search-results .sr-empty { padding:10px; font-size:12px; color:var(--muted); }
+
+@media (max-width: 640px) {
+  header p { display:none; }
+  header { padding:10px 14px 8px; }
+  .mode-btn { padding:15px 9px; font-size:11px; }
+  #search-input { width:110px; padding:14px 10px; font-size:13px; }
+  #search-input:focus { width:150px; }
+  #search-results { top:108px; }
+  #surname-input { width:110px; padding:14px 10px; font-size:13px; }
+  #surname-input:focus { width:150px; }
+  #year-range-box input { width:52px; padding:14px 6px; font-size:13px; }
+  #era-play-btn { padding:15px 17px; font-size:13px; }
+  #era-person-input { width:130px; padding:14px 10px; font-size:13px; }
+  #era-person-input:focus { width:170px; }
+  #era-person-results { top:51px; }
+  .hud-btn { width:44px; height:44px; font-size:20px; }
+  #legend { max-width:200px; padding:8px 10px; left:8px; bottom:8px; }
+  #legend .cb-gradient, #legend .cb-labels { width:120px; }
+  #legend .lw-item { font-size:9.5px; }
+  #legend .hint { font-size:8.5px; }
+  #hud { top:8px; right:8px; }
+  #focus-panel { max-width:94%; padding:8px 12px; gap:8px; flex-wrap:wrap; }
+  #route-picker { top:8px; max-width:94%; width:94%; }
+  #route-picker .picker-row { padding:12px 14px; font-size:12.5px; }
+  #focus-title { font-size:12px; }
+}
+
+#focus-panel {
+  position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:15;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.5); border-radius:8px;
+  padding:10px 18px; display:none; align-items:center; gap:14px; max-width:80%;
+  box-shadow:0 6px 20px rgba(60,45,20,0.3);
+}
+#focus-panel.active { display:flex; }
+#focus-title { font-family:var(--font-display); font-style:italic; font-size:14px; color:var(--ink); }
+#focus-sub {
+  font-family:var(--font-mono); font-size:11px; color:var(--border-stroke); cursor:pointer;
+  display:flex; align-items:center; gap:4px; padding:3px 6px; border-radius:4px;
+  border:1px solid rgba(156,122,46,0.4);
+}
+#focus-sub:hover { background:rgba(156,122,46,0.12); }
+#focus-sub .chevron { font-size:9px; transition:transform 0.15s ease; }
+#focus-sub.open .chevron { transform:rotate(180deg); }
+#focus-clear {
+  font-family:var(--font-mono); font-size:11px; background:var(--border-stroke); color:var(--panel-bg);
+  border:none; border-radius:4px; padding:5px 10px; cursor:pointer; flex-shrink:0;
+}
+#focus-clear:hover { opacity:0.85; }
+
+#focus-dropdown {
+  position:absolute; top:56px; left:50%; transform:translateX(-50%); z-index:14;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.5); border-radius:8px;
+  box-shadow:0 10px 26px rgba(60,45,20,0.35); max-width:520px; width:90%;
+  max-height:min(50vh, 420px); overflow-y:auto; display:none;
+}
+#focus-dropdown.active { display:block; }
+#focus-dropdown .move-row {
+  display:grid; grid-template-columns:3px 1fr; gap:10px; align-items:center;
+  padding:6px 14px; font-family:var(--font-mono); font-size:11.5px; color:var(--ink);
+  border-bottom:1px solid rgba(156,122,46,0.15); cursor:default;
+}
+#focus-dropdown .move-row:last-child { border-bottom:none; }
+#focus-dropdown .move-row:hover { background:rgba(156,122,46,0.1); }
+#focus-dropdown .move-year { color:var(--muted); }
+#focus-dropdown .move-bar { width:3px; height:16px; border-radius:2px; }
+#focus-dropdown .move-person { font-family:var(--font-display); font-style:italic; color:var(--border-stroke); }
+#focus-dropdown .move-place { color:var(--ink); }
+
+#route-picker {
+  position:absolute; top:56px; left:50%; transform:translateX(-50%); z-index:15;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.5); border-radius:8px;
+  box-shadow:0 10px 26px rgba(60,45,20,0.35); max-width:520px; width:90%;
+  max-height:min(60vh, 460px); overflow-y:auto; display:none;
+}
+#route-picker.active { display:block; }
+#route-picker .picker-header {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:9px 14px; font-family:var(--font-mono); font-size:11px; color:var(--muted);
+  border-bottom:1px solid rgba(156,122,46,0.3); position:sticky; top:0; background:var(--panel-bg);
+}
+#route-picker .picker-close { color:var(--muted); cursor:pointer; font-size:15px; line-height:1; }
+#route-picker .picker-close:hover { color:var(--border-stroke); }
+#route-picker .picker-row {
+  display:block; padding:8px 14px; font-family:var(--font-mono); font-size:11.5px; color:var(--ink);
+  border-bottom:1px solid rgba(156,122,46,0.15); cursor:pointer;
+}
+#route-picker .picker-row:last-child { border-bottom:none; }
+#route-picker .picker-row:hover { background:rgba(156,122,46,0.15); }
+#route-picker .picker-dest { font-family:var(--font-display); font-weight:600; color:var(--border-stroke); }
+#route-picker .picker-year { color:var(--muted); float:right; }
+#route-picker .picker-people { display:block; margin-top:1px; color:var(--ink); }
+</style>
+</head>
+<body>
+<header>
+  <span class="eyebrow">Direct-ancestor migration &middot; 1545&ndash;2026 &middot; interactive</span>
+  <h1 id="page-title">Migration Lines to Margaret Jean Hitchcock</h1>
+  <p>Scroll or pinch to zoom, drag to pan, hover any line for who traveled it. Click a line to trace its full generational thread to the current target, or set a new target / isolate a path between two people below.</p>
+</header>
+<div id="map-wrap">
+  <canvas id="basemap-canvas"></canvas>
+  <div id="map-stage">
+    <canvas id="routes-canvas" class="map-layer"></canvas>
+    <svg id="overlay-svg" class="map-layer"></svg>
+  </div>
+  <div id="zoom-capture" class="map-layer" role="application" aria-label="Interactive migration map. Use the search box to find an ancestor, or the zoom buttons to navigate."></div>
+  <div id="search-box">
+    <div id="search-modes" role="group" aria-label="Search mode">
+      <button class="mode-btn active" data-mode="target" title="Click a result to make them the map's target">Family journey</button>
+      <button class="mode-btn" data-mode="life" title="Click a result to see just their own movement">Life journey</button>
+      <button class="mode-btn" data-mode="path" title="Pick two people to isolate the path between them">Path between</button>
+      <button class="mode-btn" data-mode="era" title="Enter a year range to highlight journeys taken then">Time period</button>
+      <button class="mode-btn" data-mode="surname" title="Highlight every journey by anyone with a matching surname">Surname</button>
+    </div>
+    <div id="path-status"></div>
+    <input id="search-input" type="text" placeholder="Find an ancestor..." aria-label="Search for an ancestor by name" autocomplete="off">
+    <input id="surname-input" type="text" placeholder="e.g. Speer" aria-label="Filter by surname" autocomplete="off" style="display:none;">
+    <div id="year-range-box" style="display:none;">
+      <input id="year-from" type="number" placeholder="From" aria-label="Start year" inputmode="numeric">
+      <span class="yr-dash">&ndash;</span>
+      <input id="year-to" type="number" placeholder="To" aria-label="End year" inputmode="numeric">
+      <button id="era-play-btn" type="button" title="Play: sweep this range forward through time" aria-label="Play">&#9654;</button>
+    </div>
+    <div id="era-person-filter" style="display:none;">
+      <input id="era-person-input" type="text" placeholder="Limit to one person's ancestors (optional)..." aria-label="Optional: limit to one person's ancestors" autocomplete="off">
+      <div id="era-person-chip" style="display:none;"><span id="era-person-chip-name"></span><span class="chip-clear" title="Remove this filter">&times;</span></div>
+      <div id="era-person-results" role="listbox"></div>
+    </div>
+    <div id="search-results" role="listbox"></div>
+  </div>
+  <div id="focus-panel">
+    <span id="focus-title"></span>
+    <span id="focus-sub"></span>
+    <button id="focus-clear">&times; clear</button>
+  </div>
+  <div id="focus-dropdown"></div>
+  <div id="route-picker"></div>
+  <div id="tooltip"></div>
+  <div id="hud">
+    <button class="hud-btn" id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+    <button class="hud-btn" id="zoomOut" title="Zoom out" aria-label="Zoom out">&minus;</button>
+    <button class="hud-btn" id="zoomReset" title="Reset view" aria-label="Reset view" style="font-size:13px;">&#8634;</button>
+    <span id="zoomLevel">1.0&times;</span>
+  </div>
+  <div id="legend">
+    <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
+    <div class="cb-labels"><span>1545</span><span>1841</span><span>2026</span></div>
+    <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.7px;"></span> 1 ancestor on this route</div>
+    <div class="lw-item"><span class="lw-swatch" style="border-top-width:6px;"></span> 4 ancestors on this route</div>
+    <div class="lw-item"><span class="lw-swatch twin-swatch"></span> confirmed family traveling together</div>
+    <div class="lw-item"><span class="lw-swatch" style="border-top-width:9px;border-color:#8a7248;"></span> many ancestors, same general route (zoom in to split apart)</div>
+    <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.5px;border-top-style:dashed;"></span> short, repeated back-and-forth (e.g. two nearby towns)</div>
+    <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = detail &middot; search top-left</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="data.js"></script>
+<script>
+ROUTES.forEach((r,i)=>{ r._i = i; });
+PLACES.forEach((p,i)=>{ p._i = i; });
+REF_CITIES.forEach((p,i)=>{ p._i = i; });
+
+for (const p of SEARCH_INDEX) p.nameLower = p.name.toLowerCase();
+const YEAR_MIN = d3.min(ROUTES, d => d.mean_year);
+const YEAR_MAX = d3.max(ROUTES, d => d.mean_year);
+// d3.interpolateRdYlBu is non-trivial (parses + interpolates two colors per
+// call). Routes share far fewer distinct years than there are routes, so we
+// memoize by rounded year -- collapsing ~895 interpolations/frame into a few
+// dozen cache hits. Keyed to whole years; sub-year precision is invisible here.
+const _sortedYears = ROUTES.map(d => d.mean_year).sort((a,b) => a-b);
+function rankT(y) {
+  const i = d3.bisectLeft(_sortedYears, y);
+  return i / (_sortedYears.length - 1);
+}
+const _colorStops = ['#0f8a7a','#2050d6','#8033d6','#e0359e','#f0453f','#ff8c1a','#e8c020'];
+const _colorScale = d3.interpolateRgbBasis(_colorStops);
+const _colorCache = new Map();
+function colorForYear(y) {
+  const key = Math.round(y);
+  let c = _colorCache.get(key);
+  if (c === undefined) {
+    c = _colorScale(rankT(key));
+    _colorCache.set(key, c);
+  }
+  return c;
+}
+(function renderLegendGradient() {
+  const canvas = document.getElementById('cbGradientCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  for (let x = 0; x < w; x++) {
+    const y = YEAR_MIN + (x / (w - 1)) * (YEAR_MAX - YEAR_MIN);
+    ctx.fillStyle = _colorScale(rankT(y));
+    ctx.fillRect(x, 0, 1, canvas.height);
+  }
+})();
+function lwFor(count) { return 1.6 + count * 1.1; }
+
+// ============ genealogical graph algorithms (operate on GRAPH + PERSON_LEGS) ============
+function parentsOf(pid) { return (GRAPH.people[pid] && GRAPH.people[pid].parents) || []; }
+
+const ancestorSetMemo = {};
+function ancestorSetOf(pid) {
+  if (ancestorSetMemo[pid]) return ancestorSetMemo[pid];
+  const set = new Set([pid]);
+  for (const p of parentsOf(pid)) for (const a of ancestorSetOf(p)) set.add(a);
+  ancestorSetMemo[pid] = set;
+  return set;
+}
+const depthMemo = {};
+function depthOf(pid) {
+  if (pid in depthMemo) return depthMemo[pid];
+  const ps = parentsOf(pid);
+  const d = ps.length ? 1 + Math.max(...ps.map(depthOf)) : 0;
+  depthMemo[pid] = d;
+  return d;
+}
+// chain from `from` up to (and including) a CONFIRMED ancestor `to`, youngest-first
+function chainUpTo(from, to) {
+  const chain = [from];
+  let cur = from;
+  while (cur !== to) {
+    const next = parentsOf(cur).find(p => ancestorSetOf(p).has(to));
+    if (!next) break;
+    chain.push(next);
+    cur = next;
+  }
+  return chain;
+}
+// exact hop count from `from` up to `to` (BFS), or Infinity if not an ancestor
+function hopsToAncestor(from, to) {
+  if (from === to) return 0;
+  let frontier = [from], hops = 0, seen = new Set([from]);
+  while (frontier.length) {
+    hops++;
+    const next = [];
+    for (const pid of frontier) for (const p of parentsOf(pid)) {
+      if (p === to) return hops;
+      if (!seen.has(p)) { seen.add(p); next.push(p); }
+    }
+    frontier = next;
+  }
+  return Infinity;
+}
+// the "as far back as it goes" chain: at each generation, follow whichever
+// parent has the deeper remaining tree
+function deepestAncestorChain(pid) {
+  const chain = [pid];
+  let cur = pid;
+  while (true) {
+    const ps = parentsOf(cur);
+    if (!ps.length) break;
+    const next = ps.reduce((a,b) => depthOf(a) >= depthOf(b) ? a : b);
+    chain.push(next);
+    cur = next;
+  }
+  return chain;
+}
+// general path between any two people: direct ancestor-descendant if related
+// that way, otherwise via their closest common ancestor. Returns an ordered
+// person-chain from idA to idB, or null if genuinely unconnected.
+function findPath(idA, idB) {
+  if (idA === idB) return [idA];
+  const ancA = ancestorSetOf(idA), ancB = ancestorSetOf(idB);
+  if (ancA.has(idB)) return chainUpTo(idA, idB);
+  if (ancB.has(idA)) return chainUpTo(idB, idA).slice().reverse();
+  let best = null, bestHops = Infinity;
+  for (const c of ancA) {
+    if (!ancB.has(c)) continue;
+    const h = hopsToAncestor(idA, c) + hopsToAncestor(idB, c);
+    if (h < bestHops) { bestHops = h; best = c; }
+  }
+  if (!best) return null;
+  const upA = chainUpTo(idA, best);
+  const downB = chainUpTo(idB, best).slice().reverse().slice(1);
+  return upA.concat(downB);
+}
+// gather every leg for every person in an ordered chain into one flat,
+// chronologically-meaningful segment list (each person's own legs are
+// already in order; concatenating across the chain in order gives the
+// full multi-generation story)
+function assemblePath(chain) {
+  const segs = [];
+  for (const pid of chain) {
+    const legs = PERSON_LEGS[pid];
+    if (!legs) continue;
+    const name = (GRAPH.people[pid] && GRAPH.people[pid].name) || "?";
+    for (const l of legs) segs.push(Object.assign({ person: name }, l));
+  }
+  return segs;
+}
+
+const mapWrap = document.getElementById("map-wrap");
+const zoomLevelEl = document.getElementById("zoomLevel");
+// No viewBox: the overlay SVG uses stage pixels, and its group carries the
+// whole data -> stage mapping (see stageGroupTransform), so it, the routes
+// canvas and the basemap bitmap share one coordinate system, overscan
+// margin included.
+const mapStage = document.getElementById("map-stage");
+const overlaySvg = d3.select("#overlay-svg");
+const overlayG = overlaySvg.append("g");
+
+// ---- basemap: drawn into a bitmap off the main thread ----
+// Land, lakes, rivers and state borders used to be live SVG, which the GPU
+// had to repaint from its full path data (~324 KB for the near detail) on
+// every frame -- the slowest thing on the page. Now a worker draws them
+// with the CPU (2-3x faster than an integrated GPU for paths this size) and
+// hands back a finished bitmap, displayed zero-copy. The page never waits:
+// until a new bitmap arrives, the last one is shown stretched to fit.
+// Shapes, colours, widths and dashes match the old SVG styles
+// (.land/.river/.lake/.state-border); widths and dashes are in map units,
+// so they scale with zoom exactly as in SVG.
+const BASEMAP_DETAIL_THRESHOLD = 3.5;
+function drawBasemapInto(ctx, P, st, m, detailed) {
+  // m = [a, e, f]: map (x, y) -> device pixel (a*x + e, a*y + f)
+  ctx.setTransform(m[0], 0, 0, m[0], m[1], m[2]);
+  ctx.miterLimit = 4; // SVG's default; canvas defaults to 10
+  const land = detailed ? P.land_near : P.land_far;
+  const states = detailed ? P.states_near : P.states_far;
+  ctx.fillStyle = st.land; ctx.strokeStyle = st.landStroke; ctx.lineWidth = 0.012;
+  ctx.fill(land); ctx.stroke(land);
+  ctx.fill(P.central_america); ctx.stroke(P.central_america);
+  ctx.globalAlpha = 0.85; ctx.strokeStyle = st.lake; ctx.lineWidth = 0.018;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.stroke(P.rivers);
+  ctx.globalAlpha = 1; ctx.lineCap = "butt"; ctx.lineJoin = "miter";
+  ctx.fillStyle = st.lake; ctx.strokeStyle = st.landStroke; ctx.lineWidth = 0.02;
+  ctx.fill(P.lakes); ctx.stroke(P.lakes);
+  ctx.globalAlpha = 0.75; ctx.strokeStyle = st.stateStroke; ctx.lineWidth = 0.026;
+  ctx.setLineDash([0.2, 0.15]);
+  ctx.stroke(states);
+  ctx.setLineDash([]); ctx.globalAlpha = 1;
+}
+const BASEMAP_WORKER_SRC = `
+let P = null, st = null;
+${drawBasemapInto.toString()}
+onmessage = (e) => {
+  const d = e.data;
+  if (d.type === "init") {
+    P = {}; for (const n in d.paths) P[n] = new Path2D(d.paths[n]);
+    st = d.styles; return;
+  }
+  const c = new OffscreenCanvas(d.w, d.h);
+  drawBasemapInto(c.getContext("2d", { willReadFrequently: true }), P, st, d.m, d.detailed); // willReadFrequently = CPU drawing
+  const bmp = c.transferToImageBitmap();
+  postMessage({ id: d.id, bmp }, [bmp]);
+};`;
+const basemapCanvas = document.getElementById("basemap-canvas");
+const basemapBitmapCtx = basemapCanvas.getContext("bitmaprenderer");
+const basemapStyles = (() => {
+  const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
+  return { land: v("--land"), landStroke: v("--land-stroke"), lake: v("--lake"), stateStroke: v("--state-stroke") };
+})();
+let basemapWorker = null;
+try {
+  if (typeof OffscreenCanvas === "undefined" || typeof Worker === "undefined") throw 0;
+  basemapWorker = new Worker(URL.createObjectURL(new Blob([BASEMAP_WORKER_SRC], { type: "text/javascript" })));
+  basemapWorker.onmessage = e => basemapDrawn(e.data.id, e.data.bmp);
+  basemapWorker.onerror = () => { basemapWorker = null; basemapInFlight = null; requestBasemap(); }; // fall back to the main thread
+  const { land_far, land_near, states_far, states_near, lakes, rivers, central_america } = BASEMAP;
+  basemapWorker.postMessage({ type: "init", styles: basemapStyles,
+    paths: { land_far, land_near, states_far, states_near, lakes, rivers, central_america } });
+} catch (err) { basemapWorker = null; }
+let basemapMainPaths = null;
+// Fallback when workers can't draw (older browsers): same drawing, main thread.
+function drawBasemapMain(req) {
+  if (!basemapMainPaths) {
+    basemapMainPaths = {};
+    for (const n of ["land_far","land_near","states_far","states_near","lakes","rivers","central_america"]) basemapMainPaths[n] = new Path2D(BASEMAP[n]);
+  }
+  const c = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(req.w, req.h)
+    : Object.assign(document.createElement("canvas"), { width: req.w, height: req.h });
+  drawBasemapInto(c.getContext("2d", { willReadFrequently: true }), basemapMainPaths, basemapStyles, req.m, req.detailed);
+  return c.transferToImageBitmap ? Promise.resolve(c.transferToImageBitmap()) : createImageBitmap(c);
+}
+let basemapShownT = null;      // view the bitmap on screen was drawn at
+let basemapRequestedT = null;  // view of the latest request
+let basemapInFlight = null, basemapPending = false, basemapSeq = 0;
+// Ask for a basemap at the current view. At most one drawing is in flight;
+// while it runs, further requests collapse into one for the latest view.
+function requestBasemap() {
+  if (basemapRequestedT === currentTransform) return; // (computeBase clears it on resize)
+  if (basemapInFlight) { basemapPending = true; return; }
+  basemapPending = false;
+  const t = currentTransform, dpr = LAYER.dpr, k = base.scale * t.k;
+  const req = { type: "draw", id: ++basemapSeq, w: LAYER.wDev, h: LAYER.hDev,
+    m: [dpr * k, dpr * (LAYER.padX + base.offsetX + base.scale * t.x), dpr * (LAYER.padY + base.offsetY + base.scale * t.y)],
+    detailed: t.k > BASEMAP_DETAIL_THRESHOLD };
+  basemapRequestedT = t;
+  basemapInFlight = { id: req.id, t, w: req.w, h: req.h };
+  if (basemapWorker) basemapWorker.postMessage(req);
+  else drawBasemapMain(req).then(bmp => basemapDrawn(req.id, bmp));
+}
+function basemapDrawn(id, bmp) {
+  const info = basemapInFlight;
+  basemapInFlight = null;
+  if (info && info.id === id && info.w === basemapCanvas.width && info.h === basemapCanvas.height) {
+    basemapBitmapCtx.transferFromImageBitmap(bmp);
+    basemapShownT = info.t;
+    placeBasemap();
+  } else if (bmp.close) bmp.close(); // the window was resized meanwhile
+  if (basemapPending) requestBasemap();
+}
+// Stretch/shift the basemap bitmap from the view it was drawn at to the current one.
+function placeBasemap() {
+  if (!basemapShownT) { basemapCanvas.style.visibility = "hidden"; return; }
+  const { s, cx, cy } = layerShift(basemapShownT);
+  basemapCanvas.style.transform = (s === 1 && cx === 0 && cy === 0) ? "" : `translate(${cx}px,${cy}px) scale(${s})`;
+  basemapCanvas.style.visibility = "";
+}
+
+let CURRENT_TARGET = GRAPH.james_id;
+let TARGET_ANCESTOR_SET = ancestorSetOf(CURRENT_TARGET);
+
+const convRing = overlayG.append("circle").attr("class","convergence-ring").attr("r", 0.6);
+{
+  const [icx, icy] = targetConvPoint();
+  convRing.attr("cx", icx).attr("cy", icy);
+}
+const placesLayer = overlayG.append("g");
+const dotSel = placesLayer.selectAll("circle").data(PLACES).join("circle")
+  .attr("class","place-dot").attr("cx", d=>d.x).attr("cy", d=>d.y).attr("r", 0.1);
+const refDotSel = placesLayer.selectAll(".ref-city-dot").data(REF_CITIES).join("circle")
+  .attr("class","ref-city-dot").attr("cx", d=>d.x).attr("cy", d=>d.y).attr("r", 0.1);
+
+// --- canvas + zoom-capture setup ---
+const canvas = document.getElementById("routes-canvas");
+const ctx = canvas.getContext("2d");
+const zoomCapture = document.getElementById("zoom-capture");
+const tooltip = d3.select("#tooltip");
+let convLabelEl = null; // created once we know screen position (HTML overlay for crisp constant-size text)
+
+let currentTransform = d3.zoomIdentity;
+let base = { scale: 1, offsetX: 0, offsetY: 0 };
+
+function targetConvPoint() {
+  const p = GRAPH.people[CURRENT_TARGET];
+  return (p && p.bx != null) ? [p.bx, p.by_y] : [-41.501, 22.557]; // fall back to Ithaca if birthplace unresolved
+}
+function targetLabel() {
+  const p = GRAPH.people[CURRENT_TARGET];
+  if (!p) return "";
+  return `${p.name}${p.by ? ", b. " + p.by : ""}`;
+}
+function setTarget(pid) {
+  if (!GRAPH.people[pid]) return;
+  CURRENT_TARGET = pid;
+  TARGET_ANCESTOR_SET = ancestorSetOf(pid); // includes pid itself
+  recomputeClusterVisibility();
+  const name = GRAPH.people[pid].name;
+  document.title = `Migration Lines to ${name}`;
+  document.getElementById("page-title").textContent = `Migration Lines to ${name}`;
+  const [cx, cy] = targetConvPoint();
+  convRing.attr("cx", cx).attr("cy", cy);
+  positionConvLabel(true);
+  clearFocus();
+  redrawAll();
+  scheduleLabelUpdate();
+}
+
+// Overscan: the stage is drawn this many CSS px beyond each edge of the
+// visible map, so a pan can slide it that far before anything blank shows.
+let OVERSCAN = 0;
+// Geometry of the stage layers (routes canvas, overlay SVG, basemap bitmap).
+// Each is its own GPU layer, and a layer that doesn't start exactly on a
+// device pixel, or whose pixel size isn't exactly its CSS size x dpr, gets
+// resampled -- visibly blurred. So the margin is a whole number of device
+// pixels, the layers are nudged by the map's own sub-pixel offset on the
+// page (the header's height is rarely a whole number of device pixels), and
+// their CSS size is set from their pixel size. padX/padY = where the visible
+// map's top-left corner sits inside a layer, in CSS px.
+let LAYER = { dpr: 1, padX: 0, padY: 0, wDev: 1, hDev: 1 };
+function computeBase() {
+  const rect = mapWrap.getBoundingClientRect();
+  const dpr = layerDpr();
+  OVERSCAN = Math.round(0.3 * Math.max(rect.width, rect.height) * dpr) / dpr;
+  const M = OVERSCAN;
+  const fx = (rect.left * dpr - Math.floor(rect.left * dpr)) / dpr;
+  const fy = (rect.top * dpr - Math.floor(rect.top * dpr)) / dpr;
+  LAYER = { dpr, padX: M + fx, padY: M + fy,
+            wDev: Math.ceil((rect.width + 2 * M + fx) * dpr), hDev: Math.ceil((rect.height + 2 * M + fy) * dpr) };
+  const css = { left: -LAYER.padX + "px", top: -LAYER.padY + "px",
+                width: LAYER.wDev / dpr + "px", height: LAYER.hDev / dpr + "px",
+                transformOrigin: `${LAYER.padX}px ${LAYER.padY}px` }; // = the visible map's top-left corner
+  Object.assign(mapStage.style, css);
+  const scale = Math.min(rect.width / VB.w, rect.height / VB.h);
+  base = {
+    scale,
+    offsetX: (rect.width - VB.w * scale) / 2 - VB.x0 * scale,
+    offsetY: (rect.height - VB.h * scale) / 2 - VB.y0 * scale,
+    width: rect.width, height: rect.height,
+  };
+  canvas.width = LAYER.wDev;
+  canvas.height = LAYER.hDev;
+  canvas.style.width = css.width;
+  canvas.style.height = css.height;
+  // shift by the margin so all drawing code keeps using visible-map coordinates
+  ctx.setTransform(dpr, 0, 0, dpr, LAYER.padX * dpr, LAYER.padY * dpr);
+  // the basemap bitmap has the stage's geometry, in its own element
+  Object.assign(basemapCanvas.style, css);
+  basemapCanvas.width = LAYER.wDev;
+  basemapCanvas.height = LAYER.hDev;
+  basemapShownT = null; // resizing clears the canvas; a fresh bitmap is requested by the next redraw
+  basemapRequestedT = null;
+}
+// Device-pixel resolution of the stage layers, capped at 2x: a phone at 3x
+// with overscan would otherwise need canvases beyond what mobile browsers allow.
+function layerDpr() { return Math.min(window.devicePixelRatio || 1, 2); }
+// Snap a visible-map position to the device-pixel grid, so text placed by
+// transform (labels) is as crisp as text placed by layout.
+function snapX(x) { const f = LAYER.padX - OVERSCAN, d = window.devicePixelRatio || 1; return Math.round((x + f) * d) / d - f; }
+function snapY(y) { const f = LAYER.padY - OVERSCAN, d = window.devicePixelRatio || 1; return Math.round((y + f) * d) / d - f; }
+// How a layer drawn at view t0 must be scaled (about the visible map's
+// top-left corner) and shifted to show the current view: visible-map point
+// p drawn under t0 must now appear at s*p + (cx, cy).
+function layerShift(t0) {
+  const t = currentTransform, s = t.k / t0.k;
+  return { s, cx: base.scale * (t.x - s * t0.x) + base.offsetX * (1 - s),
+              cy: base.scale * (t.y - s * t0.y) + base.offsetY * (1 - s) };
+}
+// data -> stage-pixel transform for the SVG groups (same maths as dataToScreen, plus the margin)
+function stageGroupTransform() {
+  const t = currentTransform, k = t.k * base.scale;
+  return `translate(${LAYER.padX + base.offsetX + base.scale * t.x},${LAYER.padY + base.offsetY + base.scale * t.y}) scale(${k})`;
+}
+
+function dataToScreen(x, y) {
+  const vx = currentTransform.k * x + currentTransform.x;
+  const vy = currentTransform.k * y + currentTransform.y;
+  return [vx * base.scale + base.offsetX, vy * base.scale + base.offsetY];
+}
+
+// Flatten either curve mode into screen-space points, for hit-testing (both
+// modes) -- drawing itself uses the real quadraticCurveTo for bow mode rather
+// than these flattened points, so the rendered curve stays perfectly smooth.
+function curveScreenPts(curve) {
+  if (curve.mode === "path") {
+    return curve.coords.map(p => dataToScreen(p[0], p[1]));
+  }
+  const [x1,y1] = dataToScreen(curve.x1, curve.y1);
+  const [cx,cy] = dataToScreen(curve.cx, curve.cy);
+  const [x2,y2] = dataToScreen(curve.x2, curve.y2);
+  const pts = [];
+  const N = 10;
+  for (let i = 0; i <= N; i++) {
+    const t = i/N, mt = 1-t;
+    pts.push([mt*mt*x1 + 2*mt*t*cx + t*t*x2, mt*mt*y1 + 2*mt*t*cy + t*t*y2]);
+  }
+  return pts;
+}
+
+function strokeCurvePath(curve) {
+  ctx.beginPath();
+  if (curve.mode === "path") {
+    const pts = curve.coords.map(p => dataToScreen(p[0], p[1]));
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  } else {
+    const [x1,y1] = dataToScreen(curve.x1, curve.y1);
+    const [cx,cy] = dataToScreen(curve.cx, curve.cy);
+    const [x2,y2] = dataToScreen(curve.x2, curve.y2);
+    ctx.moveTo(x1,y1);
+    ctx.quadraticCurveTo(cx, cy, x2, y2);
+  }
+}
+// --- pts-based variants: reuse the already-transformed screen points
+// (the same array cached as r._screen) instead of re-projecting the curve.
+// curveScreenPts samples a quadratic at N=10, so a polyline through those
+// points is visually identical to quadraticCurveTo at these line widths. ---
+function strokeScreenPts(pts) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+}
+function strokeTwinPts(pts, offset) {
+  const [x1,y1] = pts[0], [x2,y2] = pts[pts.length-1];
+  const dx = x2-x1, dy = y2-y1, dist = Math.hypot(dx,dy) || 1;
+  const px = -dy/dist, py = dx/dist;
+  for (const sign of [-1, 1]) {
+    const ox = px*offset*sign, oy = py*offset*sign;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0]+ox, pts[0][1]+oy);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0]+ox, pts[i][1]+oy);
+    ctx.stroke();
+  }
+}
+
+function curveEndAngle(curve) {
+  if (curve.mode === "path") {
+    const pts = curve.coords;
+    const [ex,ey] = dataToScreen(pts[pts.length-1][0], pts[pts.length-1][1]);
+    const [px,py] = dataToScreen(pts[pts.length-2][0], pts[pts.length-2][1]);
+    return { ang: Math.atan2(ey-py, ex-px), ex, ey };
+  }
+  const [cx,cy] = dataToScreen(curve.cx, curve.cy);
+  const [ex,ey] = dataToScreen(curve.x2, curve.y2);
+  return { ang: Math.atan2(ey-cy, ex-cx), ex, ey };
+}
+function curveStartAngle(curve) {
+  if (curve.mode === "path") {
+    const pts = curve.coords;
+    const [sx,sy] = dataToScreen(pts[0][0], pts[0][1]);
+    const [nx,ny] = dataToScreen(pts[1][0], pts[1][1]);
+    return { ang: Math.atan2(sy-ny, sx-nx), ex: sx, ey: sy }; // pointing back toward the start
+  }
+  const [cx,cy] = dataToScreen(curve.cx, curve.cy);
+  const [sx,sy] = dataToScreen(curve.x1, curve.y1);
+  return { ang: Math.atan2(sy-cy, sx-cx), ex: sx, ey: sy };
+}
+function drawArrowhead({ang, ex, ey}, alen, color) {
+  ctx.beginPath();
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - alen*Math.cos(ang-0.45), ey - alen*Math.sin(ang-0.45));
+  ctx.lineTo(ex - alen*Math.cos(ang+0.45), ey - alen*Math.sin(ang+0.45));
+  ctx.closePath();
+  ctx.globalAlpha = 0.95;
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+let focusedAnchor = null; // person_id currently focused, or null
+
+function strokeTwin(curve, offset) {
+  // Two parallel strokes offset perpendicular to the route's overall
+  // direction -- approximates a true curve-normal offset well enough at this
+  // scale, and avoids needing per-point normals on a bow/great-circle curve.
+  const pts = curveScreenPts(curve);
+  const [x1,y1] = pts[0], [x2,y2] = pts[pts.length-1];
+  const dx = x2-x1, dy = y2-y1, dist = Math.hypot(dx,dy) || 1;
+  const px = -dy/dist, py = dx/dist;
+  for (const sign of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0]+px*offset*sign, pts[0][1]+py*offset*sign);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0]+px*offset*sign, pts[i][1]+py*offset*sign);
+    ctx.stroke();
+  }
+}
+
+let focusActive = false;
+
+const AGGREGATE_ZOOM_THRESHOLD = 4.5;
+const MIN_VISIBLE_CLUSTER_SIZE = 2; // matches server-side MIN_CLUSTER_SIZE
+function aggLwFor(count) { return 3 + Math.sqrt(count) * 2.1; }
+
+// Single shared definition of "is this route part of the current target's
+// story" -- used everywhere routes get filtered, so the ancestor-set check
+// and the per-target culmination check can't drift out of sync across
+// the different places that need them (main render, clusters, labels).
+function isRouteRelevant(r) {
+  if (r.anchor_ids && r.anchor_ids.length) {
+    for (const pid of r.anchor_ids) if (TARGET_ANCESTOR_SET.has(pid)) return true;
+    return false;
+  }
+  return !!r.anchor && TARGET_ANCESTOR_SET.has(r.anchor);
+}
+
+// Recomputed only when the target changes (not per-frame): for each cluster,
+// which of its member routes are actually relevant to the current target,
+// and what the aggregate's stats look like for just that subset -- so the
+// "37 ancestors" a cluster claims stays accurate rather than always
+// reflecting the full James-rooted total regardless of target.
+function recomputeClusterVisibility() {
+  for (const c of CLUSTERS) {
+    const vis = c.members.filter(idx => isRouteRelevant(ROUTES[idx]));
+    c._visMembers = vis;
+    c._visCount = vis.reduce((s,idx) => s + ROUTES[idx].count, 0);
+    c._visYears = vis.length ? vis.map(idx => ROUTES[idx].mean_year) : [c.mean_year];
+  }
+}
+
+// Data-space bounding box of a curve (a quadratic stays inside the hull of
+// its control points), cached on the object. Used to skip drawing anything
+// that lies wholly outside the stage -- at high zoom, most routes.
+function curveBBox(o) {
+  if (o._bbox) return o._bbox;
+  const c = o.curve;
+  const pts = c.mode === "path" ? c.coords : [[c.x1,c.y1],[c.cx,c.cy],[c.x2,c.y2]];
+  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
+  for (const [x,y] of pts) { if (x<x0) x0=x; if (x>x1) x1=x; if (y<y0) y0=y; if (y>y1) y1=y; }
+  return (o._bbox = [x0, y0, x1, y1]);
+}
+function offStage(o, pad) {
+  const [x0, y0, x1, y1] = curveBBox(o);
+  const [sx0, sy0] = dataToScreen(x0, y0), [sx1, sy1] = dataToScreen(x1, y1);
+  const M = OVERSCAN + pad;
+  return sx1 < -M || sx0 > base.width + M || sy1 < -M || sy0 > base.height + M;
+}
+
+function drawRoutes() {
+  ctx.clearRect(-LAYER.padX, -LAYER.padY, LAYER.wDev / LAYER.dpr, LAYER.hDev / LAYER.dpr);
+  const dimmed = focusActive;
+  const aggregating = !dimmed && currentTransform.k < AGGREGATE_ZOOM_THRESHOLD;
+
+  const hiddenByCluster = new Set(); // route indices absorbed into a visible aggregate
+  if (aggregating) {
+    for (const c of CLUSTERS) {
+      if (c._visMembers.length >= MIN_VISIBLE_CLUSTER_SIZE) for (const idx of c._visMembers) hiddenByCluster.add(idx);
+    }
+  }
+
+  const relevant = ROUTES.filter((r,idx) => isRouteRelevant(r) && !hiddenByCluster.has(idx));
+  const sorted = relevant.slice().sort((a,b) => b.count - a.count); // thick/rare first (bottom), thin/common last (top)
+  if (!isDragging) {
+    for (const r of ROUTES) r._screen = null; // clear stale hit-test data from any previously-visible, now-filtered-out routes
+    for (const c of CLUSTERS) c._screen = null;
+  }
+
+  let dashSet = false;
+  for (const r of sorted) {
+    if (offStage(r, 20)) continue; // 20px pad covers line width and arrowheads
+    // Transform this route's control points to screen space ONCE per frame,
+    // then reuse the same array for stroke, arrowheads, and hit-testing --
+    // previously each route was re-projected 3x (curveScreenPts + strokeCurvePath
+    // + curveEnd/StartAngle). While dragging we still need pts to draw, but skip
+    // stashing them on r._screen since hover isn't reachable mid-drag anyway.
+    const pts = curveScreenPts(r.curve);
+    if (!isDragging) r._screen = pts;
+    const color = dimmed ? "#8a7248" : colorForYear(r.mean_year); // computed once, reused below instead of 3x
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = dimmed ? 0.12 : 0.72;
+    const w = dimmed ? 1 : lwFor(r.count);
+    ctx.lineWidth = Math.max(w * 0.42, 1.1);
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    if (r.oscillation && !dimmed) { ctx.setLineDash([w*1.4, w*1.1]); dashSet = true; }
+    else if (dashSet) { ctx.setLineDash([]); dashSet = false; }
+    if (r.family_group && !dimmed) {
+      strokeTwinPts(pts, Math.max(w * 0.55, 1.6));
+    } else {
+      strokeScreenPts(pts);
+      ctx.lineWidth = w;
+      ctx.stroke();
+    }
+    if (dashSet) { ctx.setLineDash([]); dashSet = false; }
+    if (!dimmed) {
+      const alen = Math.max(9, lwFor(r.count) * 1.3);
+      // arrowhead angle stays curve-exact (reads the control point) -- only 2
+      // extra transforms, and keeps arrow orientation pixel-identical to before
+      drawArrowhead(curveEndAngle(r.curve), alen, color);
+      if (r.oscillation) drawArrowhead(curveStartAngle(r.curve), alen, color);
+    }
+  }
+
+  // aggregate cluster lines -- drawn after (on top of) individual routes so
+  // they read clearly as the summary of what's beneath them
+  if (aggregating) {
+    for (const c of CLUSTERS) {
+      if (c._visMembers.length < MIN_VISIBLE_CLUSTER_SIZE) continue;
+      if (offStage(c, 30)) continue;
+      const pts = curveScreenPts(c.curve); // transform once, reuse for stroke + arrowhead + hit-test
+      c._screen = pts;
+      const meanYear = c._visYears.reduce((a,b)=>a+b,0) / c._visYears.length;
+      const cColor = colorForYear(meanYear); // computed once, reused for stroke + arrow fill
+      ctx.strokeStyle = cColor;
+      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = aggLwFor(c._visCount);
+      ctx.lineJoin = "round"; ctx.lineCap = "round";
+      strokeScreenPts(pts);
+      ctx.stroke();
+      const { ang, ex, ey } = curveEndAngle(c.curve); // curve-exact arrowhead angle
+      const alen = 7 + aggLwFor(c._visCount)*0.5;
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex - alen*Math.cos(ang-0.35), ey - alen*Math.sin(ang-0.35));
+      ctx.lineTo(ex - alen*Math.cos(ang+0.35), ey - alen*Math.sin(ang+0.35));
+      ctx.closePath();
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = cColor;
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  if (focusActive) drawThread();
+}
+
+function drawThread(pid) {
+  const segs = currentFocusSegs;
+  if (!segs) return;
+  const someHovered = hoveredSegIdx >= 0;
+  segs.forEach((s, i) => {
+    const isHovered = i === hoveredSegIdx;
+    const curve = s.waypts
+      ? { mode: "path", coords: s.waypts }
+      : s.ocean
+      ? { mode: "path", coords: [[s.x1,s.y1],[s.x2,s.y2]] }
+      : { mode: "bow", x1: s.x1, y1: s.y1, cx: s.cx, cy: s.cy, x2: s.x2, y2: s.y2 };
+    if (isHovered) {
+      strokeCurvePath(curve);
+      ctx.strokeStyle = colorForYear(s.year);
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = 13;
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+    strokeCurvePath(curve);
+    ctx.strokeStyle = colorForYear(s.year);
+    ctx.globalAlpha = someHovered && !isHovered ? 0.45 : 0.95;
+    ctx.lineWidth = isHovered ? 6 : 4;
+    ctx.lineCap = "round";
+    ctx.stroke();
+    const { ang, ex, ey } = curveEndAngle(curve);
+    const alen = isHovered ? 12 : 9;
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - alen*Math.cos(ang-0.4), ey - alen*Math.sin(ang-0.4));
+    ctx.lineTo(ex - alen*Math.cos(ang+0.4), ey - alen*Math.sin(ang+0.4));
+    ctx.closePath();
+    ctx.fillStyle = colorForYear(s.year);
+    ctx.fill();
+    const [sx,sy] = dataToScreen(s.x1, s.y1);
+    ctx.beginPath();
+    ctx.arc(sx, sy, isHovered ? 4.2 : 2.6, 0, Math.PI*2);
+    ctx.fillStyle = "#2c2417";
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  if (focusedStationaryPoint) {
+    const [sx, sy] = dataToScreen(focusedStationaryPoint.x, focusedStationaryPoint.y);
+    ctx.beginPath();
+    ctx.arc(sx, sy, 9, 0, Math.PI*2);
+    ctx.strokeStyle = "#9c3c2e";
+    ctx.lineWidth = 2.5;
+    ctx.globalAlpha = 0.85;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(sx, sy, 3, 0, Math.PI*2);
+    ctx.fillStyle = "#9c3c2e";
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+let hoveredSegIdx = -1;
+let currentFocusSegs = null;
+
+function computeFocusSegs(pid) {
+  const ancestorsPart = deepestAncestorChain(pid).slice().reverse(); // oldest -> pid
+  const toTargetPart = findPath(pid, CURRENT_TARGET);
+  const fullChain = toTargetPart ? ancestorsPart.concat(toTargetPart.slice(1)) : ancestorsPart;
+  return assemblePath(fullChain);
+}
+
+// Renders any already-assembled chain of people as the focused thread --
+// shared by click-to-anchor (chain = deepest ancestors -> target) and the
+// explicit path-between-two-people tool (chain = findPath(A,B) directly).
+function renderFocusedChain(segs, titleHTML, peopleLabel) {
+  peopleLabel = peopleLabel || "generation";
+  currentFocusSegs = segs;
+  focusActive = segs.length > 0;
+  const years = segs.map(s=>s.year);
+  const people = [...new Set(segs.map(s=>s.person))];
+  document.getElementById("focus-title").innerHTML = titleHTML;
+  document.getElementById("focus-sub").innerHTML =
+    (years.length ? `${Math.min(...years)}\u2013${Math.max(...years)} \u00b7 ${people.length} ${peopleLabel}${people.length!==1?'s':''} \u00b7 ${segs.length} moves` : "") +
+    ` <span class="chevron">\u25be</span>`;
+  document.getElementById("focus-panel").classList.add("active");
+  buildFocusDropdown(segs);
+  closeFocusDropdown();
+  redrawAll();
+}
+
+let focusedStationaryPoint = null; // {x,y,label} when the focused person has no moves of their own
+
+function focusThread(pid) {
+  focusedAnchor = pid;
+  const segs = computeFocusSegs(pid);
+  const people = [...new Set(segs.map(s=>s.person))];
+  const targetName = (GRAPH.people[CURRENT_TARGET] || {}).name || "?";
+  const person = GRAPH.people[pid] || {};
+  const hasOwnMoves = PERSON_LEGS[pid] && PERSON_LEGS[pid].length > 0;
+  focusedStationaryPoint = (!hasOwnMoves && person.fx != null)
+    ? { x: person.fx, y: person.fy, label: person.name }
+    : null;
+  let title;
+  if (people.length) {
+    title = `${people[0]} \u2192 \u2026 \u2192 ${targetName}`;
+  } else if (person.name) {
+    title = person.fx != null
+      ? `${person.name} \u2014 no recorded moves (lived at one known location)`
+      : `${person.name} \u2014 no location data recorded`;
+  } else {
+    title = "";
+  }
+  renderFocusedChain(segs, title);
+}
+
+
+function buildFocusDropdown(segs) {
+  const dd = document.getElementById("focus-dropdown");
+  dd.innerHTML = "";
+  segs.forEach((s, i) => {
+    const row = document.createElement("div");
+    row.className = "move-row";
+    const color = colorForYear(s.year);
+    row.innerHTML =
+      `<span class="move-bar" style="background:${color}"></span>` +
+      `<span><span class="move-person">${s.person}</span> &mdash; <span class="move-place">${s.from} \u2192 ${s.to}</span> <span class="move-year">(arrived ${s.year})</span></span>`;
+    row.addEventListener("mouseenter", () => { hoveredSegIdx = i; redrawAll(); });
+    row.addEventListener("mouseleave", () => { hoveredSegIdx = -1; redrawAll(); });
+    dd.appendChild(row);
+  });
+}
+
+function toggleFocusDropdown() {
+  const dd = document.getElementById("focus-dropdown");
+  const sub = document.getElementById("focus-sub");
+  const opening = !dd.classList.contains("active");
+  dd.classList.toggle("active", opening);
+  sub.classList.toggle("open", opening);
+  if (!opening) { hoveredSegIdx = -1; redrawAll(); }
+}
+function closeFocusDropdown() {
+  document.getElementById("focus-dropdown").classList.remove("active");
+  document.getElementById("focus-sub").classList.remove("open");
+  hoveredSegIdx = -1;
+}
+document.getElementById("focus-sub").addEventListener("click", (e) => { e.stopPropagation(); toggleFocusDropdown(); });
+
+function clearFocus() {
+  focusedAnchor = null;
+  focusActive = false;
+  hoveredSegIdx = -1;
+  currentFocusSegs = null;
+  focusedStationaryPoint = null;
+  document.getElementById("focus-panel").classList.remove("active");
+  closeFocusDropdown();
+  redrawAll();
+}
+document.getElementById("focus-clear").onclick = clearFocus;
+
+// --- search: find an ancestor by name, jump to and focus their thread ---
+function zoomToFitSegs(segs) {
+  if (!segs.length) return;
+  let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+  for (const s of segs) {
+    for (const [x,y] of [[s.x1,s.y1],[s.x2,s.y2]]) {
+      minX=Math.min(minX,x); maxX=Math.max(maxX,x); minY=Math.min(minY,y); maxY=Math.max(maxY,y);
+    }
+  }
+  const padX = Math.max((maxX-minX)*0.15, 3), padY = Math.max((maxY-minY)*0.15, 3);
+  minX-=padX; maxX+=padX; minY-=padY; maxY+=padY;
+  const k = Math.max(1, Math.min(20, Math.min(VB.w/(maxX-minX), VB.h/(maxY-minY))));
+  const cx = (minX+maxX)/2, cy = (minY+maxY)/2;
+  const rect = mapWrap.getBoundingClientRect();
+  const vx = (rect.width/2 - base.offsetX)/base.scale, vy = (rect.height/2 - base.offsetY)/base.scale;
+  currentTransform = d3.zoomIdentity.translate(vx - cx*k, vy - cy*k).scale(k);
+  redrawAll();
+  scheduleLabelUpdate();
+}
+function zoomToPoint(x, y) {
+  const k = 8;
+  const rect = mapWrap.getBoundingClientRect();
+  const vx = (rect.width/2 - base.offsetX)/base.scale, vy = (rect.height/2 - base.offsetY)/base.scale;
+  currentTransform = d3.zoomIdentity.translate(vx - x*k, vy - y*k).scale(k);
+  redrawAll();
+  scheduleLabelUpdate();
+}
+
+const searchInput = document.getElementById("search-input");
+const searchResults = document.getElementById("search-results");
+let searchSelIdx = -1, searchMatches = [];
+
+function runSearch(q) {
+  q = q.trim().toLowerCase();
+  searchResults.innerHTML = "";
+  searchSelIdx = -1;
+  if (!q) { searchResults.classList.remove("active"); return; }
+  searchMatches = SEARCH_INDEX.filter(p => p.nameLower.includes(q)).slice(0, 25);
+  if (!searchMatches.length) {
+    searchResults.innerHTML = '<div class="sr-empty">No ancestor matches "' + q.replace(/</g,"") + '"</div>';
+    searchResults.classList.add("active");
+    return;
+  }
+  searchMatches.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "sr-item";
+    row.setAttribute("role","option");
+    row.innerHTML = `${p.name}${p.birt ? ` <span class="sr-years">b. ${p.birt}</span>` : ""}`;
+    row.addEventListener("click", () => selectSearchResult(i));
+    searchResults.appendChild(row);
+  });
+  searchResults.classList.add("active");
+}
+let searchMode = "target"; // "target" | "life" | "path" | "era"
+let pathPickA = null;
+
+function updatePathStatus() {
+  const el = document.getElementById("path-status");
+  if (searchMode !== "path") { el.classList.remove("active"); return; }
+  el.classList.add("active");
+  if (!pathPickA) {
+    el.innerHTML = "Pick the first person...";
+    searchInput.placeholder = "Find the first person...";
+  } else {
+    const nameA = (GRAPH.people[pathPickA]||{}).name || "?";
+    el.innerHTML = `From <b>${nameA}</b> \u2014 now pick the second person... <span class="clear-path">cancel</span>`;
+    el.querySelector(".clear-path").onclick = () => { pathPickA = null; updatePathStatus(); };
+    searchInput.placeholder = "Find the second person...";
+  }
+}
+
+function selectSearchResult(i) {
+  const p = searchMatches[i];
+  if (!p) return;
+  searchResults.classList.remove("active");
+  if (searchMode === "target") {
+    searchInput.value = "";
+    setTarget(p.id);
+  } else if (searchMode === "life") {
+    searchInput.value = "";
+    const segs = assemblePath([p.id]);
+    const person = GRAPH.people[p.id] || {};
+    focusedAnchor = null;
+    const hasOwnMoves = PERSON_LEGS[p.id] && PERSON_LEGS[p.id].length > 0;
+    focusedStationaryPoint = (!hasOwnMoves && person.fx != null) ? { x: person.fx, y: person.fy, label: p.name } : null;
+    if (hasOwnMoves) {
+      zoomToFitSegs(segs);
+      renderFocusedChain(segs, `${p.name}'s life journey`);
+    } else if (person.fx != null) {
+      zoomToPoint(person.fx, person.fy);
+      renderFocusedChain([], `${p.name} \u2014 no recorded moves (lived at one known location)`);
+    } else {
+      renderFocusedChain([], `${p.name} \u2014 no location data recorded`);
+    }
+  } else if (searchMode === "path") {
+    if (!pathPickA) {
+      pathPickA = p.id;
+      searchInput.value = "";
+      updatePathStatus();
+    } else {
+      const idB = p.id;
+      searchInput.value = "";
+      const chain = findPath(pathPickA, idB);
+      const segs = chain ? assemblePath(chain) : [];
+      if (segs.length) zoomToFitSegs(segs);
+      const nameA = (GRAPH.people[pathPickA]||{}).name || "?", nameB = (GRAPH.people[idB]||{}).name || "?";
+      focusedAnchor = null;
+      focusedStationaryPoint = null;
+      let title;
+      if (segs.length) title = `${nameA} \u2192 \u2026 \u2192 ${nameB}`;
+      else if (chain) title = `${nameA} and ${nameB} are related, but no one in between has any recorded moves`;
+      else title = "No connection found between these two people";
+      renderFocusedChain(segs, title);
+      pathPickA = null;
+      updatePathStatus();
+    }
+  }
+}
+document.querySelectorAll(".mode-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    searchMode = btn.dataset.mode;
+    pathPickA = null;
+    updatePathStatus();
+    const isEra = searchMode === "era";
+    const isSurname = searchMode === "surname";
+    searchInput.style.display = (isEra || isSurname) ? "none" : "";
+    document.getElementById("year-range-box").style.display = isEra ? "flex" : "none";
+    document.getElementById("era-person-filter").style.display = isEra ? "block" : "none";
+    surnameInput.style.display = isSurname ? "" : "none";
+    if (isEra) {
+      searchResults.classList.remove("active");
+      yearFromInput.focus();
+    } else if (isSurname) {
+      searchResults.classList.remove("active");
+      surnameInput.focus();
+    } else {
+      searchInput.placeholder = searchMode === "target" ? "Find someone to set as target..."
+        : searchMode === "life" ? "Find someone to see their life journey..." : "Find the first person...";
+      searchInput.focus();
+    }
+  });
+});
+searchInput.addEventListener("input", () => runSearch(searchInput.value));
+searchInput.addEventListener("keydown", (e) => {
+  const rows = searchResults.querySelectorAll(".sr-item");
+  if (e.key === "ArrowDown") { e.preventDefault(); searchSelIdx = Math.min(searchSelIdx+1, rows.length-1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); searchSelIdx = Math.max(searchSelIdx-1, 0); }
+  else if (e.key === "Enter") { if (searchSelIdx>=0) selectSearchResult(searchSelIdx); return; }
+  else if (e.key === "Escape") { searchResults.classList.remove("active"); searchInput.blur(); return; }
+  else return;
+  rows.forEach((r,i) => r.classList.toggle("sel", i===searchSelIdx));
+  if (rows[searchSelIdx]) rows[searchSelIdx].scrollIntoView({block:"nearest"});
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#search-box")) searchResults.classList.remove("active");
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#route-picker") && !e.target.closest("#zoom-capture")) closeRoutePicker();
+});
+
+// --- Time period mode: highlight every voyage whose arrival year falls
+// within the entered range, using the same dim-everything-else rendering
+// as Path between (renderFocusedChain), but sourced from every person's
+// legs rather than one connected genealogical chain. ---
+const yearFromInput = document.getElementById("year-from");
+const yearToInput = document.getElementById("year-to");
+let yearRangeDebounce = null;
+let eraPersonFilterID = null;
+
+function computeYearRangeSegs(minYear, maxYear, ancestorSet) {
+  const segs = [];
+  for (const pid in PERSON_LEGS) {
+    if (ancestorSet && !ancestorSet.has(pid)) continue;
+    const legs = PERSON_LEGS[pid];
+    if (!legs || !legs.length) continue;
+    const name = (GRAPH.people[pid] && GRAPH.people[pid].name) || "?";
+    for (const l of legs) {
+      if (l.year >= minYear && l.year <= maxYear) segs.push(Object.assign({ person: name }, l));
+    }
+  }
+  return segs;
+}
+
+function applyYearRange() {
+  const fromVal = yearFromInput.value.trim(), toVal = yearToInput.value.trim();
+  if (!fromVal || !toVal) { return; } // wait for both bounds before rendering anything
+  let a = parseInt(fromVal, 10), b = parseInt(toVal, 10);
+  if (isNaN(a) || isNaN(b)) return;
+  const minYear = Math.min(a, b), maxYear = Math.max(a, b); // forgiving of bounds entered backwards
+  focusedAnchor = null;
+  focusedStationaryPoint = null;
+  const ancestorSet = eraPersonFilterID ? ancestorSetOf(eraPersonFilterID) : null;
+  const segs = computeYearRangeSegs(minYear, maxYear, ancestorSet);
+  const personName = eraPersonFilterID ? ((GRAPH.people[eraPersonFilterID]||{}).name || "?") : null;
+  const scopeText = personName ? `${personName}\u2019s ancestors\u2019 journeys` : "Journeys";
+  const title = segs.length
+    ? `${scopeText}, ${minYear}\u2013${maxYear}`
+    : `${personName ? personName + "\u2019s ancestors have " : "There are "}no recorded journeys between ${minYear} and ${maxYear}`;
+  if (segs.length) zoomToFitSegs(segs);
+  renderFocusedChain(segs, title, "ancestor");
+}
+function scheduleYearRangeApply() {
+  if (playInterval) stopPlayback();
+  clearTimeout(yearRangeDebounce);
+  yearRangeDebounce = setTimeout(applyYearRange, 500);
+}
+[yearFromInput, yearToInput].forEach(inp => {
+  inp.addEventListener("input", scheduleYearRangeApply);
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { clearTimeout(yearRangeDebounce); applyYearRange(); inp.blur(); }
+  });
+});
+
+// Playback: always sweeps the *full* timeline from its earliest year,
+// using whatever window width is currently set (or a sensible default if
+// empty) -- it does not continue from wherever the user's own from/to
+// happen to be, since that would drag a manually-chosen period toward the
+// present rather than showing the intended "watch it unfold" sweep.
+const playBtn = document.getElementById("era-play-btn");
+const MAP_MIN_YEAR = Math.floor(YEAR_MIN), MAP_MAX_YEAR = Math.ceil(YEAR_MAX);  // derived from the data so playback never stops short
+const PLAY_STEP_YEARS = 2, PLAY_TICK_MS = 200;
+let playInterval = null;
+function startPlayback() {
+  let a = parseInt(yearFromInput.value, 10), b = parseInt(yearToInput.value, 10);
+  const width = (!isNaN(a) && !isNaN(b)) ? Math.max(Math.abs(b - a), 1) : 25;
+  yearFromInput.value = MAP_MIN_YEAR;
+  yearToInput.value = MAP_MIN_YEAR + width;
+  applyYearRange();
+  playBtn.textContent = "\u23F8";
+  playBtn.title = "Pause";
+  playBtn.classList.add("playing");
+  playInterval = setInterval(() => {
+    let from = parseInt(yearFromInput.value, 10) + PLAY_STEP_YEARS;
+    let to = parseInt(yearToInput.value, 10) + PLAY_STEP_YEARS;
+    if (to >= MAP_MAX_YEAR) { to = MAP_MAX_YEAR; from = to - width; stopPlayback(); }
+    yearFromInput.value = from;
+    yearToInput.value = to;
+    applyYearRange();
+  }, PLAY_TICK_MS);
+}
+function stopPlayback() {
+  if (playInterval) { clearInterval(playInterval); playInterval = null; }
+  playBtn.textContent = "\u25B6";
+  playBtn.title = "Play: sweep this range forward through time";
+  playBtn.classList.remove("playing");
+}
+playBtn.addEventListener("click", () => { if (playInterval) stopPlayback(); else startPlayback(); });
+
+// optional person filter within Time period mode: a small, self-contained
+// search (separate from the main search-input, which is hidden in this mode)
+const eraPersonInput = document.getElementById("era-person-input");
+const eraPersonResults = document.getElementById("era-person-results");
+const eraPersonChip = document.getElementById("era-person-chip");
+const eraPersonChipName = document.getElementById("era-person-chip-name");
+let eraPersonMatches = [], eraPersonSelIdx = -1;
+
+function runEraPersonSearch(q) {
+  q = q.trim().toLowerCase();
+  eraPersonResults.innerHTML = "";
+  eraPersonSelIdx = -1;
+  if (!q) { eraPersonResults.classList.remove("active"); return; }
+  eraPersonMatches = SEARCH_INDEX.filter(p => p.nameLower.includes(q)).slice(0, 25);
+  if (!eraPersonMatches.length) {
+    eraPersonResults.innerHTML = '<div class="sr-empty">No ancestor matches "' + q.replace(/</g,"") + '"</div>';
+    eraPersonResults.classList.add("active");
+    return;
+  }
+  eraPersonMatches.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "sr-item";
+    row.setAttribute("role","option");
+    row.innerHTML = `${p.name}${p.birt ? ` <span class="sr-years">b. ${p.birt}</span>` : ""}`;
+    row.addEventListener("click", () => selectEraPerson(i));
+    eraPersonResults.appendChild(row);
+  });
+  eraPersonResults.classList.add("active");
+}
+function selectEraPerson(i) {
+  const p = eraPersonMatches[i];
+  if (!p) return;
+  eraPersonFilterID = p.id;
+  eraPersonInput.value = "";
+  eraPersonResults.classList.remove("active");
+  eraPersonInput.style.display = "none";
+  eraPersonChipName.textContent = p.name;
+  eraPersonChip.style.display = "flex";
+  applyYearRange();
+}
+eraPersonChip.querySelector(".chip-clear").addEventListener("click", () => {
+  eraPersonFilterID = null;
+  eraPersonChip.style.display = "none";
+  eraPersonInput.style.display = "";
+  applyYearRange();
+});
+eraPersonInput.addEventListener("input", () => runEraPersonSearch(eraPersonInput.value));
+eraPersonInput.addEventListener("keydown", (e) => {
+  const rows = eraPersonResults.querySelectorAll(".sr-item");
+  if (e.key === "ArrowDown") { e.preventDefault(); eraPersonSelIdx = Math.min(eraPersonSelIdx+1, rows.length-1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); eraPersonSelIdx = Math.max(eraPersonSelIdx-1, 0); }
+  else if (e.key === "Enter") { if (eraPersonSelIdx>=0) selectEraPerson(eraPersonSelIdx); return; }
+  else if (e.key === "Escape") { eraPersonResults.classList.remove("active"); eraPersonInput.blur(); return; }
+  else return;
+  rows.forEach((r,i) => r.classList.toggle("sel", i===eraPersonSelIdx));
+  if (rows[eraPersonSelIdx]) rows[eraPersonSelIdx].scrollIntoView({block:"nearest"});
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#era-person-filter")) eraPersonResults.classList.remove("active");
+});
+
+// --- Surname mode: highlight every journey by anyone with a matching
+// surname, regardless of how they relate to each other or to the current
+// target. Matches the surname as a whole word anywhere in the person's
+// name (not the full display name), since middle names in this dataset can
+// look like surnames without being the person's own maiden name (e.g.
+// "Speer" in "Katherine Speer Hitchcock" -- her actual surname is Hitchcock).
+const surnameInput = document.getElementById("surname-input");
+let surnameDebounce = null;
+
+function computeSurnameSegs(surname) {
+  const target = surname.trim().toLowerCase();
+  const segs = [];
+  for (const pid in PERSON_LEGS) {
+    const person = GRAPH.people[pid];
+    if (!person || !person.surname || person.surname.toLowerCase() !== target) continue;
+    const legs = PERSON_LEGS[pid];
+    if (!legs || !legs.length) continue;
+    for (const l of legs) segs.push(Object.assign({ person: person.name }, l));
+  }
+  return segs;
+}
+function applySurnameFilter() {
+  const val = surnameInput.value.trim();
+  if (val.length < 2) { return; }
+  focusedAnchor = null;
+  focusedStationaryPoint = null;
+  const segs = computeSurnameSegs(val);
+  const peopleCount = new Set(segs.map(s => s.person)).size;
+  const title = segs.length
+    ? `Every ${val}`
+    : `No journeys found for "${val}"`;
+  if (segs.length) zoomToFitSegs(segs);
+  const label = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+  renderFocusedChain(segs, title, label);
+}
+function scheduleSurnameApply() {
+  clearTimeout(surnameDebounce);
+  surnameDebounce = setTimeout(applySurnameFilter, 500);
+}
+surnameInput.addEventListener("input", scheduleSurnameApply);
+surnameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { clearTimeout(surnameDebounce); applySurnameFilter(); surnameInput.blur(); }
+});
+
+
+
+
+
+
+const BASE_DOT_R = 0.1, BASE_RING_R = 0.6;
+
+// ---- gestures: move the finished picture, redraw sharp when the gesture settles ----
+// renderedTransform is the view the stage was last fully drawn at. While a
+// pan/zoom is in progress, gestureFrame() only computes how the stage must
+// be scaled and shifted to match the current view and applies that as a CSS
+// transform (the GPU just moves an existing image -- no repainting). Labels
+// stay crisp and constant-size: each is its own layer, moved by transform.
+// A wheel or trackpad zoom settles SETTLE_MS after its last event; a drag or
+// pinch settles when the button or fingers are lifted (never while held).
+let renderedTransform = d3.zoomIdentity;
+let gestureActive = false, settleTimer = null, touchCount = 0;
+const SETTLE_MS = 150;
+// Redraw mid-gesture (one full frame) rather than stretch the image further
+// than this, or when the drawn area no longer covers the visible map.
+const MAX_STRETCH = 2.5, MIN_STRETCH = 0.4;
+
+function noteGesture() {
+  if (!gestureActive) { gestureActive = true; hideTip(); }
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(settleWhenReleased, SETTLE_MS);
+}
+function settleWhenReleased() {
+  if (isDragging || touchCount > 0) { settleTimer = setTimeout(settleWhenReleased, SETTLE_MS); return; }
+  settle();
+}
+function settle() {
+  clearTimeout(settleTimer); settleTimer = null;
+  gestureActive = false;
+  redrawAll();
+  updateLabels();
+}
+// is a layer drawn at view t0 still usable for the current view?
+function layerCovers(t0) {
+  const { s, cx, cy } = layerShift(t0), M = OVERSCAN;
+  return s <= MAX_STRETCH && s >= MIN_STRETCH &&
+    -M * s + cx <= 0 && (base.width + M) * s + cx >= base.width &&
+    -M * s + cy <= 0 && (base.height + M) * s + cy >= base.height;
+}
+function gestureFrame() {
+  if (!layerCovers(renderedTransform)) { redrawAll(); return; }
+  const { s, cx, cy } = layerShift(renderedTransform);
+  mapStage.style.transform = `translate(${cx}px,${cy}px) scale(${s})`;
+  if (basemapShownT && !layerCovers(basemapShownT)) requestBasemap(); // arrives a few frames later
+  placeBasemap();
+  moveLabels();
+  zoomLevelEl.textContent = currentTransform.k.toFixed(1) + "×";
+}
+
+// Full, sharp render of every layer at the current view. The basemap is
+// requested here and swapped in when its worker finishes; until then the
+// previous bitmap is shown, stretched to the new view.
+function redrawAll() {
+  overlayG.attr("transform", stageGroupTransform());
+  requestBasemap();
+  placeBasemap();
+  dotSel.attr("r", BASE_DOT_R / currentTransform.k);
+  refDotSel.attr("r", BASE_DOT_R / currentTransform.k);
+  convRing.attr("r", BASE_RING_R / currentTransform.k);
+  drawRoutes();
+  mapStage.style.transform = "";
+  renderedTransform = currentTransform;
+  moveLabels();
+  zoomLevelEl.textContent = currentTransform.k.toFixed(1) + "\u00d7";
+}
+
+// Keep every shown label (and the target's label) pinned to its place at
+// the current view. Transform-only, so it never triggers layout or paint.
+function moveLabels() {
+  positionConvLabel();
+  for (const div of labelPool) if (div._x != null && div.style.display !== "none") placeLabelDiv(div);
+  for (const div of refLabelPool) if (div._x != null && div.style.display !== "none") placeLabelDiv(div);
+}
+function placeLabelDiv(div) {
+  const [sx, sy] = dataToScreen(div._x, div._y);
+  div.style.transform = `translate(${snapX(sx + 3)}px,${snapY(sy - 16)}px)`;
+}
+
+function positionConvLabel(forceTextUpdate) {
+  if (!convLabelEl) {
+    convLabelEl = document.createElement("div");
+    convLabelEl.style.position = "absolute";
+    convLabelEl.style.left = "0"; convLabelEl.style.top = "0";
+    convLabelEl.style.willChange = "transform";
+    convLabelEl.style.whiteSpace = "nowrap";
+    convLabelEl.style.zIndex = "5";
+    convLabelEl.style.fontFamily = "var(--font-display)";
+    convLabelEl.style.fontStyle = "italic";
+    convLabelEl.style.fontSize = "15px";
+    convLabelEl.style.color = "#2c2417";
+    convLabelEl.style.textShadow = "0 0 4px #ece2c8, 0 0 4px #ece2c8, 0 0 4px #ece2c8";
+    convLabelEl.style.pointerEvents = "none";
+    forceTextUpdate = true;
+    mapWrap.appendChild(convLabelEl);
+  }
+  if (forceTextUpdate) convLabelEl.textContent = targetLabel();
+  const [tx, ty] = targetConvPoint();
+  const [sx, sy] = dataToScreen(tx, ty);
+  convLabelEl.style.transform = `translate(${snapX(sx + 10)}px,${snapY(sy - 12)}px)`;
+}
+
+// --- place-label collision avoidance (debounced, screen-space greedy placement) ---
+// Labels are plain HTML divs (pooled/reused), NOT SVG text, so their font-size stays a
+// real constant screen size -- SVG text inside the zoom-transformed group would silently
+// inherit the zoom scale despite a fixed font-size value, which is exactly the bug from
+// two revisions ago.
+const labelPool = [];
+function getPooledLabel(i) {
+  while (labelPool.length <= i) {
+    const div = document.createElement("div");
+    div.className = "place-label-html";
+    div.style.display = "none";
+    mapWrap.appendChild(div);
+    labelPool.push(div);
+  }
+  return labelPool[i];
+}
+const refLabelPool = [];
+function getPooledRefLabel(i) {
+  while (refLabelPool.length <= i) {
+    const div = document.createElement("div");
+    div.className = "place-label-html ref-label";
+    div.style.display = "none";
+    mapWrap.appendChild(div);
+    refLabelPool.push(div);
+  }
+  return refLabelPool[i];
+}
+
+let labelUpdateTimer = null;
+function scheduleLabelUpdate() {
+  clearTimeout(labelUpdateTimer);
+  labelUpdateTimer = setTimeout(updateLabels, 120);
+}
+function currentlyVisibleRoutes() {
+  return ROUTES.filter(isRouteRelevant);
+}
+function routeEndpoints(r) {
+  const c = r.curve;
+  return c.mode === "path" ? [c.coords[0], c.coords[c.coords.length-1]] : [[c.x1,c.y1],[c.x2,c.y2]];
+}
+
+function updateLabels() {
+  const rect = mapWrap.getBoundingClientRect();
+  const margin = 40;
+  const placed = [];
+  const visiblePlaceKeys = new Set();
+  for (const r of currentlyVisibleRoutes()) {
+    for (const [x,y] of routeEndpoints(r)) visiblePlaceKeys.add(Math.round(x*10)+","+Math.round(y*10));
+  }
+  const candidates = PLACES.filter(p => visiblePlaceKeys.has(Math.round(p.x*10)+","+Math.round(p.y*10)))
+    .sort((a,b) => a.tier - b.tier || b.touches - a.touches);
+  const visibleIdx = new Set();
+  const shownPositions = [];
+  for (const p of candidates) {
+    const [sx, sy] = dataToScreen(p.x, p.y);
+    if (sx < -margin || sx > rect.width+margin || sy < -margin || sy > rect.height+margin) continue;
+    const w = p.label.length * 6.2 + 12, h = 15;
+    const box = { x1: sx, y1: sy-h, x2: sx+w, y2: sy };
+    const overlaps = placed.some(b => !(box.x2<b.x1 || box.x1>b.x2 || box.y2<b.y1 || box.y1>b.y2));
+    if (!overlaps) {
+      placed.push(box);
+      visibleIdx.add(p._i);
+      shownPositions.push([p, sx, sy]);
+    }
+    if (placed.length > 60) break; // hard cap regardless of zoom -- never show more than this at once
+  }
+  dotSel.classed("visible", d => visibleIdx.has(d._i));
+  shownPositions.forEach(([p], slot) => showLabelDiv(getPooledLabel(slot), p));
+  for (let i = shownPositions.length; i < labelPool.length; i++) labelPool[i].style.display = "none";
+
+  // reference cities: purely for atlas-style orientation, so only once
+  // genuinely zoomed in, and only where they don't crowd out anything
+  // family-relevant (checked against the SAME collision boxes above)
+  const showRefCities = currentTransform.k > 3;
+  const refVisibleIdx = new Set();
+  const refShown = [];
+  if (showRefCities) {
+    for (const p of REF_CITIES) {
+      const [sx, sy] = dataToScreen(p.x, p.y);
+      if (sx < -margin || sx > rect.width+margin || sy < -margin || sy > rect.height+margin) continue;
+      const w = p.label.length * 6.2 + 12, h = 15;
+      const box = { x1: sx, y1: sy-h, x2: sx+w, y2: sy };
+      const overlaps = placed.some(b => !(box.x2<b.x1 || box.x1>b.x2 || box.y2<b.y1 || box.y1>b.y2));
+      if (!overlaps) {
+        placed.push(box);
+        refVisibleIdx.add(p._i);
+        refShown.push([p, sx, sy]);
+      }
+      if (refShown.length > 20) break;
+    }
+  }
+  refDotSel.classed("visible", d => refVisibleIdx.has(d._i));
+  refShown.forEach(([p], slot) => showLabelDiv(getPooledRefLabel(slot), p));
+  for (let i = refShown.length; i < refLabelPool.length; i++) refLabelPool[i].style.display = "none";
+}
+// Show pooled label `div` for place p. The label remembers its map position
+// so gestures can move it; text is only rewritten when it changes, since a
+// text change is what makes the browser repaint the label.
+function showLabelDiv(div, p) {
+  if (div.textContent !== p.label) div.textContent = p.label;
+  div._x = p.x; div._y = p.y;
+  placeLabelDiv(div);
+  if (div.style.display !== "block") div.style.display = "block";
+}
+
+// --- zoom via manual wheel/drag on the capture layer (avoids d3-zoom's SVG-CTM assumptions
+//     across three separate rendering surfaces) ---
+let isDragging = false, dragStart = null, transformStart = null, dragMoved = 0;
+zoomCapture.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const rect = mapWrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const factor = Math.pow(1.0015, -e.deltaY);
+  applyZoomAt(mx, my, factor);
+}, { passive:false });
+
+zoomCapture.addEventListener("mousedown", (e) => {
+  isDragging = true; zoomCapture.classList.add("dragging");
+  dragStart = [e.clientX, e.clientY]; transformStart = currentTransform;
+  dragMoved = 0;
+});
+// Pan/zoom input: at most one gestureFrame per animation frame. Labels are
+// laid out again only when the gesture settles; until then the ones already
+// shown just travel with the map.
+let redrawRafPending = false;
+function scheduleRedraw() {
+  noteGesture();
+  if (redrawRafPending) return;
+  redrawRafPending = true;
+  requestAnimationFrame(() => { redrawRafPending = false; if (gestureActive) gestureFrame(); });
+}
+window.addEventListener("mousemove", (e) => {
+  if (!isDragging) { handleHover(e); return; }
+  const dx = e.clientX - dragStart[0], dy = e.clientY - dragStart[1];
+  dragMoved = Math.max(dragMoved, Math.hypot(dx, dy));
+  currentTransform = d3.zoomIdentity.translate(transformStart.x + dx/base.scale, transformStart.y + dy/base.scale).scale(transformStart.k);
+  scheduleRedraw();
+});
+window.addEventListener("mouseup", (e) => {
+  if (isDragging) {
+    isDragging = false; zoomCapture.classList.remove("dragging");
+    if (gestureActive) settle(); // sharp redraw now, with fresh hit-test data (skipped while dragging)
+    if (dragMoved < 4) handleClick(e); // negligible movement = a click, not a pan
+  }
+});
+
+// --- touch: single-finger pan/tap mirrors mouse; two-finger pinch mirrors wheel ---
+let touchStartDist = null, touchStartTransform = null, touchStartMid = null;
+zoomCapture.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  touchCount = e.touches.length;
+  if (e.touches.length === 1) {
+    isDragging = true; zoomCapture.classList.add("dragging");
+    dragStart = [e.touches[0].clientX, e.touches[0].clientY];
+    transformStart = currentTransform;
+    dragMoved = 0;
+  } else if (e.touches.length === 2) {
+    isDragging = false;
+    const [t1,t2] = e.touches;
+    touchStartDist = Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY);
+    touchStartTransform = currentTransform;
+    touchStartMid = [(t1.clientX+t2.clientX)/2, (t1.clientY+t2.clientY)/2];
+  }
+}, { passive:false });
+zoomCapture.addEventListener("touchmove", (e) => {
+  e.preventDefault();
+  if (e.touches.length === 1 && isDragging) {
+    const dx = e.touches[0].clientX - dragStart[0], dy = e.touches[0].clientY - dragStart[1];
+    dragMoved = Math.max(dragMoved, Math.hypot(dx, dy));
+    currentTransform = d3.zoomIdentity.translate(transformStart.x + dx/base.scale, transformStart.y + dy/base.scale).scale(transformStart.k);
+    scheduleRedraw();
+  } else if (e.touches.length === 2 && touchStartDist) {
+    const [t1,t2] = e.touches;
+    const dist = Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY);
+    const rect = mapWrap.getBoundingClientRect();
+    const mx = touchStartMid[0]-rect.left, my = touchStartMid[1]-rect.top;
+    currentTransform = touchStartTransform; // recompute fresh from gesture start each move, no drift
+    applyZoomAt(mx, my, dist / touchStartDist);
+  }
+}, { passive:false });
+function onTouchEnd(e) {
+  touchCount = e.touches.length;
+  if (isDragging) {
+    isDragging = false; zoomCapture.classList.remove("dragging");
+    if (gestureActive) settle(); // sharp redraw now, with fresh hit-test data (skipped while dragging)
+    if (e.type === "touchend" && dragMoved < 4 && e.changedTouches.length) {
+      handleClick({ clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY });
+    }
+  } else if (touchCount === 0 && gestureActive) settle(); // end of a pinch
+  if (e.touches.length < 2) touchStartDist = null;
+}
+zoomCapture.addEventListener("touchend", onTouchEnd);
+zoomCapture.addEventListener("touchcancel", onTouchEnd);
+function findHitCluster(mx, my, threshold) {
+  let best=null, bestDist=threshold;
+  for (const c of CLUSTERS) {
+    const pts = c._screen; if (!pts) continue;
+    for (let i=0;i<pts.length-1;i++) {
+      const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
+      if (d<bestDist) { bestDist=d; best=c; }
+    }
+  }
+  return best;
+}
+
+function handleClick(e) {
+  const rect = mapWrap.getBoundingClientRect();
+  const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+  closeRoutePicker();
+  const hitCluster = findHitCluster(mx, my, 9);
+  if (hitCluster) {
+    // zoom in just past the aggregation threshold, centered where you clicked,
+    // so the individual lines it represents reveal themselves
+    applyZoomAt(mx, my, (AGGREGATE_ZOOM_THRESHOLD + 1.5) / currentTransform.k, true);
+    return;
+  }
+  const threshold = 8;
+  const matches = [];
+  for (const r of ROUTES) {
+    const pts = r._screen; if (!pts) continue;
+    let bestForThisRoute = Infinity;
+    for (let i=0;i<pts.length-1;i++) {
+      const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
+      if (d < bestForThisRoute) bestForThisRoute = d;
+    }
+    if (bestForThisRoute < threshold) matches.push(r);
+  }
+  if (matches.length > 1) { showRoutePicker(matches); return; }
+  const best = matches[0];
+  closeRoutePicker();
+  if (best && best.anchor) focusThread(best.anchor);
+  else if (focusActive) clearFocus(); // clicked empty space while focused -> clear
+}
+function showRoutePicker(matches) {
+  hideTip();
+  const sorted = matches.slice().sort((a,b) => a.min_year - b.min_year);
+  const panel = document.getElementById("route-picker");
+  panel.innerHTML = "";
+  const header = document.createElement("div");
+  header.className = "picker-header";
+  header.innerHTML = `<span>${sorted.length} voyages on this line \u2014 pick one to follow</span><span class="picker-close" title="Close">&times;</span>`;
+  header.querySelector(".picker-close").addEventListener("click", closeRoutePicker);
+  panel.appendChild(header);
+  sorted.forEach(d => {
+    const row = document.createElement("div");
+    row.className = "picker-row";
+    const peopleLine = d.family_group ? d.family_group.join(" & ") : (d.people||[]).join(", ");
+    const yearLine = d.min_year===d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
+    row.innerHTML = `<span class="picker-year">${yearLine}</span><span class="picker-dest">\u2192 ${d.to}</span>` +
+                     `<span class="picker-people">${peopleLine}</span>`;
+    row.addEventListener("click", () => {
+      closeRoutePicker();
+      if (d.anchor) focusThread(d.anchor);
+    });
+    panel.appendChild(row);
+  });
+  panel.classList.add("active");
+}
+function closeRoutePicker() {
+  document.getElementById("route-picker").classList.remove("active");
+}
+// immediate: a one-off jump (zoom buttons, cluster click) is drawn sharp at
+// once; continuous input (wheel, pinch) goes through the gesture path.
+function applyZoomAt(mx, my, factor, immediate) {
+  const k0 = currentTransform.k;
+  let k1 = Math.max(1, Math.min(60, k0 * factor));
+  factor = k1 / k0;
+  // keep the data point under the cursor fixed while scaling
+  const vx = (mx - base.offsetX) / base.scale;
+  const vy = (my - base.offsetY) / base.scale;
+  const dataX = (vx - currentTransform.x) / currentTransform.k;
+  const dataY = (vy - currentTransform.y) / currentTransform.k;
+  currentTransform = d3.zoomIdentity.translate(vx - dataX*k1, vy - dataY*k1).scale(k1);
+  if (immediate) settle(); else scheduleRedraw();
+}
+
+// --- hover hit-testing on canvas routes (throttled via rAF) ---
+let hoverScheduled = false, lastMouse = null;
+function handleHover(e) {
+  lastMouse = e;
+  if (hoverScheduled) return;
+  hoverScheduled = true;
+  // no hover mid-gesture: hit-test data describes the last sharp render, not
+  // the moving picture (this also stops a tooltip riding along during a zoom)
+  requestAnimationFrame(() => { hoverScheduled = false; if (!gestureActive) doHover(lastMouse); });
+}
+function distToSeg(px,py,x1,y1,x2,y2) {
+  const dx=x2-x1, dy=y2-y1, lenSq=dx*dx+dy*dy;
+  let t = lenSq===0 ? 0 : ((px-x1)*dx+(py-y1)*dy)/lenSq;
+  t = Math.max(0, Math.min(1, t));
+  const cx=x1+t*dx, cy=y1+t*dy;
+  return Math.hypot(px-cx, py-cy);
+}
+function findHitFocusedSegs(mx, my, threshold) {
+  if (!currentFocusSegs) return [];
+  const matches = [];
+  for (const s of currentFocusSegs) {
+    const curve = s.waypts ? { mode:"path", coords:s.waypts }
+      : s.ocean ? { mode:"path", coords:[[s.x1,s.y1],[s.x2,s.y2]] }
+      : { mode:"bow", x1:s.x1,y1:s.y1,cx:s.cx,cy:s.cy,x2:s.x2,y2:s.y2 };
+    const pts = curveScreenPts(curve);
+    let bestForThisSeg = Infinity;
+    for (let i=0;i<pts.length-1;i++) {
+      const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
+      if (d < bestForThisSeg) bestForThisSeg = d;
+    }
+    if (bestForThisSeg < threshold) matches.push(s);
+  }
+  return matches;
+}
+function showSegTip(event, s) {
+  tooltip.classed("t-multi", false);
+  tooltip.html(
+    `<span class="t-name">${s.from} &rarr; ${s.to}</span>${s.person}<br>` +
+    `<span class="t-year">arrived ${s.year}</span>`
+  );
+  const rect = mapWrap.getBoundingClientRect();
+  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+}
+function showMultiSegTip(event, segs) {
+  const sorted = segs.slice().sort((a,b) => a.year - b.year);
+  const CAP = 8;
+  const shown = sorted.slice(0, CAP);
+  const rows = shown.map(s =>
+    `<div class="t-multi-row"><span class="t-multi-dest">\u2192 ${s.to}</span> ` +
+    `<span class="t-year">${s.year}</span><br>${s.person}</div>`
+  ).join("");
+  const more = sorted.length > CAP ? `<div class="t-multi-more">+ ${sorted.length - CAP} more voyage${sorted.length-CAP>1?"s":""} on this line</div>` : "";
+  tooltip.classed("t-multi", true);
+  tooltip.html(`<span class="t-name">${segs.length} voyages bundled on this line</span>` + rows + more);
+  const rect = mapWrap.getBoundingClientRect();
+  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+}
+
+function doHover(e) {
+  const rect = mapWrap.getBoundingClientRect();
+  const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+  if (mx<0||my<0||mx>rect.width||my>rect.height) { hideTip(); return; }
+  if (focusActive) {
+    // while a thread/path is focused, only the highlighted line itself is
+    // hoverable -- the dimmed background is visual context, not
+    // interactive, so grazing one shouldn't pop up an unrelated tooltip
+    const hitSegs = findHitFocusedSegs(mx, my, 8);
+    if (hitSegs.length > 1) showMultiSegTip(e, hitSegs);
+    else if (hitSegs.length === 1) showSegTip(e, hitSegs[0]);
+    else hideTip();
+    return;
+  }
+  const hitCluster = findHitCluster(mx, my, 8);
+  if (hitCluster) { showClusterTip(e, hitCluster); return; }
+  const threshold = 7;
+  const matches = [];
+  for (const r of ROUTES) {
+    const pts = r._screen; if (!pts) continue;
+    let bestForThisRoute = Infinity;
+    for (let i=0;i<pts.length-1;i++) {
+      const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
+      if (d < bestForThisRoute) bestForThisRoute = d;
+    }
+    if (bestForThisRoute < threshold) matches.push(r);
+  }
+  if (matches.length > 1) { showMultiTip(e, matches); return; }
+  if (matches.length === 1) showTip(e, matches[0]); else hideTip();
+}
+function showClusterTip(event, c) {
+  tooltip.classed("t-multi", false);
+  const years = c._visYears;
+  tooltip.html(
+    `<span class="t-name">${c.from} &rarr; ${c.to}</span>${c._visCount} ancestors made this general journey<br>` +
+    `<span class="t-year">${Math.round(Math.min(...years))}\u2013${Math.round(Math.max(...years))} \u00b7 click to zoom in and see each one</span>`
+  );
+  const rect = mapWrap.getBoundingClientRect();
+  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+}
+function showMultiTip(event, matches) {
+  const sorted = matches.slice().sort((a,b) => a.min_year - b.min_year);
+  const CAP = 8;
+  const shown = sorted.slice(0, CAP);
+  const rows = shown.map(d => {
+    const peopleLine = d.family_group ? d.family_group.join(" & ") : (d.people||[]).join(", ");
+    const yearLine = d.min_year===d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
+    return `<div class="t-multi-row"><span class="t-multi-dest">\u2192 ${d.to}</span> ` +
+           `<span class="t-year">${yearLine}</span><br>${peopleLine}</div>`;
+  }).join("");
+  const more = sorted.length > CAP ? `<div class="t-multi-more">+ ${sorted.length - CAP} more voyage${sorted.length-CAP>1?"s":""} on this line</div>` : "";
+  tooltip.classed("t-multi", true);
+  tooltip.html(
+    `<span class="t-name">${matches.length} voyages bundled on this line</span>` + rows + more
+  );
+  const rect = mapWrap.getBoundingClientRect();
+  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+}
+function showTip(event, d) {
+  tooltip.classed("t-multi", false);
+  const peopleLine = d.family_group
+    ? `<span style="color:var(--gold)">\u2693 traveling together:</span> ${d.family_group.join(" & ")}`
+    : (d.people||[]).join(", ");
+  const nameLine = d.oscillation
+    ? `<span class="t-name">${d.from} &harr; ${d.to}</span>${peopleLine}<br>`
+    : `<span class="t-name">${d.from} &rarr; ${d.to}</span>${peopleLine}<br>`;
+  const countLine = d.oscillation
+    ? `${d.min_year}\u2013${d.max_year} \u00b7 ${d.count} ancestor${d.count>1?"s":""} moved between these`
+    : `${d.min_year===d.max_year?d.min_year:d.min_year+"\u2013"+d.max_year} \u00b7 ${d.count} ancestor${d.count>1?"s":""} on this route`;
+  tooltip.html(nameLine + `<span class="t-year">${countLine}</span>`);
+  const rect = mapWrap.getBoundingClientRect();
+  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+}
+function hideTip() { tooltip.style("opacity",0); }
+
+document.getElementById("zoomIn").onclick = () => { const r=mapWrap.getBoundingClientRect(); applyZoomAt(r.width/2, r.height/2, 1.6, true); };
+document.getElementById("zoomOut").onclick = () => { const r=mapWrap.getBoundingClientRect(); applyZoomAt(r.width/2, r.height/2, 1/1.6, true); };
+document.getElementById("zoomReset").onclick = () => { currentTransform = d3.zoomIdentity; redrawAll(); scheduleLabelUpdate(); };
+
+window.addEventListener("resize", () => { computeBase(); redrawAll(); scheduleLabelUpdate(); });
+
+computeBase();
+recomputeClusterVisibility();
+if (window.innerWidth <= 640) {
+  // mobile: the wide default viewBox letterboxes badly on a tall narrow
+  // screen: zoom in on the touch-weighted centroid of the actual data
+  // (computed offline from PLACES) instead of showing mostly empty ocean
+  const k = 2.6;
+  const cx = -36.57, cy = 25.43;
+  const rect = mapWrap.getBoundingClientRect();
+  const vx = (rect.width/2 - base.offsetX)/base.scale, vy = (rect.height/2 - base.offsetY)/base.scale;
+  currentTransform = d3.zoomIdentity.translate(vx - cx*k, vy - cy*k).scale(k);
+}
+redrawAll();
+updateLabels();
+</script>
+</body>
+</html>

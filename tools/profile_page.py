@@ -21,8 +21,10 @@ Usage:         python tools/profile_page.py [URL] [--headed] [--dpr 1.5]
   --json     also write every number to a JSON file
   --shots    save a screenshot after each scenario into DIR
 
-Frame times come from requestAnimationFrame timestamps. A "dropped" frame
-is any interval over 1.5x the median frame interval (normally 16.7 ms).
+Frame times come from requestAnimationFrame timestamps. The script first
+measures the idle frame interval on a blank page (16.7 ms at 60 Hz; longer
+when a laptop on battery throttles its GPU -- plug in before profiling). A
+"dropped" frame is any interval over 1.5x that idle interval.
 The function and browser-phase breakdowns come from a Chrome trace.
 """
 import sys, json, time, statistics, pathlib, re
@@ -50,7 +52,8 @@ VIEW = {'width': 1500, 'height': 900}
 WRAP = ['redrawAll', 'drawRoutes', 'drawThread', 'updateLabels', 'positionConvLabel',
         'applyZoomAt', 'doHover', 'handleClick', 'setTarget', 'recomputeClusterVisibility',
         'applyYearRange', 'computeYearRangeSegs', 'zoomToFitSegs', 'renderFocusedChain',
-        'buildFocusDropdown', 'focusThread', 'runSearch']
+        'buildFocusDropdown', 'focusThread', 'runSearch',
+        'gestureFrame', 'settle']   # v2 only
 
 INSTRUMENT = """(names) => {
   const P = window.__prof = { calls: {}, frames: [], rec: false };
@@ -94,10 +97,13 @@ def pct(xs, p):
     return xs[lo] + (xs[hi] - xs[lo]) * (k - lo)
 
 
+IDLE_FRAME_MS = 1000 / 60   # replaced by the measured idle interval at startup
+
+
 def frame_stats(frames):
     d = [b - a for a, b in zip(frames, frames[1:])]
     if not d: return {'frames': 0}
-    budget = 1000 / 60
+    budget = IDLE_FRAME_MS
     return {'frames': len(d), 'median_ms': round(statistics.median(d), 1),
             'p95_ms': round(pct(d, 95), 1), 'max_ms': round(max(d), 1),
             'dropped': sum(1 for x in d if x > budget * 1.5),
@@ -224,6 +230,9 @@ class Session:
         t0 = time.perf_counter()
         fn(pg)
         wall = time.perf_counter() - t0
+        # keep recording briefly so a redraw after the gesture ends (v2's
+        # settle) is counted too
+        pg.wait_for_timeout(300)
         r = pg.evaluate(STOP)
         out = {'wall_s': round(wall, 2), 'frame': frame_stats(r['frames']), 'calls': call_stats(r['calls'])}
         if r['tipLat']:
@@ -300,9 +309,19 @@ def hover_sweep(pg, k, steps=120):
 
 
 def run():
+    global IDLE_FRAME_MS
     results = {'url': URL, 'headed': HEADED, 'dpr': DPR, 'viewport': VIEW}
     with sync_playwright() as pw:
         S = Session(pw)
+        # control: frame interval of a blank page on this machine, right now
+        pg = S.open(); pg.goto('about:blank')
+        fr = pg.evaluate("""() => new Promise(res => { const f = []; const t0 = performance.now();
+          (function tick(t) { f.push(t); if (t - t0 < 1500) requestAnimationFrame(tick); else res(f); })(t0); })""")
+        IDLE_FRAME_MS = statistics.median([b - a for a, b in zip(fr[1:], fr[2:])])
+        results['idle_frame_ms'] = round(IDLE_FRAME_MS, 1)
+        print(f'idle frame interval on this machine now: {IDLE_FRAME_MS:.1f} ms'
+              + ('' if IDLE_FRAME_MS < 18 else '  <-- slower than 60 Hz: on battery? results are not comparable to plugged-in runs'),
+              flush=True)
 
         if not SKIP_MAIN:
             # ---- load ----
@@ -448,7 +467,8 @@ def run():
 
 def report(R):
     p = print
-    p(f"\nProfile of {R['url']}  ({'headed' if R['headed'] else 'headless'}, dpr {R['dpr']}, {R['viewport']['width']}x{R['viewport']['height']})\n")
+    p(f"\nProfile of {R['url']}  ({'headed' if R['headed'] else 'headless'}, dpr {R['dpr']}, {R['viewport']['width']}x{R['viewport']['height']}, "
+      f"idle frame {R.get('idle_frame_ms', '?')} ms)\n")
     if 'load' not in R:
         return report_ablations(R)
     L = R['load']
