@@ -74,7 +74,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   position:absolute; left:14px; bottom:14px; background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4);
   border-radius:8px; padding:12px 16px; z-index:10; max-width:300px;
 }
-#legend .cb-gradient { width:160px; height:10px; border-radius:3px; background:linear-gradient(to right, #313695, #74add1, #fee090, #f46d43, #a50026); }
+#legend .cb-gradient { display:block; width:160px; height:10px; border-radius:3px; }
 #legend .cb-labels { display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:9px; color:var(--muted); width:160px; margin-bottom:8px; }
 #legend .lw-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:3px; }
 #legend .lw-swatch { width:22px; height:0; border-top-style:solid; border-color:#8a7248; }
@@ -256,7 +256,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 </head>
 <body>
 <header>
-  <span class="eyebrow">Direct-ancestor migration &middot; 1555&ndash;1992 &middot; interactive</span>
+  <span class="eyebrow">Direct-ancestor migration &middot; 1545&ndash;2026 &middot; interactive</span>
   <h1 id="page-title">Migration Lines to Margaret Jean Hitchcock</h1>
   <p>Scroll or pinch to zoom, drag to pan, hover any line for who traveled it. Click a line to trace its full generational thread to the current target, or set a new target / isolate a path between two people below.</p>
 </header>
@@ -304,8 +304,8 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <span id="zoomLevel">1.0&times;</span>
   </div>
   <div id="legend">
-    <div class="cb-gradient"></div>
-    <div class="cb-labels"><span>1555</span><span>1774</span><span>1992</span></div>
+    <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
+    <div class="cb-labels"><span>1545</span><span>1841</span><span>2026</span></div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.7px;"></span> 1 ancestor on this route</div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:6px;"></span> 4 ancestors on this route</div>
     <div class="lw-item"><span class="lw-swatch twin-swatch"></span> confirmed family traveling together</div>
@@ -337,17 +337,34 @@ const YEAR_MAX = d3.max(ROUTES, d => d.mean_year);
 // call). Routes share far fewer distinct years than there are routes, so we
 // memoize by rounded year -- collapsing ~895 interpolations/frame into a few
 // dozen cache hits. Keyed to whole years; sub-year precision is invisible here.
+const _sortedYears = ROUTES.map(d => d.mean_year).sort((a,b) => a-b);
+function rankT(y) {
+  const i = d3.bisectLeft(_sortedYears, y);
+  return i / (_sortedYears.length - 1);
+}
+const _colorStops = ['#0f8a7a','#2050d6','#8033d6','#e0359e','#f0453f','#ff8c1a','#e8c020'];
+const _colorScale = d3.interpolateRgbBasis(_colorStops);
 const _colorCache = new Map();
 function colorForYear(y) {
   const key = Math.round(y);
   let c = _colorCache.get(key);
   if (c === undefined) {
-    const t = (key - YEAR_MIN) / (YEAR_MAX - YEAR_MIN);
-    c = d3.interpolateRdYlBu(1 - t);
+    c = _colorScale(rankT(key));
     _colorCache.set(key, c);
   }
   return c;
 }
+(function renderLegendGradient() {
+  const canvas = document.getElementById('cbGradientCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  for (let x = 0; x < w; x++) {
+    const y = YEAR_MIN + (x / (w - 1)) * (YEAR_MAX - YEAR_MIN);
+    ctx.fillStyle = _colorScale(rankT(y));
+    ctx.fillRect(x, 0, 1, canvas.height);
+  }
+})();
 function lwFor(count) { return 1.6 + count * 1.1; }
 
 // ============ genealogical graph algorithms (operate on GRAPH + PERSON_LEGS) ============
