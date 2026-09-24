@@ -21,6 +21,11 @@ South and Midwest.
   candid when something is wrong. Match that. Say plainly what you verified
   and what you didn't.
 - Keep replies concise. Skip preamble and filler.
+- James works on **Windows** (PowerShell), and is not a developer by trade.
+  Give exact commands to paste, one step at a time. On Windows, Python may
+  be `python` or `py` rather than `python3`; the pipeline's `.sh` runner
+  needs Git Bash, which comes with Git for Windows. Install missing tools
+  (e.g. `winget install Python.Python.3.12`) only with his OK.
 - Verify before claiming something works: run the checks, look at
   screenshots. He has been burned by "done" that wasn't.
 - Genealogical facts get corrected in his tree, not in code. The exceptions
