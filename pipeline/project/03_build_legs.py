@@ -1,3 +1,8 @@
+import os as _os
+_ORIG_CWD = _os.getcwd()
+PROJECT_DIR = _os.path.dirname(_os.path.abspath(__file__))
+BUILD_DIR = _os.path.join(_os.path.dirname(PROJECT_DIR), "build2")
+_os.chdir(PROJECT_DIR)  # scripts read/write their own folder regardless of where they're launched from
 """
 Stage 3: For every direct ancestor, order their dated events chronologically,
 dedupe consecutive same-place stays, and emit one row per migration LEG

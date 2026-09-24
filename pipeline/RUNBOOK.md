@@ -1,80 +1,115 @@
-# Hitchcock migration map — pipeline runbook
+# Pipeline runbook: updating the map from a new GEDCOM export
 
-This folder is the actual source for index.html's data arrays (ROUTES, PLACES,
-GRAPH, SEARCH_INDEX, PERSON_LEGS, CLUSTERS). index.html is generated output --
-always update it by rerunning this pipeline, never by hand-editing the arrays
-or splicing in data from a separate one-off script. That drift is what broke
-the map on 2026-09-23; see "History" below.
+The six data arrays inside `index.html` (ROUTES, CLUSTERS, PLACES, SEARCH_INDEX,
+GRAPH, PERSON_LEGS) are generated output. Always update them by running this
+pipeline and grafting the result. Never hand-edit or splice them.
 
-Verified 2026-09-24 against commit 78f1cc4: 586/590 people with byte-identical
-migration legs, and graph/search-index/places/clusters counts all matching.
+Needs only Python 3 (standard library). Runs from any directory on any machine.
 
-## Layout
-- pipeline/project/  01_extract_ancestors.py, 02_extract_events.py, geocoder.py,
-                      03_build_legs.py, 04_build_routes.py, graft.py,
-                      diff_shipped.py, run_pipeline.sh
-- pipeline/build2/    build_anchors.py, build_family_tags.py, rebuild_all_data.py
+## Steps
 
-Scripts read/write relative to their own directory unless noted. Copy
-pipeline/project and pipeline/build2 to /home/claude/ before running (or edit
-the paths at the top of each script) -- they expect those absolute locations.
+1. **Get the export.** James exports the tree from Ancestry as a GEDCOM (a .ged
+   file, usually inside a zip). Keep it OUTSIDE the repo, or anywhere the
+   `.gitignore` covers. It contains living people and must never be committed.
 
-## Updating for a new GEDCOM export
-1. `cp pipeline/project/*.py /home/claude/project/ && cp pipeline/build2/*.py /home/claude/build2/`
-   (create those two directories first if they don't exist)
-2. Unzip the new export; copy it to /home/claude/project/, then set
-   GEDCOM_PATH in 01_extract_ancestors.py and 02_extract_events.py.
-3. Family IDs shift on every export; individual IDs (@I...@) do not.
-   Look up James+Jennie's marriage FAM -- the FAM whose HUSB is
-   @I240014574891@ and WIFE is @I242606531603@ -- and set
-   JAMES_JENNIE_FAM_ID in 01_extract_ancestors.py to it.
-4. `bash /home/claude/project/run_pipeline.sh`
-5. Diff against the currently-live page before touching anything else:
-   `curl -s https://raw.githubusercontent.com/jhitchcock64/-hitchcock-migration-map/main/index.html -o /tmp/live.html && python3 diff_shipped.py /tmp/live.html`
-   Every person who was already correct on the live map should still match
-   exactly. Investigate before proceeding if that count drops.
-6. For newly-added ancestors specifically, list unresolvable place strings
-   (`geocoder.normalize_and_geocode(raw) is None`) and add geocoder entries
-   as needed, then rerun steps 4-5.
-7. Graft the verified output into the live page -- never string-splice or
-   append, since GRAPH/SEARCH_INDEX are keyed dicts/arrays where a duplicate
-   ID silently loses to whichever copy appears later in the file:
-   `python3 pipeline/project/graft.py <path to current index.html> index.html`
-8. Sanity-check in a browser before pushing: search for a few people you
-   know are new, confirm they show a location and (if they have 2+ located
-   events) a journey line, and confirms parents resolve correctly for at
-   least one multi-generation chain.
-9. Commit and push to main.
+2. **Run the pipeline.**
+
+   ```
+   GEDCOM="/path/to/Albert Hitchcock Family Tree.ged" bash pipeline/project/run_pipeline.sh
+   ```
+
+   It prints each stage, the James+Jennie family record it detected, and a
+   summary (routes, places, people). Logs go to `pipeline/logs/`. Outputs go to
+   `pipeline/build2/*.json`.
+
+   The James+Jennie family ID changes on every export; the pipeline finds it
+   automatically. If detection ever fails, set `JAMES_JENNIE_FAM_ID=@F####@`.
+
+3. **List unresolved places**, focusing on people who are new in this export,
+   and add geocoder entries where they matter:
+
+   ```
+   cd pipeline/project && python3 -c "
+   import json, geocoder
+   ev = json.load(open('events.json'))
+   bad = sorted({e['plac'] for r in ev.values() for e in r['events']
+                 if e.get('plac') and e['type'] in ('BIRT','RESI','DEAT')
+                 and geocoder.normalize_and_geocode(e['plac']) is None})
+   print(len(bad)); print('\n'.join(bad))"
+   ```
+
+   Also check that new places resolved to the RIGHT spot, not a state-level
+   fallback. (Example: Middlesex County, VA strings once fell back to the
+   "Virginia" centroid, about 110 miles off.) Rerun step 2 after any edit.
+
+4. **Diff against the live page** before touching `index.html`:
+
+   ```
+   python3 pipeline/project/diff_shipped.py index.html
+   ```
+
+   Every person who matched before should still match. Investigate any drop.
+   New people appearing is expected.
+
+5. **Graft** the new arrays into the page:
+
+   ```
+   python3 pipeline/project/graft.py index.html index.html
+   ```
+
+6. **Check the page in a browser:**
+
+   ```
+   python tools/check_page.py index.html --shot /tmp/map.png
+   ```
+
+   Then open it yourself and look at a few people you know changed.
+
+7. **Commit and push** to `main`. GitHub Pages rebuilds in about a minute.
+
+## How the geocoder decides (pipeline/project/geocoder.py)
+
+Checked in this order for each raw GEDCOM place string:
+
+- `RAW_GROUND_TRUTH`: exact raw string → `(label, lat, lon, tier)`, or `None`
+  meaning "deliberately unresolved". Pins placements the approved map already
+  used, so reruns can't silently move anyone. Extend it only from evidence
+  (the live map's own data), never by guessing.
+- `SPECIAL_CASES`: exact lowercase raw string → `(label, lat, lon, tier)`.
+- Parsed `town|state` and `county|state` tables. Counties resolve to their
+  county seat and get labels like "Middlesex Co., Virginia".
+- State and country fallbacks (tiers `region` / `country`).
+
+Downstream, `03_build_legs.py` merges stops within a short distance, collapses
+brief side trips, and drops state-level "generic" stops when the same person
+has a specific stop in that state.
+
+## Hand corrections
+
+`02_extract_events.py` carries corrections James asked for, including John
+Grove Speer's 1850/1857 gold-rush journey (23 waypoints from his memoir) and
+event removals for specific individuals. Search the file for "ad hoc" and
+"correction". Keep them; they encode research. Some filter blocks appear more
+than once (a leftover from the recovery). They're idempotent, so they're
+harmless.
 
 ## Projection
-x = lon + 35 (wrapped to [-180, 180)), y = 65 - lat. A plain equirectangular
-shift, not a true map projection -- reverse-engineered 2026-09-23 by solving
-REF_CITIES' known real-world coordinates against their plotted x/y.
 
-## Notes
-- geocoder.py's RAW_GROUND_TRUTH table (checked before all other rules) pins
-  exact raw GEDCOM place strings to the location the live map has always used
-  for them, so re-running the pipeline can't silently redraw an already-
-  correct person's route. A value of None means that string was deliberately
-  left unresolved on the live map (add a real entry only if you're fixing it
-  on purpose). Extend this table the same way it was built: align a person's
-  stops against the live map's PERSON_LEGS for that person, not by guessing.
-- 02_extract_events.py carries hand-authored corrections (John Grove Speer's
-  1850/1857 gold-rush journey from his own memoir, and fixes for specific
-  individuals -- search the file for "ad hoc" and "correction"). Keep these;
-  they encode real research, not pipeline bugs.
-- PYTHONHASHSEED=0 is pinned in run_pipeline.sh so that ties between
-  equivalent place labels resolve the same way on every run.
+`x = longitude + 35` (wrapped to [-180, 180)), `y = 65 - latitude`. A plain
+equirectangular map centered on the Atlantic.
+
+## Reproducibility
+
+`run_pipeline.sh` pins `PYTHONHASHSEED=0`. Without it, ties between equivalent
+labels for the same place (e.g. "Daviess Co., Kentucky" vs "Owensboro,
+Kentucky") can flip between runs.
 
 ## History
-2026-08 through 2026-09-21: pipeline developed and refined across ~15
-sessions, but only ever run from ephemeral session state -- never committed.
-2026-09-23: a from-scratch rebuild (without consulting this pipeline) shipped
-a broken update -- ancestors searchable with no location data, because it
-never built GRAPH/SEARCH_INDEX at all, and a first attempt to fix that
-string-spliced new entries in rather than merging, which silently lost to
-stale duplicate keys. The pipeline was recovered by replaying every relevant
-edit across all prior session transcripts in order, verified by diffing its
-output against the then-live map, and committed here specifically so this
-can't happen again -- if you're reading this because something looks wrong,
-start with step 5 above before rebuilding anything from scratch.
+
+Built across ~15 claude.ai sessions in Aug–Sep 2026, running only in temporary
+sandboxes and never committed. On 2026-09-23 a rebuild done without it broke
+the live map. The pipeline was recovered by replaying every recorded edit from
+the session transcripts, then verified against the live map: 586/590 people
+had identical legs and all 1,265 birthplaces matched. It was committed so this
+can't recur. On 2026-09-24 it was made portable (no hardcoded sandbox paths)
+and verified byte-identical on all six arrays.

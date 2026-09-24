@@ -1,3 +1,8 @@
+import os as _os
+_ORIG_CWD = _os.getcwd()
+PROJECT_DIR = _os.path.dirname(_os.path.abspath(__file__))
+BUILD_DIR = _os.path.join(_os.path.dirname(PROJECT_DIR), "build2")
+_os.chdir(PROJECT_DIR)  # scripts read/write their own folder regardless of where they're launched from
 """
 Stage 1: Parse GEDCOM, identify James Albert Hitchcock (b. 1992),
 extract every direct ancestor (and only direct ancestors), print verification output.
@@ -7,7 +12,9 @@ import re
 from collections import deque
 
 def _has_given(n): return bool(n) and bool(re.sub(r"/[^/]*/", "", n).strip())
-GEDCOM_PATH = "SET_ME.ged"  # path to the current export; see RUNBOOK.md step 2
+GEDCOM_PATH = _os.path.join(_ORIG_CWD, _os.environ["GEDCOM"]) if _os.environ.get("GEDCOM") else None
+if not GEDCOM_PATH or not _os.path.exists(GEDCOM_PATH):
+    raise SystemExit("Set GEDCOM=/path/to/export.ged before running (see CLAUDE.md / pipeline/RUNBOOK.md)")
 
 # ---------------------------------------------------------------------------
 # 1. Parse the GEDCOM into indi{} and fam{} dictionaries
@@ -124,7 +131,15 @@ print(f"\n>>> Identified target individual: {indi[JAMES_ID]['name']}  "
 #     ~236 into one set -- the BFS mechanism below is already fully generic
 #     and needs no modification, just a different starting point.
 MARGARET_ID = "@SYNTHETIC_MARGARET_JEAN_HITCHCOCK@"
-JAMES_JENNIE_FAM_ID = "SET_ME"  # shifts on every export -- look it up fresh; see RUNBOOK.md step 4
+# Family IDs shift on every GEDCOM export (individual IDs don't), so find
+# James+Jennie's marriage record by its two spouses. Override with the
+# JAMES_JENNIE_FAM_ID environment variable only if detection ever fails.
+_JAMES, _JENNIE = "@I240014574891@", "@I242606531603@"
+_jj = [fid for fid, f in fam.items() if _JAMES in (f["husb"], f["wife"]) and _JENNIE in (f["husb"], f["wife"])]
+JAMES_JENNIE_FAM_ID = _os.environ.get("JAMES_JENNIE_FAM_ID") or (_jj[0] if len(_jj) == 1 else None)
+if not JAMES_JENNIE_FAM_ID:
+    raise SystemExit(f"Could not identify a unique James+Jennie family record (found {_jj}); set JAMES_JENNIE_FAM_ID")
+print(f"James+Jennie family record: {JAMES_JENNIE_FAM_ID}")
 indi[MARGARET_ID] = {
     "name": "Margaret Jean /Hitchcock/", "sex": "F",
     "birt_date": "Dec 2026", "birt_plac": "Alexandria, Virginia, USA",
@@ -209,11 +224,11 @@ for i, pid in enumerate(ordered[:25], 1):
 # ---------------------------------------------------------------------------
 # Save state for next stages
 # ---------------------------------------------------------------------------
-with open("/home/claude/project/indi.json", "w", encoding="utf-8") as f:
+with open(_os.path.join(PROJECT_DIR, "indi.json"), "w", encoding="utf-8") as f:
     json.dump(indi, f, ensure_ascii=False)
-with open("/home/claude/project/fam.json", "w", encoding="utf-8") as f:
+with open(_os.path.join(PROJECT_DIR, "fam.json"), "w", encoding="utf-8") as f:
     json.dump(fam, f, ensure_ascii=False)
-with open("/home/claude/project/ancestors.json", "w", encoding="utf-8") as f:
+with open(_os.path.join(PROJECT_DIR, "ancestors.json"), "w", encoding="utf-8") as f:
     json.dump({
         "james_id": ROOT_ID,  # kept as "james_id" for downstream compatibility -- now holds Margaret's ID, the new root
         "true_james_id": JAMES_ID,  # James himself, for anything that specifically needs him rather than the root

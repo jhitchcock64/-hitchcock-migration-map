@@ -1,3 +1,7 @@
+import os as _os
+BUILD_DIR = _os.path.dirname(_os.path.abspath(__file__))
+PROJECT_DIR = _os.path.join(_os.path.dirname(BUILD_DIR), "project")
+_os.chdir(BUILD_DIR)  # scripts read/write their own folder regardless of where they're launched from
 import json, math, re
 from collections import defaultdict
 
@@ -240,7 +244,7 @@ def downsample(coords, target=10):
     return [coords[round(i*step)] for i in range(target)]
 
 # ---- routes ----
-with open("/home/claude/project/migration_routes.geojson") as f:
+with open(_os.path.join(PROJECT_DIR, "migration_routes.geojson")) as f:
     routes_geo = json.load(f)
 with open("route_anchor_by_index.json") as f:
     anchor_by_idx = json.load(f)
@@ -308,7 +312,7 @@ for i, feat in enumerate(routes_geo["features"]):
 # doesn't need to be corroborated by other people also doing it. Longer-
 # distance repeats (e.g. Monaghan <-> Toronto, 5000+ km) are genuinely two
 # distinct journeys and stay separate.
-with open("/home/claude/project/legs.json") as f:
+with open(_os.path.join(PROJECT_DIR, "legs.json")) as f:
     legs = json.load(f)
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -494,13 +498,13 @@ print(f"Person legs: {len(person_legs)} people, {sum(len(v) for v in person_legs
 
 # ---- person graph (for dynamic target/path client-side algorithms) ----
 import sys
-sys.path.insert(0, "/home/claude/project")
+sys.path.insert(0, PROJECT_DIR)
 if "geocoder" in sys.modules: del sys.modules["geocoder"]
 import geocoder
 
-with open("/home/claude/project/indi.json") as f: indi = json.load(f)
-with open("/home/claude/project/fam.json") as f: fam = json.load(f)
-with open("/home/claude/project/ancestors.json") as f: anc_data = json.load(f)
+with open(_os.path.join(PROJECT_DIR, "indi.json")) as f: indi = json.load(f)
+with open(_os.path.join(PROJECT_DIR, "fam.json")) as f: fam = json.load(f)
+with open(_os.path.join(PROJECT_DIR, "ancestors.json")) as f: anc_data = json.load(f)
 
 james_id = anc_data["james_id"]
 direct_ancestors = set(anc_data["direct_ancestors"])

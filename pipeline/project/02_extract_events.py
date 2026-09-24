@@ -1,3 +1,8 @@
+import os as _os
+_ORIG_CWD = _os.getcwd()
+PROJECT_DIR = _os.path.dirname(_os.path.abspath(__file__))
+BUILD_DIR = _os.path.join(_os.path.dirname(PROJECT_DIR), "build2")
+_os.chdir(PROJECT_DIR)  # scripts read/write their own folder regardless of where they're launched from
 import re
 """
 Stage 2a: Pull every BIRT / DEAT / RESI event (date + place) for each of the
@@ -5,7 +10,7 @@ Stage 2a: Pull every BIRT / DEAT / RESI event (date + place) for each of the
 """
 import json
 
-with open("/home/claude/project/ancestors.json") as f:
+with open(_os.path.join(PROJECT_DIR, "ancestors.json")) as f:
     anc_data = json.load(f)
 
 SIBLING_IDS = ["@I240014574897@", "@I240014574902@"]  # Alexandra, Katherine
@@ -13,7 +18,9 @@ target_ids = set(anc_data["direct_ancestors"]) | {anc_data["james_id"]} | set(SI
 print(f"Extracting event data for {len(target_ids)} people (768 ancestors + James).")
 
 def _has_given(n): return bool(n) and bool(re.sub(r"/[^/]*/", "", n).strip())
-GEDCOM_PATH = "SET_ME.ged"  # path to the current export; see RUNBOOK.md step 2
+GEDCOM_PATH = _os.path.join(_ORIG_CWD, _os.environ["GEDCOM"]) if _os.environ.get("GEDCOM") else None
+if not GEDCOM_PATH or not _os.path.exists(GEDCOM_PATH):
+    raise SystemExit("Set GEDCOM=/path/to/export.ged before running (see CLAUDE.md / pipeline/RUNBOOK.md)")
 
 records = {}
 MARGARET_ID = anc_data["james_id"]  # the new root -- "james_id" kept as key name for downstream compatibility
@@ -442,6 +449,6 @@ JOHN_GROVE_SPEER_ID = "@I240016590471@"
 # stated by Speer himself -- clearly not authoritative to the day.
 JOHN_GROVE_SPEER_ID = "@I240016590471@"
 
-with open("/home/claude/project/events.json", "w", encoding="utf-8") as f:
+with open(_os.path.join(PROJECT_DIR, "events.json"), "w", encoding="utf-8") as f:
     json.dump(records, f, ensure_ascii=False)
 print("Saved events.json")

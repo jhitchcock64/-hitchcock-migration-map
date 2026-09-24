@@ -1,5 +1,11 @@
+import os as _os
+_ORIG_CWD = _os.getcwd()
+PROJECT_DIR = _os.path.dirname(_os.path.abspath(__file__))
+BUILD_DIR = _os.path.join(_os.path.dirname(PROJECT_DIR), "build2")
+_os.chdir(PROJECT_DIR)  # scripts read/write their own folder regardless of where they're launched from
 import json, sys
-shipped_html = sys.argv[1] if len(sys.argv) > 1 else '/tmp/shipped_v14.html'
+if len(sys.argv) < 2: raise SystemExit('usage: python3 diff_shipped.py <live index.html>')
+shipped_html = _os.path.join(_ORIG_CWD, sys.argv[1])
 js = open(shipped_html, encoding='utf-8').read()
 def const(name):
     s = js.find(f'const {name} = ') + len(f'const {name} = '); d = 0
@@ -8,7 +14,7 @@ def const(name):
         elif js[i] in '}]':
             d -= 1
             if d == 0: return json.loads(js[s:i+1])
-B = '/home/claude/build2/'
+B = BUILD_DIR + '/'
 S = {n: const(n) for n in ['ROUTES','PLACES','GRAPH','SEARCH_INDEX','PERSON_LEGS','CLUSTERS']}
 M = {'ROUTES': json.load(open(B+'routes_prepared.json')), 'PLACES': json.load(open(B+'places_prepared.json')),
      'GRAPH': json.load(open(B+'person_graph.json')), 'SEARCH_INDEX': json.load(open(B+'search_index.json')),

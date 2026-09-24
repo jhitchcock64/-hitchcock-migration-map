@@ -1,7 +1,12 @@
+import os as _os
+_ORIG_CWD = _os.getcwd()
+PROJECT_DIR = _os.path.dirname(_os.path.abspath(__file__))
+BUILD_DIR = _os.path.join(_os.path.dirname(PROJECT_DIR), "build2")
+_os.chdir(PROJECT_DIR)  # scripts read/write their own folder regardless of where they're launched from
 import json, sys
-base, out = sys.argv[1], sys.argv[2]
+base, out = (_os.path.join(_ORIG_CWD, a) for a in sys.argv[1:3])
 html = open(base, encoding='utf-8').read()
-B = '/home/claude/build2/'
+B = BUILD_DIR + '/'
 repl = {'ROUTES': 'routes_prepared.json', 'CLUSTERS': 'clusters_prepared.json', 'PLACES': 'places_prepared.json',
         'SEARCH_INDEX': 'search_index.json', 'GRAPH': 'person_graph.json', 'PERSON_LEGS': 'person_legs.json'}
 def bounds(s, name):

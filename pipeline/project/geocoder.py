@@ -1521,7 +1521,8 @@ def normalize_and_geocode(raw):
 if __name__ == "__main__":
     import json
     from collections import Counter
-    with open("/home/claude/project/events.json") as f:
+    import os
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "events.json")) as f:
         records = json.load(f)
     places = Counter()
     for pid, r in records.items():

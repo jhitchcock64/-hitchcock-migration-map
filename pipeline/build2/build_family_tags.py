@@ -1,11 +1,15 @@
+import os as _os
+BUILD_DIR = _os.path.dirname(_os.path.abspath(__file__))
+PROJECT_DIR = _os.path.join(_os.path.dirname(BUILD_DIR), "project")
+_os.chdir(BUILD_DIR)  # scripts read/write their own folder regardless of where they're launched from
 import json, math
 from collections import defaultdict
 
-with open("/home/claude/project/legs.json") as f: legs = json.load(f)
-with open("/home/claude/project/indi.json") as f: indi = json.load(f)
-with open("/home/claude/project/fam.json") as f: fam = json.load(f)
-with open("/home/claude/project/ancestors.json") as f: anc_data = json.load(f)
-with open("/home/claude/project/migration_routes.geojson") as f: routes_geo = json.load(f)
+with open(_os.path.join(PROJECT_DIR, "legs.json")) as f: legs = json.load(f)
+with open(_os.path.join(PROJECT_DIR, "indi.json")) as f: indi = json.load(f)
+with open(_os.path.join(PROJECT_DIR, "fam.json")) as f: fam = json.load(f)
+with open(_os.path.join(PROJECT_DIR, "ancestors.json")) as f: anc_data = json.load(f)
+with open(_os.path.join(PROJECT_DIR, "migration_routes.geojson")) as f: routes_geo = json.load(f)
 
 direct_ancestors = set(anc_data["direct_ancestors"])
 

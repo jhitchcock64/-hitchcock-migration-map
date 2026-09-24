@@ -1145,7 +1145,7 @@ function scheduleYearRangeApply() {
 // happen to be, since that would drag a manually-chosen period toward the
 // present rather than showing the intended "watch it unfold" sweep.
 const playBtn = document.getElementById("era-play-btn");
-const MAP_MIN_YEAR = 1555, MAP_MAX_YEAR = 1992;
+const MAP_MIN_YEAR = Math.floor(YEAR_MIN), MAP_MAX_YEAR = Math.ceil(YEAR_MAX);  // derived from the data so playback never stops short
 const PLAY_STEP_YEARS = 2, PLAY_TICK_MS = 200;
 let playInterval = null;
 function startPlayback() {
