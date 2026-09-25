@@ -50,7 +50,8 @@ legacy.html                the pre-rebuild page, frozen at the 2026-09 cutover, 
 pipeline/project/          GEDCOM -> data stages 1-4, geocoder, write_data_js, diff tool, runner
 pipeline/build2/           stages 5-7: anchors, family tags, final arrays
 pipeline/basemap/          build_basemap.py (public map data -> basemap/); cache/ is git-ignored
-pipeline/corridors/        the historical travel network for "likely routes" (network.py -> network.json)
+pipeline/corridors/        the historical travel network for "likely routes" (network.py, modern.py -> network.json,
+                           modern_network.json.gz)
 pipeline/RUNBOOK.md        how to update the map from a new GEDCOM (read this for data work)
 tools/check_page.py        headless smoke test (key people, errors, counts, routes drawn)
 tools/profile_gestures.py  frame-time profile under real wheel/drag gestures (any page)
@@ -175,31 +176,48 @@ Routes are drawn with:
   drawn instead.
 
 Likely routes (added 2026-09-25, James's idea; the "Direct lines / Likely
-routes" buttons in the legend, remembered per browser):
-- Overland moves follow the roads, rivers, canals and sea lanes of their
-  time instead of a direct arc. Hand-authored network in
-  `pipeline/corridors/network.py` (nodes are real towns, fords, gaps;
-  roads are smooth curves through them; rivers are Natural Earth
-  centerlines; each corridor has years in use, and rivers an
-  `upstream_from` year for steamboats). `build_network.py` turns it into
-  the committed `network.json` (needs `pipeline/basemap/cache/` for river
-  lines; rerun only after editing network.py).
-- The router (`build_corridor_routes.py`) is a cheapest-path search with
-  per-mode costs, a boarding cost for boats, and guards (detour limit,
-  share on the network). It skips ocean crossings, moves under 80 km, and
-  places known only as a state ("Virginia"). Rail isn't modelled yet:
-  from 1850 long moves don't use eastern roads, and after 1860 only moves
-  mostly by river are routed; the rest keep direct lines.
+routes" buttons in the legend, remembered per browser; `?lines=likely` or
+`?lines=direct` in the URL overrides):
+- Overland moves follow the way people travelled in their year: period
+  roads, rivers, canals and coastal sea lanes; railroads (from the year each
+  line opened to 1955); US and Canadian highways from 1920; Interstates
+  from 1960. Air travel is deliberately not modelled (James).
+- Hand-authored part: `pipeline/corridors/network.py` (nodes are real
+  towns, fords, gaps; roads are smooth curves through them; rivers are
+  Natural Earth centerlines; each corridor has years in use, rivers an
+  `upstream_from` year for steamboats). Railroads and highways:
+  `pipeline/corridors/modern.py` (Atack's historical railroad GIS; Natural
+  Earth roads, which it nodes itself, since NE doesn't split roads at
+  junctions), read with `shapefile.py` (stdlib shapefile/dbf reader and
+  inverse Albers). `build_network.py` writes both committed outputs,
+  `network.json` and `modern_network.json.gz` (~2 MB); it needs
+  `pipeline/basemap/cache/` and is rerun only after editing those files.
+- The router (`build_corridor_routes.py`, stage 8, ~10 s) is an A* search
+  over (node, by land / water / rail) with per-mode, per-era costs,
+  boarding costs for boats and trains, and guards (detour limit, share on
+  the network). Towns on the hand-made network link to the nearest station
+  and highway. It skips ocean crossings and moves under 80 km. Places known
+  only as a state ("Virginia") are routed from where the map puts them and
+  flagged `a: 1`; the route tooltip says it's approximate.
+- Output: the network stretches used are merged into runs shared by the
+  same routes (so one band each) and simplified; ~370 KB in data.js.
 - Drawing: each route keeps its own short links to and from the network
-  (in the `routes` layers) and its arrowhead; the shared network part is
-  one band per edge (`bundles`, over a pale `bundle-casings`): as wide as a
-  cluster band for that many ancestors, split lengthwise into one stripe
-  per route in its colour, oldest first (`bundleFeatures`). Hovering a band
-  lists its routes; clicking opens the route picker. Focused threads use
-  the routed path for their moves (`segVia`, keyed by coordinates + year).
-  Routed moves leave the cluster bands in this view.
+  (in the `routes` layers) and its arrowhead; each run is one band
+  (`bundles`, over a pale `bundle-casings`): as wide as a cluster band for
+  that many ancestors, split lengthwise into one stripe per route in its
+  colour, oldest first (`bundleFeatures`). Hovering a band names it (road,
+  river, railroad company as built, highway number) and lists its routes;
+  clicking opens the route picker. Focused threads use the routed path
+  for their moves (`segVia`, keyed by coordinates + year). Routed moves
+  leave the cluster bands in this view. The map's attribution credits
+  Atack and Natural Earth.
 - These are inferences, not evidence, and the page says so. James reviews
   the routed list in `pipeline/logs/build_corridor_routes.log`.
+- 2026-09-25: the old single-waypoint corridors in `rebuild_all_data.py`
+  (all VA/NC/MD/TN -> KY moves bent through one Cumberland Gap point,
+  PA <-> VA through Staunton) were retired; the direct view draws those as
+  plain arcs now. The maritime waypoints (Panama voyage) and NY <-> MI via
+  Toledo remain.
 
 Relevance: `setTarget(person)` computes `TARGET_ANCESTOR_SET`. A route is
 drawn if any of its `anchor_ids` is in that set. `recomputeClusterVisibility()`

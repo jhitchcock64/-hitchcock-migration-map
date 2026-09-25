@@ -8,11 +8,16 @@ through the corridor's nodes. Rivers: the real river line from Natural Earth 1:1
 between consecutive river towns (or, with geometry='spline', a curve through
 the listed points, for rivers Natural Earth doesn't cover end to end).
 
-network.json is committed, so the pipeline itself needs no map data; rerun
-this only after editing network.py:
+Railroads and highways (modern.py) go to modern_network.json.gz: railroads
+from Jeremy Atack's historical GIS (usable from the year each line opened
+until RAIL_LAST_YEAR), US and Canadian highways from Natural Earth (from
+HIGHWAY_FIRST_YEAR; Interstates from INTERSTATE_FIRST_YEAR).
+
+Both outputs are committed, so the pipeline itself needs no map data; rerun
+this only after editing network.py or modern.py (needs pipeline/basemap/cache/):
     python pipeline/corridors/build_network.py
 """
-import json, math, heapq, pathlib, sys
+import json, math, heapq, pathlib, sys, gzip
 from collections import defaultdict
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -21,6 +26,10 @@ from network import NODES, CORRIDORS, RIVER
 
 CACHE = HERE.parent / 'basemap' / 'cache'
 OUT = HERE / 'network.json'
+MODERN_OUT = HERE / 'modern_network.json.gz'
+RAIL_LAST_YEAR = 1955          # after the war, long moves went by car
+HIGHWAY_FIRST_YEAR = 1920      # auto trails from the 1910s; US numbered highways 1926
+INTERSTATE_FIRST_YEAR = 1960   # most of the system opened 1956-1975
 
 
 def km(a, b):      # (lon, lat) points
@@ -165,6 +174,27 @@ def main():
     print(f'{len(out["edges"])} edges, ' + ', '.join(f'{m} {v:,.0f} km' for m, v in by.items()) +
           f' -> {OUT.name} ({OUT.stat().st_size // 1024} KB)')
     for p in problems: print('  WARNING', p)
+    build_modern()
+
+
+def build_modern():
+    import modern
+    nodes, edges = {}, []
+    for pieces in (modern.rail_pieces(CACHE), modern.road_pieces(CACHE)):
+        n, es = modern.finish(pieces)
+        nodes.update(n); edges += es
+    for e in edges:
+        if e['mode'] == 'rail': e['years'] = [e.pop('year'), RAIL_LAST_YEAR]
+        elif e['mode'] == 'interstate': e.pop('year'); e['years'] = [INTERSTATE_FIRST_YEAR, 2100]
+        else: e.pop('year'); e['years'] = [HIGHWAY_FIRST_YEAR, 2100]
+    edges.sort(key=lambda e: (e['a'], e['b'], e['mode'], e['coords'][0]))
+    out = dict(nodes={k: [round(v[0], 4), round(v[1], 4)] for k, v in sorted(nodes.items())}, edges=edges)
+    raw = json.dumps(out, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+    MODERN_OUT.write_bytes(gzip.compress(raw, mtime=0))
+    by = defaultdict(float)
+    for e in edges: by[e['mode']] += e['km']
+    print(f'{len(edges)} railroad and highway edges, ' + ', '.join(f'{m} {v:,.0f} km' for m, v in by.items()) +
+          f' -> {MODERN_OUT.name} ({MODERN_OUT.stat().st_size // 1024} KB)')
 
 
 if __name__ == '__main__':

@@ -337,6 +337,9 @@ CORRIDORS = [
     dict(name='Natchez Trace', mode=ROAD, years=(1801, 1840),
          path=['natchez', 'jackson_ms', 'tupelo', 'colberts_ferry', 'columbia_tn', 'nashville']),
 
+    # the Bay Path / Old Connecticut Path: Hooker's 1636 route to Hartford; the later Upper Post Road
+    dict(name='Bay Path (Old Connecticut Path)', mode=ROAD, years=(1636, 1700),
+         path=['boston', 'worcester', 'springfield_ma', 'hartford']),
     dict(name='Post Road', mode=ROAD, years=(1700, 1850),     # railroads took the long trips in the 1840s
          path=['boston', 'worcester', 'springfield_ma', 'hartford', 'new_haven', 'norwalk', 'new_york',
                'new_brunswick', 'trenton', 'philadelphia', 'wilmington_de', 'elkton', 'baltimore']),

@@ -602,6 +602,7 @@ const CLUSTER_LL = CLUSTERS.map(c => curveLL(c.curve));
 // an entry keep their direct line in this view too.
 let likelyRoutes = false;
 try { likelyRoutes = localStorage.getItem("hm-likely-routes") === "1"; } catch (e) {}
+{ const q = new URLSearchParams(location.search).get("lines"); if (q) likelyRoutes = q === "likely"; }   // ?lines=likely|direct
 const CORR_EDGE_LL = CORRIDORS.edges.map(e => e.c.map(p => toLL(p[0], p[1])));
 const routeVia = i => likelyRoutes ? CORRIDORS.routes[i] || null : null;
 const legKey = s => [s.x1, s.y1, s.x2, s.y2].map(v => Math.round(v * 100)).join(",") + "," + s.year;
@@ -768,8 +769,11 @@ function addMapLayers() {
   map.addLayer({ id: "county-lines", type: "line", source: "counties", minzoom: kToZoom(COUNTY_MIN_K),
     paint: { "line-color": "#a09aa8", "line-width": 0.7, "line-opacity": 0.55 } }, before);
 
+  // the likely-routes networks' credits show while their bands are on the map
+  const LIKELY_CREDIT = 'Likely routes: railroads from <a href="https://my.vanderbilt.edu/jeremyatack/data-downloads/">J. Atack, ' +
+    'Historical GIS of U.S. Railroads</a>; highways from <a href="https://www.naturalearthdata.com/">Natural Earth</a>';
   for (const id of ["routes", "route-arrows", "bundles", "bundle-casings", "clusters", "cluster-arrows", "places", "thread", "thread-arrows", "thread-dots", "stationary", "target"])
-    map.addSource(id, { type: "geojson", data: fc([]) });
+    map.addSource(id, id === "bundles" ? { type: "geojson", data: fc([]), attribution: LIKELY_CREDIT } : { type: "geojson", data: fc([]) });
 
   // (which routes a cluster band hides is switched by applyAggregation as the zoom changes)
   const notHiddenByCluster = ["!", ["get", "clustered"]];
@@ -1720,7 +1724,9 @@ function showTip(event, d) {
   const countLine = d.oscillation
     ? `${d.min_year}\u2013${d.max_year} \u00b7 ${d.count} ancestor${d.count>1?"s":""} moved between these`
     : `${d.min_year===d.max_year?d.min_year:d.min_year+"\u2013"+d.max_year} \u00b7 ${d.count} ancestor${d.count>1?"s":""} on this route`;
-  tooltip.html(nameLine + `<span class="t-year">${countLine}</span>`);
+  const v = routeVia(d._i);
+  const approx = v && v.a ? `<br><span class="t-year">route approximate: a place is recorded only as a state or country</span>` : "";
+  tooltip.html(nameLine + `<span class="t-year">${countLine}</span>` + approx);
   placeTip(event);
 }
 // Above the pointer if it fits, otherwise below it; never past the map's edges.

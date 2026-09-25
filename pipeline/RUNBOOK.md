@@ -144,7 +144,8 @@ The rest of the background map comes from OpenFreeMap at run time.
 
 `pipeline/corridors/network.py` is hand-authored: towns and waypoints, and
 the roads, rivers, canals and sea lanes between them, each with the years
-in use. To add or fix a corridor, edit it, then:
+in use. Railroads and highways come from public data via
+`pipeline/corridors/modern.py`. To add or fix a corridor, edit it, then:
 
 ```
 python pipeline/corridors/build_network.py         # -> network.json (commit it)
@@ -152,6 +153,9 @@ python pipeline/build2/build_corridor_routes.py    # reroute (no GEDCOM needed)
 python pipeline/project/write_data_js.py data.js   # write CORRIDORS
 ```
 
-`build_network.py` needs the Natural Earth river files in
-`pipeline/basemap/cache/` (see build_basemap.py for the downloads). The
+`build_network.py` needs, in `pipeline/basemap/cache/`: the Natural Earth
+river files (see build_basemap.py), `RR1826-1911Modified103123.zip` (Jeremy
+Atack's railroad GIS, from https://my.vanderbilt.edu/jeremyatack/data-downloads/,
+16 MB) and `ne_10m_roads.zip` (Natural Earth, 9 MB). Its outputs are
+committed, so the regular pipeline doesn't need them. The
 router's rules and costs are at the top of `build_corridor_routes.py`.
