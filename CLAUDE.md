@@ -121,6 +121,12 @@ Natural Earth 1:10m countries, lakes, rivers and first-level divisions.
 County lines are modern Census boundaries, not historical ones. (OpenFreeMap's
 tiles only carry counties from about map zoom 10, so we ship our own.)
 
+Marriages: stage 2 adds each family's MARR place to both spouses; stage 3
+uses it as a stop only at town or county precision ("New England" or
+"Virginia" would draw false detours). Until 2026-09-25 stage 3 silently
+dropped every marriage (the type wasn't in its list); fixing it added moves
+for 262 people, e.g. Samuel Hitchcock, East Haven -> Springfield 1714.
+
 Military records (added 2026-09-25): stage 2 also reads `_MILT` events.
 Stage 3 keeps one as a stop only if its place resolves to a town or county
 (most say just "Virginia, USA") and it's at least 60 km from the stops on
@@ -142,8 +148,7 @@ with `toLL(x, y)` when it builds GeoJSON; MapLibre draws in Web Mercator.
 The map is a MapLibre GL JS map (`map`, in `#map`) on the OpenFreeMap
 Liberty style, with a hillshade layer added. Our data is GeoJSON sources and
 layers inserted below Liberty's labels, from the bottom: `hillshade`,
-`county-lines` (from 5x), `routes-plain`, `routes-osc` (dashed),
-`route-arrows` (SDF triangle
+`county-lines` (from 5x), `routes-plain`, `route-arrows` (SDF triangle
 icons rotated to the Mercator bearing), `clusters`, `cluster-arrows`,
 `routes-dim` (everything else while a thread is focused), `thread-glow`,
 `thread`, `thread-arrows`, `thread-dots`, `stationary`, `places`,
@@ -319,8 +324,8 @@ Data formats (all coordinates in projected units):
   rivers}`): each shape a flat `[lon0, lat0, dlon, dlat, ...]` in units of
   `quant` degrees.
 
-Scale: 897 routes, 61 clusters, 493 places, 1,280 people, 595 of them with
-movement (1,277 legs). That's small; if the map feels slow, look at how it's
+Scale: 1,014 routes, 65 clusters, 522 places, 1,282 people, 648 of them with
+movement (1,518 legs). That's small; if the map feels slow, look at how it's
 drawn, not how much it draws.
 
 ## Hard-won rules

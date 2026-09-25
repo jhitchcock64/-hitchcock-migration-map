@@ -119,7 +119,10 @@ def person_stops(pid):
     evs = []
     seen_types = set()
     for e in r["events"]:
-        if e["type"] not in ("BIRT", "RESI", "DEAT", "MILT"):
+        # MARR: the marriage place (from the family record, added to both spouses in
+        # stage 2) is presence data like a residence. It was extracted but dropped
+        # here until 2026-09-25, so no marriage place ever reached the map.
+        if e["type"] not in ("BIRT", "RESI", "DEAT", "MILT", "MARR"):
             continue
         if e["type"] in ("BIRT", "DEAT") and e["type"] in seen_types:
             continue  # keep only first birth/death record (dedupe source variants)
@@ -129,6 +132,8 @@ def person_stops(pid):
         label, lat, lon, tier = g
         if e["type"] == "MILT" and tier not in ("town", "county"):
             continue  # "Virginia, USA" says where he enlisted or served, not a place he went
+        if e["type"] == "MARR" and tier not in ("town", "county"):
+            continue  # a marriage "in New England" or "Virginia" is no place to draw a trip to
         yr = parse_year(e["date"], birth_year)
         if yr and birth_year and not (birth_year - 5 <= yr <= birth_year + 100):
             continue  # discard implausible/garbled date ranges
