@@ -9,3 +9,6 @@ pipeline/project/*.csv
 pipeline/build2/*.json
 __pycache__/
 .DS_Store
+
+# raw public map data downloaded by pipeline/basemap/build_basemap.py (large; not committed)
+pipeline/basemap/cache/

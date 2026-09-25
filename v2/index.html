@@ -58,6 +58,11 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 .ref-city-dot { fill:#a8998a; opacity:0; transition:opacity 0.2s ease; }
 .ref-city-dot.visible { opacity:0.55; }
 .ref-label { color:#a8998a !important; font-style:italic; }
+/* towns: a little smaller than the reference cities, with their own dot
+   (the label box sits 3px right of and 16px above its place) */
+.town-label { font-size:11px; }
+.town-label::before { content:""; position:absolute; left:-5px; top:14px; width:4px; height:4px;
+  border-radius:50%; background:#a8998a; opacity:0.8; }
 .place-dot.visible { opacity:0.9; }
 .place-label-html {
   position:absolute; font-family:var(--font-mono); font-size:12px; color:var(--ink);
@@ -104,6 +109,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   linear-gradient(#8a7248,#8a7248) top/100% 2px no-repeat,
   linear-gradient(#8a7248,#8a7248) bottom/100% 2px no-repeat; }
 #legend .hint { font-family:var(--font-mono); font-size:10px; color:var(--muted); margin-top:8px; border-top:1px solid rgba(156,122,46,0.25); padding-top:6px; }
+#legend .hint.credit { font-size:9px; margin-top:3px; border-top:none; padding-top:0; opacity:0.8; }
 
 #search-box { position:absolute; top:14px; left:14px; z-index:10; max-width:220px; }
 #search-modes { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:5px; }
@@ -338,11 +344,13 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:9px;border-color:#8a7248;"></span> many ancestors, same general route (zoom in to split apart)</div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.5px;border-top-style:dashed;"></span> short, repeated back-and-forth (e.g. two nearby towns)</div>
     <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = detail &middot; search top-left</div>
+    <div class="hint credit">map detail: Natural Earth &middot; US Census Bureau</div>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="data.js"></script>
+<script src="basemap/index.js"></script>
 <script>
 ROUTES.forEach((r,i)=>{ r._i = i; });
 PLACES.forEach((p,i)=>{ p._i = i; });
@@ -568,6 +576,7 @@ let basemapInFlight = null, basemapPending = false, basemapSeq = 0;
 // Ask for a basemap at the current view. At most one drawing is in flight;
 // while it runs, further requests collapse into one for the latest view.
 function requestBasemap() {
+  if (BM) return;                                      // drawn with WebGL instead (drawBasemapGL)
   if (basemapRequestedT === currentTransform) return; // (computeBase clears it on resize)
   if (basemapInFlight) { basemapPending = true; return; }
   basemapPending = false;
@@ -592,7 +601,7 @@ function basemapDrawn(id, bmp) {
 }
 // Stretch/shift the basemap bitmap from the view it was drawn at to the current one.
 function placeBasemap() {
-  if (!basemapShownT) { basemapCanvas.style.visibility = "hidden"; return; }
+  if (BM || !basemapShownT) { basemapCanvas.style.visibility = "hidden"; return; }
   const { s, cx, cy } = layerShift(basemapShownT);
   basemapCanvas.style.transform = (s === 1 && cx === 0 && cy === 0) ? "" : `translate(${cx}px,${cy}px) scale(${s})`;
   basemapCanvas.style.visibility = "";
@@ -992,7 +1001,7 @@ const GL_FLOATS = 16; // per instance: p0 2, p1 2, hw 1, shift 2, color 4, depth
 let GL = null;
 function initRoutesGL() {
   let gl = null;
-  try { gl = routesGLCanvas.getContext("webgl2", { antialias: true, depth: true, alpha: true, premultipliedAlpha: true }); } catch (e) {}
+  try { gl = routesGLCanvas.getContext("webgl2", { antialias: true, depth: true, stencil: true, alpha: true, premultipliedAlpha: true }); } catch (e) {}
   if (!gl) return null;
   const sh = (type, src) => {
     const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
@@ -1031,14 +1040,14 @@ function initRoutesGL() {
   gl.useProgram(prog);
   gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // premultiplied source-over, as canvas
-  return { gl, vao, instBuf, tplCount: T.length / 4, count: 0, key: null,
+  return { gl, prog, vao, instBuf, tplCount: T.length / 4, count: 0, key: null,
            uView: gl.getUniformLocation(prog, "u_view"), uFrame: gl.getUniformLocation(prog, "u_frame"),
            uSize: gl.getUniformLocation(prog, "u_size"), drawnRoutes: [], drawnClusters: [] };
 }
 GL = initRoutesGL();
 if (GL) routesGLCanvas.addEventListener("webglcontextlost", (e) => {
-  // the GPU was reset: carry on with Canvas 2D
-  e.preventDefault(); GL = null; computeBase(); screenCacheT = null; redrawAll();
+  // the GPU was reset: carry on with Canvas 2D routes and the bitmap basemap
+  e.preventDefault(); GL = null; BM = null; computeBase(); screenCacheT = null; redrawAll();
 });
 
 // A curve as the polyline the Canvas 2D code strokes (bow: 11 samples of the
@@ -1139,14 +1148,334 @@ function buildRouteInstances(aggregating) {
   GL.drawnRoutes = sorted; GL.drawnClusters = drawnClusters;
   screenCacheT = null;
 }
+// ============ basemap with WebGL ============
+// Land, lakes, rivers and borders are drawn in the same WebGL pass as the
+// routes, underneath them. Below zoom 3.5 the data is the page's original
+// BASEMAP (so the default view looks exactly as before); from 3.5 on, detail
+// tiles built by pipeline/basemap/build_basemap.py from Census counties
+// (1:500k) and Natural Earth 1:10m, loaded as they come on screen.
+//  * Filled shapes use the stencil buffer: every ring is drawn as a fan of
+//    triangles, counting +1/-1 per winding, then the covered pixels (count
+//    != 0) are painted -- SVG's nonzero fill rule, with any polygon.
+//  * Lines are one instanced quad per segment. Widths and dash lengths are
+//    in map units, as in the old SVG styles, up to a cap in screen pixels,
+//    so lines don't swell into bands at high zoom (the caps take effect only
+//    above ~8-11x). Lines thinner than a device pixel are drawn one pixel
+//    wide at proportionally lower opacity, as a canvas would render them.
+//  * Each translucent line layer gets its own depth, so a layer never
+//    darkens where its own segments overlap (same trick as the routes).
+const BM_FILL_VS = `#version 300 es
+precision highp float;
+in vec2 a_pos;
+uniform vec3 u_view; uniform vec3 u_frame; uniform vec2 u_size; uniform float u_z; uniform float u_clip;
+void main() {
+  if (u_clip > 0.5) { gl_Position = vec4(a_pos, u_z, 1.0); return; }   // full-screen cover quad
+  vec2 dev = (a_pos * u_view.x + u_view.yz + u_frame.xy) * u_frame.z;
+  gl_Position = vec4(dev.x / u_size.x * 2.0 - 1.0, 1.0 - dev.y / u_size.y * 2.0, u_z, 1.0);
+}`;
+const BM_FILL_FS = `#version 300 es
+precision highp float;
+uniform vec4 u_color; out vec4 fragColor;
+void main() { fragColor = vec4(u_color.rgb * u_color.a, u_color.a); }`;
+const BM_LINE_VS = `#version 300 es
+precision highp float;
+in vec2 a_tpl;              // end (0/1), side (-1/+1)
+in vec2 a_p0; in vec2 a_p1; // segment in map units
+in float a_s0;              // distance along the line to p0, map units
+uniform vec3 u_view; uniform vec3 u_frame; uniform vec2 u_size; uniform float u_z;
+uniform float u_hw;         // half width, CSS px
+out float v_along; flat out float v_s0;
+void main() {
+  vec2 P0 = a_p0 * u_view.x + u_view.yz, P1 = a_p1 * u_view.x + u_view.yz;
+  vec2 d = P1 - P0; float len = length(d);
+  vec2 dir = len > 1e-6 ? d / len : vec2(1.0, 0.0), nrm = vec2(-dir.y, dir.x);
+  // square ends half a width long, which closes the joins of thin lines
+  vec2 pos = (a_tpl.x > 0.5 ? P1 + dir * u_hw : P0 - dir * u_hw) + nrm * a_tpl.y * u_hw;
+  v_along = a_tpl.x > 0.5 ? len + u_hw : -u_hw;
+  v_s0 = a_s0;
+  vec2 dev = (pos + u_frame.xy) * u_frame.z;
+  gl_Position = vec4(dev.x / u_size.x * 2.0 - 1.0, 1.0 - dev.y / u_size.y * 2.0, u_z, 1.0);
+}`;
+const BM_LINE_FS = `#version 300 es
+precision highp float;
+in float v_along; flat in float v_s0;
+uniform vec4 u_color;
+uniform vec3 u_dash;        // on, off (map units; on = 0: solid), effective px per map unit for dashes
+uniform float u_pxPerUnit;
+out vec4 fragColor;
+void main() {
+  if (u_dash.x > 0.0) {
+    float s = (v_s0 + v_along / u_pxPerUnit) * u_dash.z;       // distance along, in dash-pattern px
+    if (mod(s, (u_dash.x + u_dash.y) * u_dash.z) > u_dash.x * u_dash.z) discard;
+  }
+  fragColor = vec4(u_color.rgb * u_color.a, u_color.a);
+}`;
+// Styles: the old SVG classes (.land .river .lake .state-border), plus
+// county lines and the seam that hides gaps where Census and Natural Earth
+// land meet along the Canadian and Mexican borders. w = width in map units;
+// cap = maximum width in CSS px; px = fixed width in CSS px.
+const BM_STYLE = (() => {
+  const s = basemapStyles;
+  return {
+    land:   { fill: s.land },
+    seam:   { color: s.land, w: 0.04 },
+    county: { color: s.stateStroke, alpha: 0.45, px: 0.8, minZoom: 5 },
+    coast:  { color: s.landStroke, w: 0.012, cap: 1.5 },
+    rivers: { color: s.lake, alpha: 0.85, w: 0.018, cap: 1.6 },
+    lakes:  { fill: s.lake },
+    lakeEdge: { color: s.landStroke, w: 0.02, cap: 1.5 },
+    state:  { color: s.stateStroke, alpha: 0.75, w: 0.026, cap: 2.2, dash: [0.2, 0.15] },
+    border: { color: s.stateStroke, alpha: 0.75, w: 0.026, cap: 2.2, dash: [0.2, 0.15] },
+  };
+})();
+const BM_LINE_ORDER = ["seam", "county", "coast", "rivers"];   // then lakes (fill + edge), then state lines
+let BM = null;
+function initBasemapGL(gl) {
+  const sh = (type, src) => {
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  };
+  const prog = (vs, fs) => {
+    const p = gl.createProgram();
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    const u = {}; for (let i = 0; i < gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i++) {
+      const n = gl.getActiveUniform(p, i).name; u[n] = gl.getUniformLocation(p, n); }
+    return { p, u, a: n => gl.getAttribLocation(p, n) };
+  };
+  const fill = prog(BM_FILL_VS, BM_FILL_FS), line = prog(BM_LINE_VS, BM_LINE_FS);
+  const fillVao = gl.createVertexArray(), lineVao = gl.createVertexArray();
+  const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  gl.bindVertexArray(lineVao);
+  const tpl = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, tpl);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,-1, 0,1, 1,-1, 1,-1, 0,1, 1,1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(line.a("a_tpl")); gl.vertexAttribPointer(line.a("a_tpl"), 2, gl.FLOAT, false, 0, 0);
+  for (const n of ["a_p0", "a_p1", "a_s0"]) { gl.enableVertexAttribArray(line.a(n)); gl.vertexAttribDivisor(line.a(n), 1); }
+  gl.bindVertexArray(fillVao);
+  gl.enableVertexAttribArray(fill.a("a_pos"));
+  gl.bindVertexArray(null);
+  return { fill, line, fillVao, lineVao, quad, levels: { 0: new Map(), 1: new Map(), 2: new Map(), 3: new Map() },
+           loading: new Set() };
+}
+// shapes -> GPU buffers: rings as triangle fans (for the stencil fill),
+// lines as per-segment instances [x0, y0, x1, y1, s0]
+function bmUpload(gl, shapes) {
+  const out = {};
+  for (const [layer, list] of Object.entries(shapes)) {
+    if (!list.length) continue;
+    if (layer === "land" || layer === "lakes") {
+      let n = 0; for (const r of list) if (r.length >= 6) n += (r.length / 2 - 2) * 3;
+      const f = new Float32Array(n * 2); let o = 0;
+      for (const r of list) {
+        for (let i = 2; i + 3 < r.length; i += 2) {
+          f[o++] = r[0]; f[o++] = r[1]; f[o++] = r[i]; f[o++] = r[i+1]; f[o++] = r[i+2]; f[o++] = r[i+3];
+        }
+      }
+      const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, f, gl.STATIC_DRAW);
+      out[layer] = { buf: b, count: n };
+      // lake outlines (the old .lake stroke): detail tiles bring their own
+      // (shores only, not seams between lake pieces); level 0 outlines its rings
+      if (layer === "lakes" && !shapes.lakeEdge) shapes.lakeEdge = list.map(r => r.concat(r.slice(0, 2)));
+    }
+  }
+  for (const [layer, list] of Object.entries(shapes)) {
+    if (layer === "land" || layer === "lakes" || !list.length) continue;
+    let n = 0; for (const l of list) n += l.length / 2 - 1;
+    const f = new Float32Array(n * 5); let o = 0;
+    for (const l of list) {
+      let s = 0;
+      for (let i = 0; i + 3 < l.length; i += 2) {
+        f[o++] = l[i]; f[o++] = l[i+1]; f[o++] = l[i+2]; f[o++] = l[i+3]; f[o++] = s;
+        s += Math.hypot(l[i+2] - l[i], l[i+3] - l[i+1]);
+      }
+    }
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, f, gl.STATIC_DRAW);
+    out[layer] = { buf: b, count: n };
+  }
+  return out;
+}
+// Level 0: the page's original BASEMAP (SVG path strings: M/L/Z only).
+function bmParsePath(d, closeRings) {
+  const shapes = [];
+  for (const sub of d.split("M")) {
+    if (!sub) continue;
+    const closed = /Z\s*$/.test(sub);
+    const nums = sub.replace(/Z/g, "").split(/[L,\s]+/).filter(Boolean).map(Number);
+    if (nums.length < 4) continue;
+    if (closed && closeRings) nums.push(nums[0], nums[1]);
+    shapes.push(nums);
+  }
+  return shapes;
+}
+function bmLevel0(gl) {
+  const land = bmParsePath(BASEMAP.land_far, false).concat(bmParsePath(BASEMAP.central_america, false));
+  return bmUpload(gl, {
+    land,
+    coast: bmParsePath(BASEMAP.land_far, true).concat(bmParsePath(BASEMAP.central_america, true)),
+    rivers: bmParsePath(BASEMAP.rivers, true),
+    lakes: bmParsePath(BASEMAP.lakes, false),
+    state: bmParsePath(BASEMAP.states_far, true),
+  });
+}
+// A detail tile arrives (its script calls this): decode and upload it.
+window.BASEMAP_TILE = function (lv, tx, ty, data) {
+  const key = tx + "," + ty;
+  BM && BM.loading.delete(lv + ":" + key);
+  if (!BM || !GL) return;
+  const q = BASEMAP_INDEX.quant, shapes = {};
+  for (const [layer, list] of Object.entries(data)) {
+    shapes[layer] = list.map(e => {
+      const a = new Array(e.length); let x = 0, y = 0;
+      for (let i = 0; i < e.length; i += 2) {
+        if (i === 0) { x = e[0]; y = e[1]; } else { x += e[i]; y += e[i+1]; }
+        a[i] = x * q; a[i+1] = y * q;
+      }
+      return a;
+    });
+  }
+  BM.levels[lv].set(key, bmUpload(GL.gl, shapes));
+  redrawAll();
+};
+// visible map area in map units (with a margin)
+function bmViewBox() {
+  const t = currentTransform, k = t.k * base.scale;
+  const x0 = (-base.offsetX) / base.scale, y0 = (-base.offsetY) / base.scale;
+  const mx = base.width / k * 0.15, my = base.height / k * 0.15;
+  return [(-base.offsetX / base.scale - t.x) / t.k - mx, (-base.offsetY / base.scale - t.y) / t.k - my,
+          ((base.width - base.offsetX) / base.scale - t.x) / t.k + mx, ((base.height - base.offsetY) / base.scale - t.y) / t.k + my];
+}
+// Which tiles of level lv cover the view, and are they all loaded? (Starts loading the missing ones.)
+function bmTilesFor(lv, box) {
+  const L = BASEMAP_INDEX.levels[lv], T = L.tile, keys = [];
+  let complete = true;
+  for (let tx = Math.floor(box[0] / T); tx <= Math.floor(box[2] / T); tx++)
+    for (let ty = Math.floor(box[1] / T); ty <= Math.floor(box[3] / T); ty++) {
+      const key = tx + "," + ty;
+      if (!L._set) L._set = new Set(L.tiles);
+      if (!L._set.has(key)) continue;           // nothing there (open ocean)
+      if (BM.levels[lv].has(key)) { keys.push(key); continue; }
+      complete = false;
+      const id = lv + ":" + key;
+      if (!BM.loading.has(id)) {
+        BM.loading.add(id);
+        const s = document.createElement("script");
+        s.src = `basemap/detail_${lv}_${tx}_${ty}.js`;
+        s.onerror = () => { BM.loading.delete(id); };
+        document.head.appendChild(s);
+      }
+    }
+  return { keys, complete };
+}
+function drawBasemapGL() {
+  if (!BM) return;
+  const gl = GL.gl, t = currentTransform, k = t.k;
+  if (!BM.levels[0].has("all")) BM.levels[0].set("all", bmLevel0(gl));
+  // the finest level whose on-screen tiles are all loaded (loading the wanted one meanwhile)
+  let want = 0;
+  if (typeof BASEMAP_INDEX !== "undefined")
+    for (const lv of [1, 2, 3]) if (k >= BASEMAP_INDEX.levels[lv].minZoom) want = lv;
+  let tiles = [BM.levels[0].get("all")];
+  if (want > 0) {
+    const box = bmViewBox();
+    for (let lv = want; lv >= 1; lv--) {
+      const r = bmTilesFor(lv, box);
+      if (r.complete) { tiles = r.keys.map(key => BM.levels[lv].get(key)); break; }
+    }
+  }
+  const pxPerUnit = k * base.scale;
+  const view = [pxPerUnit, t.x * base.scale + base.offsetX, t.y * base.scale + base.offsetY];
+  const setCommon = (P) => {
+    gl.useProgram(P.p);
+    gl.uniform3f(P.u.u_view, ...view);
+    gl.uniform3f(P.u.u_frame, VIEWPORT.fx, VIEWPORT.fy, VIEWPORT.dpr);
+    gl.uniform2f(P.u.u_size, routesGLCanvas.width, routesGLCanvas.height);
+  };
+  const rgba = (css, a) => { const c = rgbOf(css); return [c[0], c[1], c[2], a == null ? 1 : a]; };
+  let z = 0.95;
+  const fillLayer = (layer, color) => {
+    const F = BM.fill;
+    setCommon(F);
+    gl.bindVertexArray(BM.fillVao);
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.STENCIL_TEST);
+    gl.colorMask(false, false, false, false);
+    gl.stencilFunc(gl.ALWAYS, 0, 0xff);
+    gl.stencilOpSeparate(gl.FRONT, gl.KEEP, gl.KEEP, gl.INCR_WRAP);
+    gl.stencilOpSeparate(gl.BACK, gl.KEEP, gl.KEEP, gl.DECR_WRAP);
+    gl.uniform1f(F.u.u_clip, 0); gl.uniform1f(F.u.u_z, 0);
+    for (const tile of tiles) {
+      const g = tile[layer]; if (!g) continue;
+      gl.bindBuffer(gl.ARRAY_BUFFER, g.buf);
+      gl.vertexAttribPointer(F.a("a_pos"), 2, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, g.count);
+    }
+    // paint every covered pixel once, and reset the stencil for the next layer
+    gl.colorMask(true, true, true, true);
+    gl.stencilFunc(gl.NOTEQUAL, 0, 0xff);
+    gl.stencilOp(gl.ZERO, gl.ZERO, gl.ZERO);
+    gl.uniform1f(F.u.u_clip, 1);
+    gl.uniform4f(F.u.u_color, ...rgba(color));
+    gl.bindBuffer(gl.ARRAY_BUFFER, BM.quad);
+    gl.vertexAttribPointer(F.a("a_pos"), 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.disable(gl.STENCIL_TEST);
+  };
+  const lineLayer = (layer) => {
+    const st = BM_STYLE[layer];
+    if (st.minZoom && k < st.minZoom) return;
+    const Lp = BM.line;
+    setCommon(Lp);
+    gl.bindVertexArray(BM.lineVao);
+    gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.depthMask(true);
+    // width in CSS px: map units up to the cap, or fixed
+    let wpx = st.px != null ? st.px : Math.min(st.w * pxPerUnit, st.cap || Infinity);
+    let alpha = st.alpha == null ? 1 : st.alpha;
+    const minW = 1 / VIEWPORT.dpr;               // one device pixel
+    if (wpx < minW) { alpha *= wpx / minW; wpx = minW; }
+    gl.uniform1f(Lp.u.u_hw, wpx / 2);
+    gl.uniform4f(Lp.u.u_color, ...rgba(st.color, alpha));
+    gl.uniform1f(Lp.u.u_z, z); z -= 0.02;
+    gl.uniform1f(Lp.u.u_pxPerUnit, pxPerUnit);
+    // dashes scale with the map until the line width reaches its cap
+    const dashScale = st.cap ? Math.min(pxPerUnit, st.cap / st.w) : pxPerUnit;
+    gl.uniform3f(Lp.u.u_dash, st.dash ? st.dash[0] : 0, st.dash ? st.dash[1] : 0, dashScale);
+    for (const tile of tiles) {
+      const g = tile[layer]; if (!g) continue;
+      gl.bindBuffer(gl.ARRAY_BUFFER, g.buf);
+      gl.vertexAttribPointer(Lp.a("a_p0"), 2, gl.FLOAT, false, 20, 0);
+      gl.vertexAttribPointer(Lp.a("a_p1"), 2, gl.FLOAT, false, 20, 8);
+      gl.vertexAttribPointer(Lp.a("a_s0"), 1, gl.FLOAT, false, 20, 16);
+      gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, g.count);
+    }
+  };
+  fillLayer("land", BM_STYLE.land.fill);
+  for (const l of BM_LINE_ORDER) lineLayer(l);
+  fillLayer("lakes", BM_STYLE.lakes.fill);
+  lineLayer("lakeEdge");
+  lineLayer("border");
+  lineLayer("state");
+  gl.bindVertexArray(null);
+}
+
+try { if (GL) BM = initBasemapGL(GL.gl); }
+catch (e) { console.warn("WebGL basemap unavailable, using the bitmap basemap:", e); BM = null; }
+
 function drawRoutesGL() {
   const aggregating = !focusActive && currentTransform.k < AGGREGATE_ZOOM_THRESHOLD;
   const key = CURRENT_TARGET + "|" + focusActive + "|" + aggregating;
   if (key !== GL.key) { buildRouteInstances(aggregating); GL.key = key; }
   const gl = GL.gl, t = currentTransform;
   gl.viewport(0, 0, routesGLCanvas.width, routesGLCanvas.height);
-  gl.clearColor(0, 0, 0, 0); gl.clearDepth(1);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clearStencil(0);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+  drawBasemapGL();
+  // routes: their own program and state, fresh depth
+  gl.clear(gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(GL.prog);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.depthMask(true);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   // dataToScreen: (k*x + t.x) * base.scale + offsetX
   gl.uniform3f(GL.uView, t.k * base.scale, t.x * base.scale + base.offsetX, t.y * base.scale + base.offsetY);
   gl.uniform3f(GL.uFrame, VIEWPORT.fx, VIEWPORT.fy, VIEWPORT.dpr);
@@ -1862,6 +2191,7 @@ function moveLabels() {
   positionConvLabel();
   for (const div of labelPool) if (div._x != null && div.style.display !== "none") placeLabelDiv(div);
   for (const div of refLabelPool) if (div._x != null && div.style.display !== "none") placeLabelDiv(div);
+  for (const div of townLabelPool) if (div._x != null && div.style.display !== "none") placeLabelDiv(div);
 }
 function placeLabelDiv(div) {
   const [sx, sy] = dataToScreen(div._x, div._y);
@@ -1985,6 +2315,68 @@ function updateLabels() {
   refDotSel.classed("visible", d => refVisibleIdx.has(d._i));
   refShown.forEach(([p], slot) => showLabelDiv(getPooledRefLabel(slot), p));
   for (let i = refShown.length; i < refLabelPool.length; i++) refLabelPool[i].style.display = "none";
+
+  // towns (US Census places), zoomed in further still, most prominent first,
+  // in whatever room the family places and reference cities leave
+  const townShown = [];
+  if (currentTransform.k >= TOWN_MIN_ZOOM && loadTowns()) {
+    const [bx0, by0, bx1, by1] = bmViewBox();
+    const idx = [];
+    for (let gx = Math.floor(bx0); gx <= Math.floor(bx1); gx++)
+      for (let gy = Math.floor(by0); gy <= Math.floor(by1); gy++) {
+        const cell = TOWN_GRID.get(gx + "," + gy);
+        if (cell) for (const i of cell) idx.push(i);
+      }
+    idx.sort((a, b) => a - b);                  // the town list is in order of prominence
+    for (const i of idx) {
+      const t = BASEMAP_TOWNS[i];
+      const [sx, sy] = dataToScreen(t[2], t[3]);
+      if (sx < 0 || sx > rect.width || sy < 0 || sy > rect.height) continue;
+      const w = t[0].length * 5.8 + 12, h = 14;
+      const box = { x1: sx - 4, y1: sy-h, x2: sx+w, y2: sy + 3 };
+      if (placed.some(b => !(box.x2<b.x1 || box.x1>b.x2 || box.y2<b.y1 || box.y1>b.y2))) continue;
+      placed.push(box);
+      townShown.push({ label: t[0], x: t[2], y: t[3] });
+      if (townShown.length >= TOWN_MAX_LABELS) break;
+    }
+  }
+  townShown.forEach((p, slot) => showLabelDiv(getPooledTownLabel(slot), p));
+  for (let i = townShown.length; i < townLabelPool.length; i++) townLabelPool[i].style.display = "none";
+}
+// --- towns: labels from the US Census gazetteer of places (v2/basemap/towns.js,
+// built by pipeline/basemap/build_basemap.py), loaded the first time they're needed ---
+const TOWN_MIN_ZOOM = 7, TOWN_MAX_LABELS = 40;
+let TOWN_GRID = null, townsRequested = false;
+function loadTowns() {
+  if (TOWN_GRID) return true;
+  if (window.BASEMAP_TOWNS) {
+    TOWN_GRID = new Map();   // 1 x 1 map-unit cells -> town indices, for quick lookup
+    BASEMAP_TOWNS.forEach((t, i) => {
+      const key = Math.floor(t[2]) + "," + Math.floor(t[3]);
+      let c = TOWN_GRID.get(key); if (!c) TOWN_GRID.set(key, c = []);
+      c.push(i);
+    });
+    return true;
+  }
+  if (!townsRequested) {
+    townsRequested = true;
+    const s = document.createElement("script");
+    s.src = "basemap/towns.js";
+    s.onload = () => updateLabels();
+    document.head.appendChild(s);
+  }
+  return false;
+}
+const townLabelPool = [];
+function getPooledTownLabel(i) {
+  while (townLabelPool.length <= i) {
+    const div = document.createElement("div");
+    div.className = "place-label-html ref-label town-label";
+    div.style.display = "none";
+    mapWrap.appendChild(div);
+    townLabelPool.push(div);
+  }
+  return townLabelPool[i];
 }
 // Show pooled label `div` for place p. The label remembers its map position
 // so gestures can move it; text is only rewritten when it changes, since a
