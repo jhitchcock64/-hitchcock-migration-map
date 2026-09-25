@@ -978,6 +978,8 @@ COUNTY_COORDS = {
     "jessamine|kentucky": (37.900, -84.570), "fleming|kentucky": (38.417, -83.735),
     "mason|kentucky": (38.643, -83.745), "nicholas|kentucky": (38.323, -83.964),
     "marshall|kentucky": (36.988, -88.316), "fayette|kentucky": (38.041, -84.502),
+    "mclennan|texas": (31.549, -97.146),       # seat Waco
+    "leon|texas": (31.258, -95.978),           # seat Centerville
     "fayette|pennsylvania": (39.900, -79.716),   # seat Uniontown (else a bare "fayette" fell back to Kentucky)
     "spencer|kentucky": (37.999, -85.347), "clark|kentucky": (37.923, -84.279),
     "anderson|kentucky": (37.980, -84.880), "cumberland|kentucky": (36.789, -85.359),
@@ -1376,10 +1378,8 @@ RAW_GROUND_TRUTH = {
     "Upper Nineteenth, Harris, Georgia, USA": None,  # left unresolved on the shipped map
     "Upper Nineteenth, Upper Nineteenth, Harris, Georgia, USA": None,  # left unresolved on the shipped map
     "Valley Plains, Harris, Georgia, USA": None,  # left unresolved on the shipped map
-    "Waco, McLennan, Texas, USA": ("Texas", 31.05, -97.56, "town"),
     "Walkers Chapel, DeKalb, Alabama, USA": None,  # left unresolved on the shipped map
     "Walkers Chapel, Dekalb, Alabama, USA": None,  # left unresolved on the shipped map
-    "West of the Brazos River, Waco, McLennan, Texas, USA": ("Texas", 31.05, -97.56, "town"),
     "Whitakers, Harris, Georgia, USA": ("Georgia", 33.04, -83.64, "town"),
     "Worcester, Worcester, Massachusetts, USA": ("Worcester Co., Massachusetts", 42.35, -71.86, "county"),
 }

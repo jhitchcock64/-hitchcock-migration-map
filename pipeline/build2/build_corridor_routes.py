@@ -54,7 +54,7 @@ OUT = HERE / 'corridors_prepared.json'
 CONNECT_COST, CONNECT_KM, BOARD_COST, RAIL_BOARD_COST = 2.5, 160, 80, 40
 REGION_CONNECT_KM = 400   # a place known only as a state or country sits at its centre
 MIN_KM, MAX_DETOUR, DETOUR_SLACK_KM, MIN_ON_NETWORK = 80, 2.3, 50, 0.4
-TRANSFER_KM = 15          # a town on the hand-made network links to a station or highway this close
+TRANSFER_KM = 25          # a town on the hand-made network links to a station or highway this close
 MIN_COST_PER_KM = 0.15    # the cheapest mode (trade-wind sea lane, 0.5 x 0.3): A*'s estimate of
                           # the rest of the trip; must not exceed any real cost, or A* can miss the best path
 WATER, RAIL = {'river', 'sea', 'canal'}, {'rail'}

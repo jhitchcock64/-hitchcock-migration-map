@@ -454,6 +454,17 @@ NODES = {
     '~bahamas_n':     ('~', 28.000, -79.300),
     '~charleston_off': ('~', 32.500, -79.300),
     'bermuda':        ('Bermuda', 32.300, -64.780),
+    # the Gulf coast: Mobile and New Orleans to Galveston
+    '~mobile_bay':    ('~', 30.150, -88.050),
+    '~chandeleur':    ('~', 29.750, -88.700),
+    '~sabine_off':    ('~', 29.350, -93.800),
+    'galveston':      ('Galveston', 29.301, -94.797),
+    '~galveston_bay': ('~', 29.550, -94.900),
+    'houston_tx':     ('Houston', 29.760, -95.370),
+    'washington_brazos': ('Washington-on-the-Brazos, TX', 30.326, -96.155),
+    'wheelock':       ('Wheelock, TX', 30.900, -96.390),
+    'marlin':         ('Marlin, TX', 31.306, -96.898),
+    'waco':           ('Waco, TX', 31.549, -97.146),
     # the sailing track to the Gulf: north of the Antilles, the Old Bahama Channel along Cuba
     '~north_antilles': ('~', 21.000, -64.000),
     '~silver_bank_n': ('~', 21.200, -69.500),
@@ -723,6 +734,14 @@ CORRIDORS = [
     dict(name='Panama Railroad', mode='rail', years=(1855, 1914), path=['panama_city', 'colon']),
     dict(name='Caribbean (Aspinwall steamers)', mode=SEA, years=(1849, 1970), cost_factor=0.5,
          path=['colon', '~jamaica_s']),
+    # coastal steamers along the Gulf: before the railroad reached Texas from the east
+    # (New Orleans - Houston, 1880) this was the way from Alabama and Louisiana to Texas
+    dict(name='Gulf coast (coastal steamers)', mode=SEA, years=(1830, 1970), cost_factor=0.5,
+         path=['mobile', '~mobile_bay', '~chandeleur', '~mississippi_mouth', '~sabine_off', 'galveston']),
+    dict(name='Galveston Bay and Buffalo Bayou', mode=SEA, years=(1836, 1970),
+         path=['galveston', '~galveston_bay', 'houston_tx']),
+    dict(name='Road up the Brazos (Houston to Waco)', mode=ROAD, years=(1840, 1880),
+         path=['houston_tx', 'washington_brazos', 'wheelock', 'marlin', 'waco']),
     dict(name='Kingston Harbour', mode=SEA, years=(1600, 1970), cost_factor=0.5, path=['~jamaica_s', 'port_royal']),
     dict(name='Caribbean and the Gulf of Mexico', mode=SEA, years=(1600, 1970), cost_factor=0.5,
          path=['~jamaica_s', '~cayman', '~yucatan_ch', '~gulf_mid', '~mississippi_mouth', 'new_orleans']),
