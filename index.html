@@ -114,9 +114,6 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #legend .cb-labels span::before { content:""; position:absolute; left:50%; top:-5px; height:4px; border-left:1px solid var(--muted); }
 #legend .lw-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:3px; }
 #legend .lw-swatch { width:22px; height:0; border-top-style:solid; border-color:#8a7248; }
-#legend .twin-swatch { width:22px; height:6px; border:none; background:
-  linear-gradient(#8a7248,#8a7248) top/100% 2px no-repeat,
-  linear-gradient(#8a7248,#8a7248) bottom/100% 2px no-repeat; }
 #legend .lines-toggle { display:flex; gap:3px; margin-bottom:8px; }
 #legend .lines-btn {
   font-family:var(--font-mono); font-size:9.5px; padding:4px 7px; border-radius:5px; cursor:pointer;
@@ -357,8 +354,6 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <div class="likely-note likely-only">Moves follow the roads, rivers, railroads and highways of their time. The route is inferred; the records give only the places and years.</div>
     <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
     <div class="cb-labels" id="cb-labels"></div>
-    <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.7px;"></span> 1 ancestor on this route</div>
-    <div class="lw-item"><span class="lw-swatch twin-swatch"></span> confirmed family traveling together</div>
     <div class="lw-item likely-only"><span class="stripe-swatch"></span> a road or river several ancestors used; one stripe per route, oldest to newest, width by number of ancestors</div>
     <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = who traveled &middot; click = trace the line to the target &middot; search top-left</div>
   </div>
@@ -662,7 +657,7 @@ function routeFeatures() {
     if (!isRouteRelevant(r)) return;
     const v = routeVia(i);
     const ll = v ? viaLL(v) : ROUTE_LL[i], color = colorForYear(r.mean_year), w = lwFor(r.count);
-    const props = { i, color, w, family: !!r.family_group, osc: !!r.oscillation,
+    const props = { i, color, w, osc: !!r.oscillation,
                     clustered: inVisibleCluster.has(i), sort: -r.count };
     if (v) {
       // the network part is drawn as shared bands (bundleFeatures); here only the links at each end
@@ -778,14 +773,8 @@ function addMapLayers() {
   const lineLayout = { "line-cap": "round", "line-join": "round", "line-sort-key": ["get", "sort"] };
   // routes (hidden while a thread is focused; the dimmed layer shows them then)
   map.addLayer({ id: "routes-plain", type: "line", source: "routes",
-    filter: ["all", ["!", ["get", "family"]], notHiddenByCluster],
+    filter: notHiddenByCluster,
     layout: lineLayout, paint: { "line-color": ["get", "color"], "line-opacity": 0.72, "line-width": ["get", "w"] } }, before);
-  for (const side of [-1, 1])
-    map.addLayer({ id: "routes-family" + side, type: "line", source: "routes",
-      filter: ["all", ["get", "family"], notHiddenByCluster],
-      layout: lineLayout, paint: { "line-color": ["get", "color"], "line-opacity": 0.72,
-        "line-width": ["max", ["*", ["get", "w"], 0.42], 1.1],
-        "line-offset": ["*", side, ["max", ["*", ["get", "w"], 0.55], 1.6]] } }, before);
   // likely routes: shared corridor bands (a pale casing, then the stripes)
   map.addLayer({ id: "bundle-casings", type: "line", source: "bundle-casings", layout: { "line-join": "round", "line-cap": "butt" },
     paint: { "line-color": "#ffffff", "line-opacity": 0.55, "line-width": ["get", "w"] } }, before);
@@ -909,11 +898,10 @@ function applyAggregation(force) {
   if (!force && key === aggregationShown) return;
   aggregationShown = key;
   const keep = aggregating ? ["!", ["get", "clustered"]] : true;
-  map.setFilter("routes-plain", ["all", ["!", ["get", "family"]], keep]);
-  for (const side of [-1, 1]) map.setFilter("routes-family" + side, ["all", ["get", "family"], keep]);
+  map.setFilter("routes-plain", keep);
   map.setFilter("route-arrows", keep);
   const normal = focusActive ? "none" : "visible";
-  for (const id of ["routes-plain", "routes-family-1", "routes-family1", "route-arrows", "bundles", "bundle-casings"])
+  for (const id of ["routes-plain", "route-arrows", "bundles", "bundle-casings"])
     map.setLayoutProperty(id, "visibility", normal);
   map.setLayoutProperty("bundles-dim", "visibility", focusActive ? "visible" : "none");
   for (const id of ["clusters", "cluster-arrows"]) map.setLayoutProperty(id, "visibility", aggregating ? "visible" : "none");
@@ -1041,7 +1029,7 @@ function resetView() {
 }
 
 // ---- hover and click: MapLibre finds the drawn features near the pointer ----
-const ROUTE_LAYERS = ["routes-plain", "routes-family-1", "routes-family1"];
+const ROUTE_LAYERS = ["routes-plain"];
 function featuresNear(point, px, layers) {
   const box = [[point.x - px, point.y - px], [point.x + px, point.y + px]];
   return map.queryRenderedFeatures(box, { layers: layers.filter(id => map.getLayer(id)) });
@@ -1627,7 +1615,7 @@ function showRoutePicker(matches) {
   sorted.forEach(d => {
     const row = document.createElement("div");
     row.className = "picker-row";
-    const peopleLine = d.family_group ? d.family_group.join(" & ") : (d.people||[]).join(", ");
+    const peopleLine = (d.people||[]).join(", ");
     const yearLine = d.min_year===d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
     row.innerHTML = `<span class="picker-year">${yearLine}</span><span class="picker-dest">\u2192 ${d.to}</span>` +
                      `<span class="picker-people">${peopleLine}</span>`;
@@ -1678,7 +1666,7 @@ function showMultiTip(event, matches) {
   const CAP = 8;
   const shown = sorted.slice(0, CAP);
   const rows = shown.map(d => {
-    const peopleLine = d.family_group ? d.family_group.join(" & ") : (d.people||[]).join(", ");
+    const peopleLine = (d.people||[]).join(", ");
     const yearLine = d.min_year===d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
     return `<div class="t-multi-row"><span class="t-multi-dest">\u2192 ${d.to}</span> ` +
            `<span class="t-year">${yearLine}</span><br>${peopleLine}</div>`;
@@ -1695,7 +1683,7 @@ function showCorridorTip(event, band) {
   const people = rs.reduce((s, d) => s + d.count, 0);
   const CAP = 5;
   const rows = rs.slice(0, CAP).map(d => {
-    const peopleLine = d.family_group ? d.family_group.join(" & ") : (d.people || []).join(", ");
+    const peopleLine = (d.people || []).join(", ");
     const yearLine = d.min_year === d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
     return `<div class="t-multi-row"><span class="t-multi-dest">${d.from} \u2192 ${d.to}</span> ` +
            `<span class="t-year">${yearLine}</span><br>${peopleLine}</div>`;
@@ -1709,9 +1697,7 @@ function showCorridorTip(event, band) {
 }
 function showTip(event, d) {
   tooltip.classed("t-multi", false);
-  const peopleLine = d.family_group
-    ? `<span style="color:var(--gold)">\u2693 traveling together:</span> ${d.family_group.join(" & ")}`
-    : (d.people||[]).join(", ");
+  const peopleLine = (d.people||[]).join(", ");
   const nameLine = d.oscillation
     ? `<span class="t-name">${d.from} &harr; ${d.to}</span>${peopleLine}<br>`
     : `<span class="t-name">${d.from} &rarr; ${d.to}</span>${peopleLine}<br>`;
@@ -1722,7 +1708,10 @@ function showTip(event, d) {
   const approx = (v && v.n ? `<br><span class="t-note">${v.n}</span>` : "") +
     (v && v.a ? `<br><span class="t-year">route approximate: a place is recorded only as a state or country</span>` : "");
   const mil = d.military ? `<br><span class="t-note">from a military record: ${d.military.join(", ")}</span>` : "";
-  tooltip.html(nameLine + `<span class="t-year">${countLine}</span>` + mil + approx);
+  // spouses, or parent and child, with this same move within a few years (from the dates;
+  // the records don't say whether they travelled together)
+  const kin = d.family_group ? `<br><span class="t-note">relatives with the same move in the same years: ${d.family_group.join(" & ")}</span>` : "";
+  tooltip.html(nameLine + `<span class="t-year">${countLine}</span>` + kin + mil + approx);
   placeTip(event);
 }
 // Above the pointer if it fits, otherwise below it; never past the map's edges.

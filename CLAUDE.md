@@ -143,7 +143,7 @@ The map is a MapLibre GL JS map (`map`, in `#map`) on the OpenFreeMap
 Liberty style, with a hillshade layer added. Our data is GeoJSON sources and
 layers inserted below Liberty's labels, from the bottom: `hillshade`,
 `county-lines` (from 5x), `routes-plain`, `routes-osc` (dashed),
-`routes-family` (twin strokes via line-offset), `route-arrows` (SDF triangle
+`route-arrows` (SDF triangle
 icons rotated to the Mercator bearing), `clusters`, `cluster-arrows`,
 `routes-dim` (everything else while a thread is focused), `thread-glow`,
 `thread`, `thread-arrows`, `thread-dots`, `stationary`, `places`,
@@ -177,7 +177,12 @@ view; the readout shows k. Max zoom is map zoom 13 (street level, ~1,177x).
 Routes are drawn with:
 - Color: `colorForYear(mean_year)`, a rank-based 7-stop palette (see below).
 - Width: `lwFor(count)`, by number of ancestors on the route.
-- Twin stroke for `family_group` (confirmed family traveling together).
+- `family_group` (spouses, or parent and child, with the same move within 3
+  years, found by build_family_tags.py) is only a tooltip note, "relatives with
+  the same move in the same years". It was drawn as a twin stroke labelled
+  "confirmed family traveling together" until 2026-09-25; James dropped it:
+  it's inferred from dates and sees only direct ancestors. The legend now
+  shows just the colour scale and, in likely routes, the band.
 - `oscillation` (repeated back-and-forth between nearby towns): an arrowhead
   at each end and a "↔" tooltip. (It was also dashed until 2026-09-25;
   James dropped the dashes.)
