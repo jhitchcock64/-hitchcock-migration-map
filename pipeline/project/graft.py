@@ -27,7 +27,7 @@ def bounds(s, name):
             if d == 0: return v, i + 1
 for name, f in repl.items():
     v, e = bounds(html, name)
-    data = json.load(open(B + f))
+    data = json.load(open(B + f, encoding='utf-8'))
     new = json.dumps(data, separators=(',', ':'), ensure_ascii=False)
     html = html[:v] + new + html[e:]
     print(f'{name}: replaced ({e - v} -> {len(new)} chars)')

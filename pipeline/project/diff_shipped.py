@@ -4,7 +4,7 @@ PROJECT_DIR = _os.path.dirname(_os.path.abspath(__file__))
 BUILD_DIR = _os.path.join(_os.path.dirname(PROJECT_DIR), "build2")
 _os.chdir(PROJECT_DIR)  # scripts read/write their own folder regardless of where they're launched from
 import json, sys
-if len(sys.argv) < 2: raise SystemExit('usage: python3 diff_shipped.py <live index.html>')
+if len(sys.argv) < 2: raise SystemExit('usage: python diff_shipped.py <live data.js or index.html>')
 shipped_html = _os.path.join(_ORIG_CWD, sys.argv[1])
 js = open(shipped_html, encoding='utf-8').read()
 def const(name):
@@ -16,9 +16,9 @@ def const(name):
             if d == 0: return json.loads(js[s:i+1])
 B = BUILD_DIR + '/'
 S = {n: const(n) for n in ['ROUTES','PLACES','GRAPH','SEARCH_INDEX','PERSON_LEGS','CLUSTERS']}
-M = {'ROUTES': json.load(open(B+'routes_prepared.json')), 'PLACES': json.load(open(B+'places_prepared.json')),
-     'GRAPH': json.load(open(B+'person_graph.json')), 'SEARCH_INDEX': json.load(open(B+'search_index.json')),
-     'PERSON_LEGS': json.load(open(B+'person_legs.json')), 'CLUSTERS': json.load(open(B+'clusters_prepared.json'))}
+M = {'ROUTES': json.load(open(B+'routes_prepared.json', encoding='utf-8')), 'PLACES': json.load(open(B+'places_prepared.json', encoding='utf-8')),
+     'GRAPH': json.load(open(B+'person_graph.json', encoding='utf-8')), 'SEARCH_INDEX': json.load(open(B+'search_index.json', encoding='utf-8')),
+     'PERSON_LEGS': json.load(open(B+'person_legs.json', encoding='utf-8')), 'CLUSTERS': json.load(open(B+'clusters_prepared.json', encoding='utf-8'))}
 for n in S:
     la = len(S[n]['people']) if n=='GRAPH' else len(S[n]); lb = len(M[n]['people']) if n=='GRAPH' else len(M[n])
     print(f'{n}: shipped={la} mine={lb}')

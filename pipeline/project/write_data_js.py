@@ -1,0 +1,52 @@
+"""
+Write the page's data file (data.js) from the pipeline's output.
+Replaces graft.py now that the data lives in its own file instead of inside
+index.html.
+
+  python pipeline/project/write_data_js.py data.js
+
+The six generated arrays (ROUTES, CLUSTERS, PLACES, SEARCH_INDEX, GRAPH,
+PERSON_LEGS) come from pipeline/build2/*.json, serialised exactly as
+graft.py did. The three that the pipeline doesn't produce (BASEMAP,
+REF_CITIES, VB) are copied byte for byte from the existing data.js. The
+nine declarations keep their order, one per line.
+
+Run the pipeline and diff_shipped.py first (see pipeline/RUNBOOK.md).
+"""
+import os as _os
+_ORIG_CWD = _os.getcwd()
+PROJECT_DIR = _os.path.dirname(_os.path.abspath(__file__))
+BUILD_DIR = _os.path.join(_os.path.dirname(PROJECT_DIR), "build2")
+import json, sys, re
+
+if len(sys.argv) != 2:
+    raise SystemExit('usage: python pipeline/project/write_data_js.py <path/to/data.js>')
+path = _os.path.join(_ORIG_CWD, sys.argv[1])
+
+ORDER = ['BASEMAP', 'ROUTES', 'CLUSTERS', 'PLACES', 'REF_CITIES', 'VB', 'SEARCH_INDEX', 'GRAPH', 'PERSON_LEGS']
+GENERATED = {'ROUTES': 'routes_prepared.json', 'CLUSTERS': 'clusters_prepared.json', 'PLACES': 'places_prepared.json',
+             'SEARCH_INDEX': 'search_index.json', 'GRAPH': 'person_graph.json', 'PERSON_LEGS': 'person_legs.json'}
+
+old = open(path, encoding='utf-8').read().split('\n')
+header, lines = [], {}
+for line in old:
+    m = re.match(r'const (\w+) = ', line)
+    if m:
+        if m.group(1) in lines: raise SystemExit(f'FAIL: {m.group(1)} declared twice in {path}')
+        lines[m.group(1)] = line
+    elif not lines and line.startswith('//'):
+        header.append(line)
+missing = [n for n in ORDER if n not in lines]
+if missing: raise SystemExit(f'FAIL: {path} lacks {missing}')
+
+for name, f in GENERATED.items():
+    data = json.load(open(_os.path.join(BUILD_DIR, f), encoding='utf-8'))
+    new = f'const {name} = ' + json.dumps(data, separators=(',', ':'), ensure_ascii=False) + ';'
+    print(f'{name}: {len(lines[name])} -> {len(new)} chars' + ('  (unchanged)' if new == lines[name] else ''))
+    lines[name] = new
+
+out = '\n'.join(header + [lines[n] for n in ORDER]) + '\n'
+tmp = path + '.tmp'
+with open(tmp, 'w', encoding='utf-8', newline='\n') as fh: fh.write(out)
+_os.replace(tmp, path)
+print('wrote', path, len(out.encode('utf-8')), 'bytes')
