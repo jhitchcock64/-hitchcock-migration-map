@@ -210,6 +210,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   #legend .cb-gradient, #legend .cb-labels { width:120px; }
   #legend .lw-item { font-size:9.5px; }
   #legend .hint { font-size:8.5px; }
+  #legend .hint.credit { font-size:7px; }
   #hud { top:8px; right:8px; }
   #focus-panel { max-width:94%; padding:8px 12px; gap:8px; flex-wrap:wrap; }
   #route-picker { top:8px; max-width:94%; width:94%; }
@@ -740,8 +741,10 @@ function computeBase() {
   ctx = useGL ? threadCtx : stageCtx;
   // the basemap bitmap has the stage's geometry, in its own element
   Object.assign(basemapCanvas.style, css);
-  basemapCanvas.width = LAYER.wDev;
-  basemapCanvas.height = LAYER.hDev;
+  // (only the bitmap-basemap fallback draws here; with WebGL keep it tiny)
+  const bmFallback = typeof BM === "undefined" || !BM;
+  basemapCanvas.width = bmFallback ? LAYER.wDev : 1;
+  basemapCanvas.height = bmFallback ? LAYER.hDev : 1;
   basemapShownT = null; // resizing clears the canvas; a fresh bitmap is requested by the next redraw
   basemapRequestedT = null;
 }

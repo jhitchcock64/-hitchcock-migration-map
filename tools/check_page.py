@@ -4,6 +4,7 @@ renders without errors and that key people and routes are present.
 
 Setup (once):  pip install playwright && python -m playwright install chromium
 Usage:         python tools/check_page.py [path/to/index.html] [--shot out.png]
+               (works on the live page and on v2/index.html)
 Exit code 0 = all checks passed.
 """
 import sys, pathlib, json
@@ -28,6 +29,13 @@ CHECKS = """() => {
   out.thomas_1739_parents = t ? t.parents.map(p => GRAPH.people[p] && GRAPH.people[p].name) : null;
   out.phantom_thomas_sr_1716 = SEARCH_INDEX.some(s => s.name.startsWith('Thomas Baskett') && s.birt === '1716');
   out.year_range = [Math.floor(YEAR_MIN), Math.ceil(YEAR_MAX)];
+  // something was actually drawn: WebGL route instances (v2), or routes the
+  // Canvas 2D renderer stroked (the live page and v2's fallback)
+  // (GL and BM are top-level `let`s in v2: visible by name, not as window.GL)
+  const gl = typeof GL !== 'undefined' && GL, bm = typeof BM !== 'undefined' && BM;
+  out.renderer = gl ? 'webgl' : 'canvas2d';
+  out.routes_drawn = gl ? gl.drawnRoutes.length : ROUTES.filter(r => r._screen).length;
+  out.basemap = bm ? 'webgl' : 'svg-or-bitmap';
   return out;
 }"""
 
@@ -47,5 +55,6 @@ if not r['daniel_legs'] or 'Goochland' not in ' '.join(r['daniel_legs']): proble
 if not r['godbey_sr_legs'] or 'Bermuda' not in ' '.join(r['godbey_sr_legs']): problems.append('Thomas Godbey Sr. voyage via Bermuda missing')
 if r['thomas_1739_parents'] != ['Daniel Baskett', 'Mary Godbey']: problems.append(f"Thomas Baskett (1739) parents wrong: {r['thomas_1739_parents']}")
 if r['phantom_thomas_sr_1716']: problems.append('phantom Thomas Baskett Sr. (b.1716) is back in search')
+if not r['routes_drawn']: problems.append('no routes were drawn')
 print('\nPASS' if not problems else '\nFAIL:\n  ' + '\n  '.join(problems))
 sys.exit(1 if problems else 0)
