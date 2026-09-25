@@ -24,7 +24,7 @@ Walton Road (Tennessee); the Midland Trail (James River & Kanawha road);
 the Post Road, Upper Road, Fall Line Road and
 King's Highway; the Federal Road (Georgia-Alabama, 1811); the Buffalo
 (Vincennes) and St. Louis Traces; the Catskill Turnpike (1802); the Erie
-Canal (1825); the California Trail (NPS National Historic Trail). Coastal lanes follow the usual colonial coasting
+Canal (1825); the Pennsylvania Main Line (1834) and North Branch Canal; the California Trail (NPS National Historic Trail). Coastal lanes follow the usual colonial coasting
 routes (Vineyard Sound, Long Island Sound, the capes, Ocracoke Inlet).
 """
 
@@ -314,6 +314,17 @@ NODES = {
     'mad_river_towns': ('Shawnee towns on the Mad River, OH', 39.980, -83.850),
     'upper_sandusky': ('Upper Sandusky (Wyandot towns), OH', 40.830, -83.280),
     'lower_sandusky': ('Lower Sandusky, OH', 41.350, -83.120),
+    # --- northeastern Pennsylvania and the Pennsylvania Main Line of Public Works
+    'honesdale':      ('Honesdale, PA (Delaware & Hudson Canal)', 41.577, -75.259),
+    'carbondale':     ('Carbondale, PA', 41.574, -75.502),
+    'wilkes_barre':   ('Wilkes-Barre, PA', 41.246, -75.881),
+    'bloomsburg':     ('Bloomsburg, PA', 41.004, -76.455),
+    'northumberland': ('Northumberland, PA (forks of the Susquehanna)', 40.892, -76.797),
+    'lewistown':      ('Lewistown, PA (Juniata)', 40.599, -77.571),
+    'huntingdon':     ('Huntingdon, PA', 40.485, -78.010),
+    'hollidaysburg':  ('Hollidaysburg, PA (Allegheny Portage Railroad)', 40.427, -78.389),
+    'johnstown':      ('Johnstown, PA', 40.327, -78.922),
+    'blairsville':    ('Blairsville, PA', 40.431, -79.261),
     # --- the Kennebec
     'hallowell':      ('Hallowell (Kennebec River), ME', 44.286, -69.790),
     '~kennebec_mouth': ('~', 43.720, -69.780),
@@ -457,6 +468,16 @@ CORRIDORS = [
     dict(name="Captives' trail to Detroit (approximate)", mode=ROAD, years=(1750, 1800), private=True,
          path=['laughery_creek', '~great_miami_valley', 'mad_river_towns', 'upper_sandusky', 'lower_sandusky',
                'detroit']),
+    # the Pennsylvania Main Line: railroad Philadelphia-Columbia, canals up the
+    # Susquehanna and Juniata, the Allegheny Portage Railroad over the mountains,
+    # canal down the Conemaugh to Pittsburgh (1834; sold to the Pennsylvania RR 1857)
+    dict(name='Pennsylvania Main Line (canals and Allegheny Portage)', mode=CANAL, years=(1834, 1857),
+         path=['wrights_ferry', 'harrisburg', 'lewistown', 'huntingdon', 'hollidaysburg', 'johnstown',
+               'blairsville', 'pittsburgh']),
+    dict(name='North Branch Canal (Susquehanna)', mode=CANAL, years=(1831, 1860),
+         path=['wilkes_barre', 'bloomsburg', 'northumberland', 'harrisburg']),
+    dict(name='Road from the Delaware & Hudson Canal to Wilkes-Barre', mode=ROAD, years=(1800, 1860),
+         path=['honesdale', 'carbondale', 'wilkes_barre']),
     dict(name='Kennebec River', mode=RIVER, geometry='spline', years=(1620, 1900), upstream_from=1620,
          path=['hallowell', '~kennebec_mouth']),
     # Great Lakes and St. Lawrence: sailing ships, then steamers (the Niagara portage between the lakes)
