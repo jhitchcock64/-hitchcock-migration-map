@@ -260,7 +260,13 @@ browser; `?lines=likely` or `?lines=direct` in the URL overrides):
   Toledo remain.
 
 Relevance: `setTarget(person)` computes `TARGET_ANCESTOR_SET`. A route is
-drawn if any of its `anchor_ids` is in that set. `recomputeClusterVisibility()`
+drawn if any of its `anchor_ids` is in that set. A route bundles everyone in
+Margaret's tree who made that move, so `routeView(i)` (cached per target)
+gives the route as the target sees it: only the target's ancestors' names,
+count, years and mean year, from their PERSON_LEGS; colour, width, stripes,
+cluster totals, tooltips and the route picker all use it (since 2026-09-25;
+before, choosing Jean Speer Mehrle still listed Joseph Stoneham on New York ->
+Cincinnati). `recomputeClusterVisibility()`
 runs once per target change.
 
 Modes (`#search-modes` buttons, `searchMode`):

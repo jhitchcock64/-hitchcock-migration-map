@@ -656,9 +656,10 @@ function routeFeatures() {
   ROUTES.forEach((r, i) => {
     if (!isRouteRelevant(r)) return;
     const v = routeVia(i);
-    const ll = v ? viaLL(v) : ROUTE_LL[i], color = colorForYear(r.mean_year), w = lwFor(r.count);
+    const rv = routeView(i);
+    const ll = v ? viaLL(v) : ROUTE_LL[i], color = colorForYear(rv.mean), w = lwFor(rv.count);
     const props = { i, color, w, osc: !!r.oscillation,
-                    clustered: inVisibleCluster.has(i), sort: -r.count };
+                    clustered: inVisibleCluster.has(i), sort: -rv.count };
     if (v) {
       // the network part is drawn as shared bands (bundleFeatures); here only the links at each end
       for (const part of [v.h, v.t]) if (part.length)
@@ -684,14 +685,14 @@ function routeFeatures() {
 function bundleFeatures(edgeRoutes) {
   const stripes = [], casings = [];
   for (const [k, idxs] of edgeRoutes) {
-    idxs.sort((a, b) => ROUTES[a].mean_year - ROUTES[b].mean_year || a - b);
-    const P = idxs.reduce((s, i) => s + ROUTES[i].count, 0);
+    idxs.sort((a, b) => routeView(a).mean - routeView(b).mean || a - b);
+    const P = idxs.reduce((s, i) => s + routeView(i).count, 0);
     const W = Math.min(lwFor(P), aggLwFor(P));
     const geometry = { type: "LineString", coordinates: CORR_EDGE_LL[k] };
     let x = -W / 2;
     for (const i of idxs) {
-      const sw = W * ROUTES[i].count / P;
-      stripes.push({ type: "Feature", properties: { edge: k, i, color: colorForYear(ROUTES[i].mean_year), sw, off: x + sw / 2 }, geometry });
+      const sw = W * routeView(i).count / P;
+      stripes.push({ type: "Feature", properties: { edge: k, i, color: colorForYear(routeView(i).mean), sw, off: x + sw / 2 }, geometry });
       x += sw;
     }
     casings.push({ type: "Feature", properties: { edge: k, w: W + 2 }, geometry });
@@ -1167,12 +1168,45 @@ function isRouteRelevant(r) {
 // and what the aggregate's stats look like for just that subset -- so the
 // "37 ancestors" a cluster claims stays accurate rather than always
 // reflecting the full James-rooted total regardless of target.
+// A route bundles everyone in the tree who made the same move (Margaret's
+// whole ancestry). For the current target it should describe only the
+// target's own ancestors: their names, how many, their years, and so the
+// route's colour and width. Recomputed when the target changes.
+let routeViewCache = new Map();
+function routeView(i) {
+  let v = routeViewCache.get(i);
+  if (v) return v;
+  const r = ROUTES[i];
+  const all = r.anchor_ids && r.anchor_ids.length ? r.anchor_ids : (r.anchor ? [r.anchor] : []);
+  const ids = all.filter(id => TARGET_ANCESTOR_SET.has(id));
+  if (ids.length === all.length) {
+    v = { people: r.people, count: r.count, min: r.min_year, max: r.max_year, mean: r.mean_year, names: null };
+  } else {
+    // this route's moves by those people: same places (either way for a back-and-forth), same years
+    const years = [];
+    for (const id of ids) for (const l of (PERSON_LEGS[id] || [])) {
+      const same = (l.from === r.from && l.to === r.to) || (r.oscillation && l.from === r.to && l.to === r.from);
+      if (same && l.year >= r.min_year && l.year <= r.max_year) years.push(l.year);
+    }
+    const names = ids.map(id => (GRAPH.people[id] || {}).name).filter(Boolean);
+    v = years.length
+      ? { people: names, count: years.length, min: Math.min(...years), max: Math.max(...years),
+          mean: years.reduce((a, b) => a + b, 0) / years.length, names: new Set(names) }
+      : { people: names, count: Math.max(1, ids.length), min: r.min_year, max: r.max_year, mean: r.mean_year, names: new Set(names) };
+  }
+  routeViewCache.set(i, v);
+  return v;
+}
+// keep a route note's names (military, relatives) to the target's ancestors
+const viewNames = (d, list) => { const v = routeView(d._i); return v.names ? list.filter(n => v.names.has(n)) : list; };
+
 function recomputeClusterVisibility() {
+  routeViewCache = new Map();
   for (const c of CLUSTERS) {
     const vis = c.members.filter(idx => isRouteRelevant(ROUTES[idx]) && !routeVia(idx));
     c._visMembers = vis;
-    c._visCount = vis.reduce((s,idx) => s + ROUTES[idx].count, 0);
-    c._visYears = vis.length ? vis.map(idx => ROUTES[idx].mean_year) : [c.mean_year];
+    c._visCount = vis.reduce((s,idx) => s + routeView(idx).count, 0);
+    c._visYears = vis.length ? vis.map(idx => routeView(idx).mean) : [c.mean_year];
   }
 }
 
@@ -1615,8 +1649,8 @@ function showRoutePicker(matches) {
   sorted.forEach(d => {
     const row = document.createElement("div");
     row.className = "picker-row";
-    const peopleLine = (d.people||[]).join(", ");
-    const yearLine = d.min_year===d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
+    const V = routeView(d._i); const peopleLine = (V.people||[]).join(", ");
+    const yearLine = V.min===V.max ? V.min : `${V.min}\u2013${V.max}`;
     row.innerHTML = `<span class="picker-year">${yearLine}</span><span class="picker-dest">\u2192 ${d.to}</span>` +
                      `<span class="picker-people">${peopleLine}</span>`;
     row.addEventListener("click", () => {
@@ -1666,8 +1700,8 @@ function showMultiTip(event, matches) {
   const CAP = 8;
   const shown = sorted.slice(0, CAP);
   const rows = shown.map(d => {
-    const peopleLine = (d.people||[]).join(", ");
-    const yearLine = d.min_year===d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
+    const V = routeView(d._i); const peopleLine = (V.people||[]).join(", ");
+    const yearLine = V.min===V.max ? V.min : `${V.min}\u2013${V.max}`;
     return `<div class="t-multi-row"><span class="t-multi-dest">\u2192 ${d.to}</span> ` +
            `<span class="t-year">${yearLine}</span><br>${peopleLine}</div>`;
   }).join("");
@@ -1679,17 +1713,17 @@ function showMultiTip(event, matches) {
   placeTip(event);
 }
 function showCorridorTip(event, band) {
-  const rs = band.routes.slice().sort((a, b) => a.min_year - b.min_year);
-  const people = rs.reduce((s, d) => s + d.count, 0);
+  const rs = band.routes.slice().sort((a, b) => routeView(a._i).min - routeView(b._i).min);
+  const people = rs.reduce((s, d) => s + routeView(d._i).count, 0);
   const CAP = 5;
   const rows = rs.slice(0, CAP).map(d => {
-    const peopleLine = (d.people || []).join(", ");
-    const yearLine = d.min_year === d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
+    const V = routeView(d._i); const peopleLine = (V.people || []).join(", ");
+    const yearLine = V.min === V.max ? V.min : `${V.min}\u2013${V.max}`;
     return `<div class="t-multi-row"><span class="t-multi-dest">${d.from} \u2192 ${d.to}</span> ` +
            `<span class="t-year">${yearLine}</span><br>${peopleLine}</div>`;
   }).join("");
   const more = rs.length > CAP ? `<div class="t-multi-more">+ ${rs.length - CAP} more</div>` : "";
-  const years = rs.length ? `${rs[0].min_year}\u2013${Math.max(...rs.map(d => d.max_year))}` : "";
+  const years = rs.length ? `${routeView(rs[0]._i).min}\u2013${Math.max(...rs.map(d => routeView(d._i).max))}` : "";
   tooltip.classed("t-multi", true);
   tooltip.html(`<span class="t-name">${band.edge.name}</span>` +
     `<span class="t-year">${people} ancestor${people !== 1 ? "s" : ""} \u00b7 ${years} \u00b7 likely route, click to choose one</span>` + rows + more);
@@ -1697,20 +1731,22 @@ function showCorridorTip(event, band) {
 }
 function showTip(event, d) {
   tooltip.classed("t-multi", false);
-  const peopleLine = (d.people||[]).join(", ");
+  const V = routeView(d._i); const peopleLine = (V.people||[]).join(", ");
   const nameLine = d.oscillation
     ? `<span class="t-name">${d.from} &harr; ${d.to}</span>${peopleLine}<br>`
     : `<span class="t-name">${d.from} &rarr; ${d.to}</span>${peopleLine}<br>`;
   const countLine = d.oscillation
-    ? `${d.min_year}\u2013${d.max_year} \u00b7 ${d.count} ancestor${d.count>1?"s":""} moved between these`
-    : `${d.min_year===d.max_year?d.min_year:d.min_year+"\u2013"+d.max_year} \u00b7 ${d.count} ancestor${d.count>1?"s":""} on this route`;
+    ? `${V.min}\u2013${V.max} \u00b7 ${V.count} ancestor${V.count>1?"s":""} moved between these`
+    : `${V.min===V.max?V.min:V.min+"\u2013"+V.max} \u00b7 ${V.count} ancestor${V.count>1?"s":""} on this route`;
   const v = routeVia(d._i);
   const approx = (v && v.n ? `<br><span class="t-note">${v.n}</span>` : "") +
     (v && v.a ? `<br><span class="t-year">route approximate: a place is recorded only as a state or country</span>` : "");
-  const mil = d.military ? `<br><span class="t-note">from a military record: ${d.military.join(", ")}</span>` : "";
+  const milNames = d.military ? viewNames(d, d.military) : [];
+  const mil = milNames.length ? `<br><span class="t-note">from a military record: ${milNames.join(", ")}</span>` : "";
   // spouses, or parent and child, with this same move within a few years (from the dates;
   // the records don't say whether they travelled together)
-  const kin = d.family_group ? `<br><span class="t-note">relatives with the same move in the same years: ${d.family_group.join(" & ")}</span>` : "";
+  const kinNames = d.family_group ? viewNames(d, d.family_group) : [];
+  const kin = kinNames.length > 1 ? `<br><span class="t-note">relatives with the same move in the same years: ${kinNames.join(" & ")}</span>` : "";
   tooltip.html(nameLine + `<span class="t-year">${countLine}</span>` + kin + mil + approx);
   placeTip(event);
 }
