@@ -206,13 +206,18 @@ class Session:
 
     def load(self, trace=False):
         pg = self.open()
-        # stamp the first canvas stroke (= first route drawn)
+        # stamp the first route drawn: a Canvas 2D stroke, or a WebGL2 draw (v2)
         pg.add_init_script("""(() => {
-          const s = CanvasRenderingContext2D.prototype.stroke;
-          CanvasRenderingContext2D.prototype.stroke = function (...a) {
-            if (!window.__firstStroke) window.__firstStroke = performance.now();
-            return s.apply(this, a);
+          const hook = (proto, name) => {
+            if (!proto || !proto[name]) return;
+            const f = proto[name];
+            proto[name] = function (...a) {
+              if (!window.__firstStroke) window.__firstStroke = performance.now();
+              return f.apply(this, a);
+            };
           };
+          hook(CanvasRenderingContext2D.prototype, 'stroke');
+          hook(window.WebGL2RenderingContext && WebGL2RenderingContext.prototype, 'drawArraysInstanced');
         })()""")
         if trace: self.browser.start_tracing(page=pg, categories=TRACE_CATS)
         pg.goto(URL, wait_until='load')
