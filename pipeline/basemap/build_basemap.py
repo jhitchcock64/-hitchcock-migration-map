@@ -6,7 +6,8 @@ Inputs (downloaded into pipeline/basemap/cache/, which git ignores):
     https://www2.census.gov/geo/tiger/GENZ2023/kml/cb_2023_us_county_500k.zip
   Natural Earth 1:10m (public domain), from github.com/nvkelso/natural-earth-vector:
     geojson/ne_10m_admin_0_countries.geojson        land outside the US, national borders
-    geojson/ne_10m_admin_1_states_provinces_lines.geojson   Canadian and Mexican province/state lines
+    geojson/ne_10m_admin_1_states_provinces_lines.geojson   first-level divisions outside the US
+                                                    (provinces, counties, Lander, cantons...)
     geojson/ne_10m_lakes*.geojson                   lakes (global + North America + Europe)
     geojson/ne_10m_rivers*.geojson                  rivers (global + North America + Europe)
   US Census Bureau gazetteer of places (2023): towns
@@ -457,14 +458,27 @@ def main():
         elif len(o) >= 2: nkind.append('border')
         else: nkind.append('box' if on_box(a) else 'coast')
 
-    # ---- Canada / Mexico province and state lines
-    prov = []
+    # ---- first-level divisions outside the US (Natural Earth admin-1 lines).
+    # Canadian provinces and Mexican states work like US states, so they get
+    # the state-line style; elsewhere (English, Scottish, Welsh and Irish
+    # counties, German states, Swiss cantons, Swedish counties, French
+    # departements...) they fill the role counties play in the records, so
+    # they get the county-line style.
+    # Natural Earth files some of these (many British and Irish county lines)
+    # as 'statistical' or 'region' boundaries, so those classes are kept too;
+    # only its 'meta bounds' and boundary-indicator helper lines are skipped.
+    prov, admin1 = [], []
+    ADMIN1_CLASSES = ('Admin-1 boundary', 'Admin-1 statistical boundary', 'Admin-1 region boundary')
     for f in geojson('ne_10m_admin_1_states_provinces_lines'):
         p = f['properties']
-        if p['ADM0_A3'] in ('CAN', 'MEX') and p['FEATURECLA'] == 'Admin-1 boundary':
-            for l in geom_lines(f['geometry']):
-                for run in clip_line_box(l, LON0, LAT0, LON1, LAT1):
-                    prov.append([proj(*pt) for pt in run])
+        if p['ADM0_A3'] == 'USA' or p['FEATURECLA'] not in ADMIN1_CLASSES:
+            continue
+        if p['ADM0_A3'] in ('CAN', 'MEX') and p['FEATURECLA'] != 'Admin-1 boundary':
+            continue
+        dest = prov if p['ADM0_A3'] in ('CAN', 'MEX') else admin1
+        for l in geom_lines(f['geometry']):
+            for run in clip_line_box(l, LON0, LAT0, LON1, LAT1):
+                dest.append([proj(*pt) for pt in run])
 
     # ---- lakes and rivers (global + regional supplements, deduplicated)
     lakes, seen = [], set()
@@ -488,7 +502,8 @@ def main():
             for l in geom_lines(f['geometry']):
                 for run in clip_line_box(l, LON0, LAT0, LON1, LAT1):
                     rivers.append((rank, [proj(*pt) for pt in run]))
-    log(f'  {len(lakes)} lake rings, {len(rivers)} river lines, {len(prov)} province lines')
+    log(f'  {len(lakes)} lake rings, {len(rivers)} river lines, {len(prov)} province lines, '
+        f'{len(admin1)} other first-level division lines')
     # lakes get topology too: Natural Earth splits some (the Great Lakes at
     # the Straits of Mackinac and along the international boundary), and
     # only a lake's real shore should be outlined, not the seams between pieces
@@ -536,6 +551,8 @@ def main():
             elif k == 'usborder': lines['seam'].append(a)   # land-coloured band closing gaps where the two datasets meet
         for l in prov:
             lines['state'].append(dp(l, ntol))
+        for l in admin1:
+            lines['county'].append(dp(l, ntol))
         sl = [simplify_arc(a, ntol) for a in larcs]
         for owner, outer, refs in lrings:
             s = ring_from_arcs(refs, sl)
