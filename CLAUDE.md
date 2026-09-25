@@ -188,7 +188,10 @@ browser; `?lines=likely` or `?lines=direct` in the URL overrides):
   towns, fords, gaps; roads are smooth curves through them; rivers are
   Natural Earth centerlines; each corridor has years in use, rivers an
   `upstream_from` year for steamboats; `CLOSED` shuts places in some years,
-  e.g. British-occupied New York City 1776-83). Railroads and highways:
+  e.g. British-occupied New York City 1776-83; `FORCED` pins moves whose
+  route the family's research knows, e.g. William Worthington and Lochry's
+  expedition, 1781, with a note shown in the tooltip; corridors marked
+  `private` are used only by those). Railroads and highways:
   `pipeline/corridors/modern.py` (Atack's historical railroad GIS; Natural
   Earth roads, which it nodes itself, since NE doesn't split roads at
   junctions), read with `shapefile.py` (stdlib shapefile/dbf reader and

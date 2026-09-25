@@ -307,6 +307,13 @@ NODES = {
     '~st_lawrence_2': ('~', 44.720, -75.450),
     '~st_lawrence_3': ('~', 45.020, -74.750),
     '~st_lawrence_4': ('~', 45.300, -74.150),
+    # --- Lochry's expedition, 1781: the Ohio below Cincinnati, and the captives' trail north
+    'great_miami_mouth': ('Mouth of the Great Miami River', 39.105, -84.815),
+    'laughery_creek': ("Laughery Creek (Lochry's defeat, 24 Aug 1781), IN", 39.018, -84.866),
+    '~great_miami_valley': ('~', 39.400, -84.560),
+    'mad_river_towns': ('Shawnee towns on the Mad River, OH', 39.980, -83.850),
+    'upper_sandusky': ('Upper Sandusky (Wyandot towns), OH', 40.830, -83.280),
+    'lower_sandusky': ('Lower Sandusky, OH', 41.350, -83.120),
     # --- the Kennebec
     'hallowell':      ('Hallowell (Kennebec River), ME', 44.286, -69.790),
     '~kennebec_mouth': ('~', 43.720, -69.780),
@@ -420,7 +427,7 @@ CORRIDORS = [
     # year; upstream travel became practical with steamboats (upstream_from).
     dict(name='Ohio River', mode=RIVER, river='Ohio', years=(1750, 1900), upstream_from=1815,
          path=['pittsburgh', 'wheeling', 'marietta', 'point_pleasant', 'huntington', 'portsmouth', 'maysville',
-               'cincinnati', 'madison_in', 'louisville', 'owensboro', 'evansville', 'shawneetown', 'paducah',
+               'cincinnati', 'great_miami_mouth', 'laughery_creek', 'madison_in', 'louisville', 'owensboro', 'evansville', 'shawneetown', 'paducah',
                'cairo']),
     dict(name='Mississippi River', mode=RIVER, river='Mississippi', years=(1700, 1900), upstream_from=1815,
          path=['missouri_mouth', 'st_louis', 'ste_genevieve', 'cape_girardeau', 'cairo', 'new_madrid', 'memphis', 'helena',
@@ -444,6 +451,12 @@ CORRIDORS = [
          upstream_from=1609,
          path=['montreal', 'st_johns', '~lake_champlain_n', '~lake_champlain_m', 'crown_point', 'ticonderoga',
                'fort_george', 'fort_edward', '~saratoga', 'albany']),
+    # Used only by the FORCED route below (private): after Lochry's defeat the
+    # prisoners were taken north through the Shawnee and Wyandot towns to the
+    # British at Detroit. The exact path isn't known; this follows the usual one.
+    dict(name="Captives' trail to Detroit (approximate)", mode=ROAD, years=(1750, 1800), private=True,
+         path=['laughery_creek', '~great_miami_valley', 'mad_river_towns', 'upper_sandusky', 'lower_sandusky',
+               'detroit']),
     dict(name='Kennebec River', mode=RIVER, geometry='spline', years=(1620, 1900), upstream_from=1620,
          path=['hallowell', '~kennebec_mouth']),
     # Great Lakes and St. Lawrence: sailing ships, then steamers (the Niagara portage between the lakes)
@@ -470,4 +483,23 @@ CORRIDORS = [
          path=['~hatteras', '~ocracoke', '~pamlico', 'bath_nc']),
     dict(name='Coastal sea lane (Albemarle Sound)', mode=SEA, years=(1660, 1860),
          path=['~pamlico', '~croatan', 'edenton']),
+]
+
+
+# Moves whose route is known from the family's own research, not inferred.
+# match: (from, to, year) exactly as the pipeline labels the move. via: nodes
+# the path must pass through, in order (the router fills in between, and may
+# use private corridors); omit it to keep the inferred route. note: shown in
+# the move's tooltip.
+FORCED = [
+    dict(match=('Westmoreland Co., Pennsylvania', 'Detroit, Michigan', 1781),
+         via=['wheeling', 'laughery_creek', 'detroit'],
+         note="Lochry's expedition: down the Ohio from Fort Henry (Wheeling) to join George Rogers Clark; "
+              "captured at Laughery Creek on 24 Aug 1781 and taken north to the British at Detroit "
+              "(the overland path is approximate)"),
+    dict(match=('Detroit, Michigan', 'Montreal, Quebec', 1781),
+         note='Sent on as a prisoner of war to Montreal, and held on an island in the St. Lawrence'),
+    dict(match=('Montreal, Quebec', 'Westmoreland Co., Pennsylvania', 1782),
+         note='Escaped from an island in the St. Lawrence about 40 miles above Montreal; home in '
+              'Westmoreland County by 20 Dec 1782 (route inferred)'),
 ]

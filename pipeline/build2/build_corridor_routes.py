@@ -9,7 +9,7 @@ Input:  routes_prepared.json, person_legs.json (this folder),
         ../corridors/modern_network.json.gz (railroads, highways)
 Output: corridors_prepared.json -> CORRIDORS in data.js:
   { edges:  [{name, mode, c: [[x, y], ...]}],             (projected units)
-    routes: {route index: {e: [+-(edge index + 1)], h: [[x, y], ...], t: [[x, y], ...], a?: 1}},
+    routes: {route index: {e: [+-(edge index + 1)], h: [[x, y], ...], t: [[x, y], ...], a?: 1, n?: note}},
     legs:   {"x1,y1,x2,y2,year" (coordinates x100, rounded): same} }
   "edges" here are the stretches of network the routes use, merged so that
   each is one run shared by the same routes (so one band on the map). e lists
@@ -32,6 +32,8 @@ Cost model (per km; the cheapest path wins):
   so a short hop doesn't beat the road. Each network is usable only in its
   years (network.py; railroads from the year each line opened to 1955;
   highways from 1920, Interstates from 1960 -- see build_network.py).
+Moves listed in network.py's FORCED follow the nodes given there (the family's
+own research, e.g. Lochry's expedition) and carry a note (n) for the tooltip.
 A move is routed only if the path beats going direct (2.5/km), is no more
 than MAX_DETOUR x the direct distance (+50 km; river trips wind), and at
 least 40% of it is on the network. Moves under MIN_KM and ocean crossings
@@ -134,10 +136,11 @@ for i, e in enumerate(EDGES):
     ARCS[e['a']].append((e['b'], i, 1)); ARCS[e['b']].append((e['a'], i, -1))
 
 
-def cost_per_km(e, sign, year):
+def cost_per_km(e, sign, year, private_ok=False):
     """None if the edge can't be used that year in that direction."""
     if not (e['years'][0] <= year <= e['years'][1]): return None
     if 'closed' in e and e['closed'][0] <= year <= e['closed'][1]: return None     # e.g. occupied New York
+    if e.get('private') and not private_ok: return None
     m = e['mode']
     if m == 'river':
         if sign == 1: c = 0.35
@@ -223,10 +226,48 @@ def precise(label):
     return bool(label) and label.strip() not in REGIONS
 
 
+def node_path(u, v, year):
+    """Cheapest edge path between two network nodes (private corridors allowed)."""
+    dist, prev, heap = {u: 0}, {}, [(0, u)]
+    while heap:
+        d, n = heapq.heappop(heap)
+        if n == v: break
+        if d > dist[n]: continue
+        for m, i, sign in ARCS[n]:
+            c = cost_per_km(EDGES[i], sign, year, private_ok=True)
+            if c is None: continue
+            nd = d + EDGES[i]['km'] * c
+            if nd < dist.get(m, 1e18): dist[m] = nd; prev[m] = (n, i, sign); heapq.heappush(heap, (nd, m))
+    if v not in dist: raise SystemExit(f'FORCED route: no path from {u} to {v} in {year}')
+    steps, n = [], v
+    while n != u:
+        n, i, sign = prev[n]; steps.append(sign * (i + 1))
+    return steps[::-1]
+
+
+FORCED = {tuple(f['match']): f for f in NET.get('forced', [])}
+
+
+def forced(frm, to, year, x1, y1, x2, y2):
+    f = FORCED.get((frm, to, round(year)))
+    if not f: return None
+    if not f.get('via'):
+        v = _via(x1, y1, x2, y2, year)
+        return dict(v, n=f['note']) if v else None
+    steps = []
+    for u, w in zip(f['via'], f['via'][1:]): steps += node_path(u, w, year)
+    a, b, entry, exit_ = to_ll(x1, y1), to_ll(x2, y2), f['via'][0], f['via'][-1]
+    return {'e': steps, 'n': f['note'],
+            'h': [[x1, y1], to_xy(*NODE_LL[entry])] if km(a, NODE_LL[entry]) > 1 else [],
+            't': [to_xy(*NODE_LL[exit_]), [x2, y2]] if km(NODE_LL[exit_], b) > 1 else []}
+
+
 _cache = {}
 
 
 def via(x1, y1, x2, y2, year, frm, to):
+    f = forced(frm, to, year, x1, y1, x2, y2)
+    if f: return f
     v = _via(x1, y1, x2, y2, year)
     if v and not (precise(frm) and precise(to)): v = dict(v, a=1)
     return v

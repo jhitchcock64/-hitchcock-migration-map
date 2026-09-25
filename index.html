@@ -88,6 +88,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 }
 #tooltip .t-name { font-family:var(--font-display); font-weight:600; color:var(--border-stroke); display:block; margin-bottom:2px; }
 #tooltip .t-year { font-family:var(--font-mono); color:var(--muted); font-size:11px; }
+#tooltip .t-note { display:inline-block; margin-top:3px; font-size:12px; font-style:italic; color:var(--ink); line-height:1.35; }
 #tooltip.t-multi { max-width:320px; }
 #tooltip .t-multi-row { padding-top:6px; margin-top:6px; border-top:1px solid rgba(156,122,46,0.25); }
 #tooltip .t-multi-row:first-of-type { border-top:none; margin-top:4px; padding-top:0; }
@@ -1647,7 +1648,8 @@ function showSegTip(event, s) {
   tooltip.classed("t-multi", false);
   tooltip.html(
     `<span class="t-name">${s.from} &rarr; ${s.to}</span>${s.person}<br>` +
-    `<span class="t-year">arrived ${s.year}</span>`
+    `<span class="t-year">arrived ${s.year}</span>` +
+    (segVia(s) && segVia(s).n ? `<br><span class="t-note">${segVia(s).n}</span>` : "")
   );
   placeTip(event);
 }
@@ -1719,7 +1721,8 @@ function showTip(event, d) {
     ? `${d.min_year}\u2013${d.max_year} \u00b7 ${d.count} ancestor${d.count>1?"s":""} moved between these`
     : `${d.min_year===d.max_year?d.min_year:d.min_year+"\u2013"+d.max_year} \u00b7 ${d.count} ancestor${d.count>1?"s":""} on this route`;
   const v = routeVia(d._i);
-  const approx = v && v.a ? `<br><span class="t-year">route approximate: a place is recorded only as a state or country</span>` : "";
+  const approx = (v && v.n ? `<br><span class="t-note">${v.n}</span>` : "") +
+    (v && v.a ? `<br><span class="t-year">route approximate: a place is recorded only as a state or country</span>` : "");
   tooltip.html(nameLine + `<span class="t-year">${countLine}</span>` + approx);
   placeTip(event);
 }

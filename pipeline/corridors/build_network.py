@@ -22,7 +22,7 @@ from collections import defaultdict
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from network import NODES, CORRIDORS, RIVER, CLOSED
+from network import NODES, CORRIDORS, RIVER, CLOSED, FORCED
 
 CACHE = HERE.parent / 'basemap' / 'cache'
 OUT = HERE / 'network.json'
@@ -165,11 +165,16 @@ def main():
             if c['mode'] == RIVER: e['upstream_from'] = c.get('upstream_from', yrs[0])
             if c.get('cost_factor'): e['cost_factor'] = c['cost_factor']
             if c.get('frontier'): e['frontier'] = True
+            if c.get('private'): e['private'] = True
             for n in (a, b):
                 if n in CLOSED: e['closed'] = list(CLOSED[n])
             e['km'] = round(length(e['coords']), 1)
             edges[k] = e
-    out = dict(nodes={k: [v[0], v[1], v[2]] for k, v in NODES.items()}, edges=list(edges.values()))
+    for f in FORCED:
+        for n in f.get('via', ()):
+            if n not in NODES: raise SystemExit(f'FORCED {f["match"]}: unknown node {n}')
+    out = dict(nodes={k: [v[0], v[1], v[2]] for k, v in NODES.items()}, edges=list(edges.values()),
+               forced=[dict(f, match=list(f['match'])) for f in FORCED])
     OUT.write_text(json.dumps(out, separators=(',', ':'), ensure_ascii=False) + '\n', encoding='utf-8', newline='\n')
     by = defaultdict(float)
     for e in out['edges']: by[e['mode']] += e['km']
