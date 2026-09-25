@@ -3,8 +3,8 @@
 The six data arrays in `data.js` (ROUTES, CLUSTERS, PLACES, SEARCH_INDEX,
 GRAPH, PERSON_LEGS) are generated output. Always update them by running this
 pipeline and writing the result with `write_data_js.py`. Never hand-edit or
-splice them. (`data.js` also carries BASEMAP, REF_CITIES and VB, which the
-pipeline doesn't produce; `write_data_js.py` keeps them byte for byte.)
+splice them. (`data.js` also carries VB, which the pipeline doesn't
+produce; `write_data_js.py` keeps it byte for byte.)
 
 Needs only Python 3 (standard library). Runs from any directory on any machine.
 On Windows, run the `.sh` step in Git Bash and the Python steps with `python`
@@ -133,6 +133,7 @@ byte for byte). The same day the data moved out of `index.html` into
 
 ## The basemap
 
-The detailed basemap (`basemap/`) doesn't depend on the GEDCOM and rarely
-needs rebuilding: `python pipeline/basemap/build_basemap.py` (see its
-docstring for the public-domain inputs in `pipeline/basemap/cache/`).
+`basemap/county_lines.js` and `basemap/fallback.js` don't depend on the
+GEDCOM and rarely need rebuilding: `python pipeline/basemap/build_basemap.py`
+(see its docstring for the public-domain inputs in `pipeline/basemap/cache/`).
+The rest of the background map comes from OpenFreeMap at run time.

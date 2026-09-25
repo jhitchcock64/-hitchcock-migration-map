@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Migration Lines to Margaret Jean Hitchcock -- Interactive</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="vendor/maplibre-gl-4.7.1/maplibre-gl.css">
 <style>
 :root {
   --bg: #ece2c8; --panel-bg: #f5eeda; --land: #d9cca2; --land-stroke: #8a7248;
@@ -107,8 +107,10 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   border-radius:8px; padding:12px 16px; z-index:10; max-width:300px;
 }
 #legend .cb-gradient { display:block; width:160px; height:10px; border-radius:3px; }
-#legend .cb-labels { position:relative; height:11px; font-family:var(--font-mono); font-size:9px; color:var(--muted); width:160px; margin-bottom:8px; }
-#legend .cb-labels span { position:absolute; top:0; white-space:nowrap; }
+#legend .cb-labels { position:relative; height:15px; font-family:var(--font-mono); font-size:9px; color:var(--muted); width:160px; margin-bottom:6px; }
+/* century ticks: a short mark up to the gradient, the year centred under it */
+#legend .cb-labels span { position:absolute; top:4px; white-space:nowrap; transform:translateX(-50%); }
+#legend .cb-labels span::before { content:""; position:absolute; left:50%; top:-5px; height:4px; border-left:1px solid var(--muted); }
 #legend .lw-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:3px; }
 #legend .lw-swatch { width:22px; height:0; border-top-style:solid; border-color:#8a7248; }
 #legend .twin-swatch { width:22px; height:6px; border:none; background:
@@ -337,7 +339,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   </div>
   <div id="legend">
     <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
-    <div class="cb-labels" id="cb-labels"><span></span><span></span><span></span></div>
+    <div class="cb-labels" id="cb-labels"></div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.7px;"></span> 1 ancestor on this route</div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:6px;"></span> 4 ancestors on this route</div>
     <div class="lw-item"><span class="lw-swatch twin-swatch"></span> confirmed family traveling together</div>
@@ -348,12 +350,11 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="vendor/maplibre-gl-4.7.1/maplibre-gl.js"></script>
 <script src="data.js"></script>
 <script>
 ROUTES.forEach((r,i)=>{ r._i = i; });
 PLACES.forEach((p,i)=>{ p._i = i; });
-REF_CITIES.forEach((p,i)=>{ p._i = i; });
 
 for (const p of SEARCH_INDEX) p.nameLower = p.name.toLowerCase();
 const YEAR_MIN = d3.min(ROUTES, d => d.mean_year);
@@ -390,19 +391,19 @@ function colorForYear(y) {
     ctx.fillRect(x, 0, 1, canvas.height);
   }
 })();
-// Legend labels and the header's year range, from the data: earliest,
-// median and latest route year. The gradient runs by year from left to
-// right, so the median goes where its year falls, not simply at the centre.
+// Legend: a tick at every whole century inside the data's year range, each
+// where that year falls on the gradient (which runs by year, left to right),
+// read like a ruler. The full range is in the header.
 (function renderYearLabels() {
   const lo = Math.floor(YEAR_MIN), hi = Math.ceil(YEAR_MAX);
-  const n = _sortedYears.length;
-  const med = Math.round(n % 2 ? _sortedYears[(n - 1) / 2] : (_sortedYears[n / 2 - 1] + _sortedYears[n / 2]) / 2);
-  const [a, b, c] = document.querySelectorAll("#cb-labels span");
-  a.textContent = lo; a.style.left = "0";
-  c.textContent = hi; c.style.right = "0";
-  b.textContent = med;
-  b.style.left = (100 * (med - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) + "%";
-  b.style.transform = "translateX(-50%)";
+  const box = document.getElementById("cb-labels");
+  box.innerHTML = "";
+  for (let y = Math.ceil(lo / 100) * 100; y <= hi; y += 100) {
+    const s = document.createElement("span");
+    s.textContent = y;
+    s.style.left = (100 * (y - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) + "%";
+    box.appendChild(s);
+  }
   document.getElementById("year-span").textContent = `${lo}–${hi}`;
 })();
 function lwFor(count) { return 1.6 + count * 1.1; }
@@ -693,7 +694,7 @@ function addMapLayers() {
     map.getStyle().layers.find(l => l.type === "symbol")?.id);
   // County-level lines: US counties (Census 1:500k) and first-level divisions
   // elsewhere, from basemap/county_lines.js (built by pipeline/basemap/),
-  // loaded the first time the view reaches 5x. (OpenFreeMap's own tiles only
+  // preloaded when the browser is idle after startup, or at 4x if sooner. (OpenFreeMap's own tiles only
   // carry county boundaries from about zoom 10, i.e. ~150x here.)
   map.addSource("counties", { type: "geojson", data: fc([]) });
   map.addLayer({ id: "county-lines", type: "line", source: "counties", minzoom: kToZoom(COUNTY_MIN_K),
@@ -751,20 +752,78 @@ function addMapLayers() {
              "circle-stroke-width": 2.5, "circle-stroke-opacity": 0.85 } });
   map.addLayer({ id: "stationary-dot", type: "circle", source: "stationary",
     paint: { "circle-radius": 3, "circle-color": "#9c3c2e", "circle-opacity": 0.85 } });
-  // family places (placed before the style's own labels, so they win collisions)
+  // family places (placed before the style's own labels, so they win
+  // collisions). Text needs the style's fonts, so the fallback map shows dots only.
   map.addLayer({ id: "places", type: "symbol", source: "places",
-    layout: { "icon-image": "dot", "icon-size": 1, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"],
-              "text-size": 12, "text-anchor": "bottom-left", "text-offset": [0.35, -0.1], "symbol-sort-key": ["get", "sort"],
-              "icon-allow-overlap": false },
-    paint: { "icon-color": "#9c3c2e", "icon-opacity": 0.9, "text-color": "#2c2417",
-             "text-halo-color": "rgba(255,255,255,0.9)", "text-halo-width": 1.6 } });
+    layout: usingFallback
+      ? { "icon-image": "dot", "icon-size": 1, "symbol-sort-key": ["get", "sort"] }
+      : { "icon-image": "dot", "icon-size": 1, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"],
+          "text-size": 12, "text-anchor": "bottom-left", "text-offset": [0.35, -0.1], "symbol-sort-key": ["get", "sort"],
+          "icon-allow-overlap": false },
+    paint: usingFallback ? { "icon-color": "#9c3c2e", "icon-opacity": 0.9 }
+      : { "icon-color": "#9c3c2e", "icon-opacity": 0.9, "text-color": "#2c2417",
+          "text-halo-color": "rgba(255,255,255,0.9)", "text-halo-width": 1.6 } });
   // the target: ring and label at the birthplace
   map.addLayer({ id: "target-ring", type: "circle", source: "target",
     paint: { "circle-radius": 7, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#9c3c2e", "circle-stroke-width": 1.6 } });
-  map.addLayer({ id: "target-label", type: "symbol", source: "target",
+  if (!usingFallback) map.addLayer({ id: "target-label", type: "symbol", source: "target",
     layout: { "text-field": ["get", "label"], "text-font": ["Noto Sans Italic"], "text-size": 15, "text-anchor": "left",
               "text-offset": [0.8, 0], "text-allow-overlap": true, "text-ignore-placement": true },
     paint: { "text-color": "#2c2417", "text-halo-color": "rgba(255,255,255,0.9)", "text-halo-width": 2 } });
+}
+
+// ---- fallback: our own simple map, if the OpenFreeMap style can't be loaded ----
+// Used when the style hasn't loaded after STYLE_TIMEOUT_MS or fails outright
+// (single tile errors don't count). Land, lakes, borders and major rivers come
+// from basemap/fallback.js (built by pipeline/basemap/build_basemap.py). No
+// fonts are available then, so the map itself carries no text; the panels,
+// search, tooltips and legend all still work.
+const STYLE_TIMEOUT_MS = 12000;
+let usingFallback = false;
+const FALLBACK_STYLE = { version: 8, name: "fallback", sources: {},
+  layers: [{ id: "background", type: "background", paint: { "background-color": "#a9c9e8" } }] };
+function decodeLL(e, q) {
+  const c = []; let x = 0, y = 0;
+  for (let i = 0; i < e.length; i += 2) {
+    if (i === 0) { x = e[0]; y = e[1]; } else { x += e[i]; y += e[i + 1]; }
+    c.push([x * q, y * q]);
+  }
+  return c;
+}
+function addFallbackLayers() {
+  const F = window.FALLBACK_MAP, q = F.quant;
+  // land and lakes: every ring drawn as its own polygon. That fills the few
+  // holes in the land outline (inland water) as land; the lakes layer then
+  // paints the lakes back over it -- good enough for an emergency fallback.
+  const polys = rings => ({ type: "Feature", properties: {},
+    geometry: { type: "MultiPolygon", coordinates: rings.map(e => [decodeLL(e, q)]) } });
+  const lines = ls => ({ type: "Feature", properties: {},
+    geometry: { type: "MultiLineString", coordinates: ls.map(e => decodeLL(e, q)) } });
+  map.addSource("fb-land", { type: "geojson", data: polys(F.land) });
+  map.addSource("fb-lakes", { type: "geojson", data: polys(F.lakes) });
+  map.addSource("fb-borders", { type: "geojson", data: lines(F.borders) });
+  map.addSource("fb-rivers", { type: "geojson", data: lines(F.rivers) });
+  map.addLayer({ id: "fb-land", type: "fill", source: "fb-land", paint: { "fill-color": "#f3efe6", "fill-outline-color": "#b4ab98" } });
+  map.addLayer({ id: "fb-rivers", type: "line", source: "fb-rivers", paint: { "line-color": "#a9c9e8", "line-width": 1 } });
+  map.addLayer({ id: "fb-lakes", type: "fill", source: "fb-lakes", paint: { "fill-color": "#a9c9e8", "fill-outline-color": "#8fb3d6" } });
+  map.addLayer({ id: "fb-borders", type: "line", source: "fb-borders",
+    paint: { "line-color": "#9e9cab", "line-width": 0.9, "line-dasharray": [3, 2] } });
+}
+function useFallbackMap(reason) {
+  if (usingFallback || mapReady) return;
+  usingFallback = true;
+  clearTimeout(styleTimer);
+  console.warn("OpenFreeMap style unavailable (" + reason + "); using the built-in map.");
+  document.getElementById("map").insertAdjacentHTML("beforeend",
+    '<div id="fallback-note" style="position:absolute;bottom:36px;right:8px;z-index:3;background:rgba(255,255,255,0.85);' +
+    'padding:4px 8px;border-radius:4px;font:11px sans-serif;color:#6b5d43">Detailed map background unavailable — showing a simplified map</div>');
+  const s = document.createElement("script");
+  s.src = "basemap/fallback.js";
+  s.onload = () => {
+    map.once("style.load", () => { addFallbackLayers(); onStyleReady(); });
+    map.setStyle(FALLBACK_STYLE);
+  };
+  document.head.appendChild(s);
 }
 // Below AGGREGATE_ZOOM_THRESHOLD (4.5x) routes that belong to a cluster band
 // are hidden and the band is drawn instead; while a thread is focused, all
@@ -978,21 +1037,25 @@ document.getElementById("zoomOut").onclick = () => { const c = map.getContainer(
 document.getElementById("zoomReset").onclick = () => { resetView(); redrawAll(); };
 map.on("resize", () => { computeZ1(); applyAggregation(true); updateZoomReadout(); });
 
-map.on("load", () => {
+// Once a style is ready (Liberty, or the fallback): our layers, then draw.
+function onStyleReady() {
+  if (mapReady) return;
+  clearTimeout(styleTimer);
   computeZ1();
   if (window.innerWidth <= 640) resetView();
   addMapLayers();
   mapReady = true;
   redrawAll();
-});
-// if the map style can't load (e.g. the tile service is down), say so rather than show a blank map
+  // fetch the county lines once the page has settled, so the first zoom past
+  // 5x doesn't stall while 36,000 lines are downloaded and prepared
+  (window.requestIdleCallback || (f => setTimeout(f, 1)))(() => setTimeout(loadCountyLines, 2500));
+}
+map.on("load", () => { if (!usingFallback) onStyleReady(); });
+// the style itself failing (not a single tile: those carry a sourceId) -> fallback
 map.on("error", e => {
-  if (!mapReady && e && e.error && /style|Failed to fetch/i.test(String(e.error.message || e.error))) {
-    document.getElementById("map").insertAdjacentHTML("beforeend",
-      '<div style="position:absolute;top:45%;width:100%;text-align:center;font:14px sans-serif;color:#6b5d43">' +
-      'The map background (OpenFreeMap) could not be loaded. Please try again later.</div>');
-  }
+  if (!mapReady && !usingFallback && e && !e.sourceId) useFallbackMap(String((e.error && e.error.message) || "error"));
 });
+const styleTimer = setTimeout(() => useFallbackMap("timed out"), STYLE_TIMEOUT_MS);
 
 
 let focusedAnchor = null; // person_id currently focused, or null

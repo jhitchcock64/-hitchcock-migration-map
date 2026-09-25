@@ -7,9 +7,10 @@ own file.
 
 The six generated arrays (ROUTES, CLUSTERS, PLACES, SEARCH_INDEX, GRAPH,
 PERSON_LEGS) come from pipeline/build2/*.json, serialised exactly as
-graft.py did. The three that the pipeline doesn't produce (BASEMAP,
-REF_CITIES, VB) are copied byte for byte from the existing data.js. The
-nine declarations keep their order, one per line.
+graft.py did. VB (the default view), which the pipeline doesn't produce, is
+copied byte for byte from the existing data.js. (BASEMAP and REF_CITIES,
+used only by the pre-MapLibre page, were dropped from data.js; legacy.html
+keeps its own copies inline.) Declarations keep their order, one per line.
 
 Run the pipeline and diff_shipped.py first (see pipeline/RUNBOOK.md).
 """
@@ -23,7 +24,7 @@ if len(sys.argv) != 2:
     raise SystemExit('usage: python pipeline/project/write_data_js.py <path/to/data.js>')
 path = _os.path.join(_ORIG_CWD, sys.argv[1])
 
-ORDER = ['BASEMAP', 'ROUTES', 'CLUSTERS', 'PLACES', 'REF_CITIES', 'VB', 'SEARCH_INDEX', 'GRAPH', 'PERSON_LEGS']
+ORDER = ['ROUTES', 'CLUSTERS', 'PLACES', 'VB', 'SEARCH_INDEX', 'GRAPH', 'PERSON_LEGS']
 GENERATED = {'ROUTES': 'routes_prepared.json', 'CLUSTERS': 'clusters_prepared.json', 'PLACES': 'places_prepared.json',
              'SEARCH_INDEX': 'search_index.json', 'GRAPH': 'person_graph.json', 'PERSON_LEGS': 'person_legs.json'}
 
