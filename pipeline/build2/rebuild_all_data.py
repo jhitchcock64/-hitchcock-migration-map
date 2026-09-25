@@ -196,21 +196,15 @@ def catmull_rom_spline(pts, samples_per_segment=8):
             out.append([round(x,2), round(y,2)])
     return out
 
-# Known historical migration corridors relevant to this family's data,
-# identified by analyzing actual leg frequency (Virginia->Kentucky alone
-# accounts for 37 of ~625 legs -- overwhelmingly the dominant overland
-# pattern -- with North Carolina->Kentucky a distant second at 9). Matched
-# by state/region pair in EITHER direction; waypoints are real geographic
-# features, not decorative. Coordinates are (lon, lat) to match project().
+# Waypoints for moves a plain bow curve would draw badly. (Until 2026-09-25
+# this also bent every VA/NC/MD/TN -> KY move through a single Cumberland Gap
+# point and PA <-> VA moves through Staunton, jittered into a fan. Retired:
+# the "likely routes" view (build_corridor_routes.py) now routes overland
+# moves over the full historical road and river network, and the direct view
+# draws them as direct lines like every other move.)
+# Matched by state/region pair in EITHER direction. Coordinates are
+# (lon, lat) to match project().
 CORRIDORS = [
-    # Wilderness Road via the Cumberland Gap -- by far the dominant overland
-    # pattern in this dataset (VA/NC/MD/TN -> KY, 46+ legs combined)
-    ({"virginia","north carolina","maryland","tennessee"}, {"kentucky"},
-     [(-83.68, 36.60)]),  # Cumberland Gap (VA/KY/TN border)
-    # Great Wagon Road via the Shenandoah Valley (PA <-> VA, 9 legs --
-    # matches William Worthington's own documented 1769 move exactly)
-    ({"pennsylvania"}, {"virginia"},
-     [(-79.07, 38.15)]),  # near Staunton, VA -- central Shenandoah Valley
     # New York <-> Michigan (Raymond/Eells family, 3 legs): no land border
     # between the two, and a direct line plausibly cuts across Ontario,
     # Canada, going around the north shore of Lake Erie. Routed via

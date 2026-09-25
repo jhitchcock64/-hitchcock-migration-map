@@ -33,7 +33,7 @@ aren't routed along eastern roads (at most 30% of the path); after 1860 only
 moves made mostly by river (70%), starting and ending within 60 km of it,
 are routed. Frontier trails (the California Trail) are exempt. Moves under MIN_KM, ocean crossings,
 moves outside the network's years and moves to or from a place known only
-as a state or colony ("Virginia") keep their direct lines.
+as a state, colony or country ("Virginia"; see REGIONS) keep their direct lines.
 """
 import json, math, heapq, pathlib
 
@@ -138,9 +138,23 @@ def ocean(x1, x2):
     return (to_ll(x1, 0)[0] < -25) != (to_ll(x2, 0)[0] < -25)
 
 
+# Places recorded only as a state, colony or country: no point to route from
+REGIONS = {
+    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
+    'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky',
+    'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri',
+    'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York',
+    'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
+    'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
+    'West Virginia', 'Wisconsin', 'Wyoming', 'United States', 'USA', 'America', 'Canada', 'Mexico',
+    'England', 'Scotland', 'Wales', 'Ireland', 'Northern Ireland', 'Great Britain', 'United Kingdom',
+    'Germany', 'Switzerland', 'Sweden', 'France', 'Netherlands', 'Holland', 'Prussia',
+}
+
+
 def precise(label):
-    # "Surry, Virginia" is a place; a bare "Virginia" is only the state or colony
-    return ',' in (label or '')
+    # "Surry, Virginia" or "Hadley" is a place; a bare "Virginia" is only the state or colony
+    return bool(label) and label.strip() not in REGIONS
 
 
 def via(x1, y1, x2, y2, year, frm, to):

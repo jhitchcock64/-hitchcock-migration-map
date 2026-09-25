@@ -17,10 +17,10 @@
 * { box-sizing: border-box; }
 html, body { margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:var(--font-body); height:100%; overflow:hidden; }
 body { display:flex; flex-direction:column; height:100vh; }
-header { padding:16px 24px 12px; border-bottom:1px solid rgba(156,122,46,0.3); flex-shrink:0; background:var(--panel-bg); }
-header h1 { font-family:var(--font-display); font-weight:600; font-size:clamp(18px,2.2vw,26px); margin:0 0 4px; }
-header p { margin:0; color:var(--muted); font-size:13px; max-width:900px; line-height:1.4; }
-header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:4px; }
+header { display:flex; align-items:baseline; flex-wrap:wrap; column-gap:14px; padding:6px 16px 5px;
+  border-bottom:1px solid rgba(156,122,46,0.3); flex-shrink:0; background:var(--panel-bg); }
+header h1 { font-family:var(--font-display); font-weight:600; font-size:18px; margin:0; }
+header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); }
 
 #map-wrap { position:relative; flex:1; min-height:0; overflow:hidden; }
 /* MapLibre draws the map (basemap, routes, labels) into #map; the search box,
@@ -83,7 +83,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #tooltip {
   position:absolute; pointer-events:none; background:var(--panel-bg); border:1px solid rgba(156,122,46,0.5);
   border-radius:4px; padding:8px 12px; font-size:13px; line-height:1.5; max-width:260px; color:var(--ink);
-  opacity:0; transform:translate(-50%,-100%); transition:opacity 0.1s ease; z-index:20;
+  opacity:0; transition:opacity 0.1s ease; z-index:20;
   box-shadow:0 6px 18px rgba(60,45,20,0.25);
 }
 #tooltip .t-name { font-family:var(--font-display); font-weight:600; color:var(--border-stroke); display:block; margin-bottom:2px; }
@@ -211,8 +211,8 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #search-results .sr-empty { padding:10px; font-size:12px; color:var(--muted); }
 
 @media (max-width: 640px) {
-  header p { display:none; }
-  header { padding:10px 14px 8px; }
+  header { padding:5px 12px 4px; }
+  header h1 { font-size:15px; }
   .mode-btn { padding:15px 9px; font-size:11px; }
   #search-input { width:110px; padding:14px 10px; font-size:13px; }
   #search-input:focus { width:150px; }
@@ -305,9 +305,8 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 </head>
 <body>
 <header>
-  <span class="eyebrow">Direct-ancestor migration &middot; <span id="year-span"></span> &middot; interactive</span>
   <h1 id="page-title">Migration Lines to Margaret Jean Hitchcock</h1>
-  <p>Scroll or pinch to zoom, drag to pan, hover any line for who traveled it. Click a line to trace its full generational thread to the current target, or set a new target / isolate a path between two people below.</p>
+  <span class="eyebrow">Direct-ancestor migration &middot; <span id="year-span"></span></span>
 </header>
 <div id="map-wrap">
   <div id="map" role="application" aria-label="Interactive migration map. Use the search box to find an ancestor, or the zoom buttons to navigate."></div>
@@ -363,7 +362,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:9px;border-color:#8a7248;"></span> many ancestors, same general route (zoom in to split apart)</div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.5px;border-top-style:dashed;"></span> short, repeated back-and-forth (e.g. two nearby towns)</div>
     <div class="lw-item likely-only"><span class="stripe-swatch"></span> a road or river several ancestors used; one stripe per route, oldest to newest, width by number of ancestors</div>
-    <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = detail &middot; search top-left</div>
+    <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = who traveled &middot; click = trace the line to the target &middot; search top-left</div>
   </div>
 </div>
 
@@ -1652,8 +1651,7 @@ function showSegTip(event, s) {
     `<span class="t-name">${s.from} &rarr; ${s.to}</span>${s.person}<br>` +
     `<span class="t-year">arrived ${s.year}</span>`
   );
-  const rect = mapWrap.getBoundingClientRect();
-  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+  placeTip(event);
 }
 function showMultiSegTip(event, segs) {
   const sorted = segs.slice().sort((a,b) => a.year - b.year);
@@ -1666,8 +1664,7 @@ function showMultiSegTip(event, segs) {
   const more = sorted.length > CAP ? `<div class="t-multi-more">+ ${sorted.length - CAP} more voyage${sorted.length-CAP>1?"s":""} on this line</div>` : "";
   tooltip.classed("t-multi", true);
   tooltip.html(`<span class="t-name">${segs.length} voyages bundled on this line</span>` + rows + more);
-  const rect = mapWrap.getBoundingClientRect();
-  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+  placeTip(event);
 }
 function showClusterTip(event, c) {
   tooltip.classed("t-multi", false);
@@ -1676,8 +1673,7 @@ function showClusterTip(event, c) {
     `<span class="t-name">${c.from} &rarr; ${c.to}</span>${c._visCount} ancestors made this general journey<br>` +
     `<span class="t-year">${Math.round(Math.min(...years))}\u2013${Math.round(Math.max(...years))} \u00b7 click to zoom in and see each one</span>`
   );
-  const rect = mapWrap.getBoundingClientRect();
-  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+  placeTip(event);
 }
 function showMultiTip(event, matches) {
   const sorted = matches.slice().sort((a,b) => a.min_year - b.min_year);
@@ -1694,8 +1690,7 @@ function showMultiTip(event, matches) {
   tooltip.html(
     `<span class="t-name">${matches.length} voyages bundled on this line</span>` + rows + more
   );
-  const rect = mapWrap.getBoundingClientRect();
-  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+  placeTip(event);
 }
 function showCorridorTip(event, band) {
   const rs = band.routes.slice().sort((a, b) => a.min_year - b.min_year);
@@ -1712,8 +1707,7 @@ function showCorridorTip(event, band) {
   tooltip.classed("t-multi", true);
   tooltip.html(`<span class="t-name">${band.edge.name}</span>` +
     `<span class="t-year">${people} ancestor${people !== 1 ? "s" : ""} \u00b7 ${years} \u00b7 likely route, click to choose one</span>` + rows + more);
-  const rect = mapWrap.getBoundingClientRect();
-  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+  placeTip(event);
 }
 function showTip(event, d) {
   tooltip.classed("t-multi", false);
@@ -1727,8 +1721,16 @@ function showTip(event, d) {
     ? `${d.min_year}\u2013${d.max_year} \u00b7 ${d.count} ancestor${d.count>1?"s":""} moved between these`
     : `${d.min_year===d.max_year?d.min_year:d.min_year+"\u2013"+d.max_year} \u00b7 ${d.count} ancestor${d.count>1?"s":""} on this route`;
   tooltip.html(nameLine + `<span class="t-year">${countLine}</span>`);
-  const rect = mapWrap.getBoundingClientRect();
-  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+  placeTip(event);
+}
+// Above the pointer if it fits, otherwise below it; never past the map's edges.
+function placeTip(event) {
+  const rect = mapWrap.getBoundingClientRect(), node = tooltip.node();
+  const x = event.clientX - rect.left, y = event.clientY - rect.top;
+  const w = node.offsetWidth, h = node.offsetHeight, pad = 6;
+  const left = Math.max(pad, Math.min(rect.width - w - pad, x - w / 2));
+  const top = y - 12 - h >= pad ? y - 12 - h : Math.min(rect.height - h - pad, y + 16);
+  tooltip.style("left", left + "px").style("top", Math.max(pad, top) + "px").style("opacity", 1);
 }
 function hideTip() { tooltip.style("opacity",0); }
 
