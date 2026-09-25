@@ -643,7 +643,9 @@ TOWN_COORDS = {
     "wilmington|north carolina": (34.226, -77.945),
     "fayetteville|north carolina": (35.053, -78.878),
     # places named in military records (_MILT), 2026-09-25
-    "cartagena|colombia": (10.391, -75.479),     # Cartagena de Indias (Vernon's expedition, 1741)
+    "cartagena|colombia": (10.391, -75.479),
+    "greensboro|north carolina": (36.073, -79.792),
+    "toronto|ontario": (43.653, -79.383),     # Cartagena de Indias (Vernon's expedition, 1741)
     "west point|new york": (41.391, -73.956),
     "drogheda|ireland": (53.717, -6.350),
     "richmond|rhode island": (41.500, -71.670),
@@ -979,6 +981,7 @@ COUNTY_COORDS = {
     "mason|kentucky": (38.643, -83.745), "nicholas|kentucky": (38.323, -83.964),
     "marshall|kentucky": (36.988, -88.316), "fayette|kentucky": (38.041, -84.502),
     "mclennan|texas": (31.549, -97.146),       # seat Waco
+    "guilford|north carolina": (36.073, -79.792),   # seat Greensboro
     "leon|texas": (31.258, -95.978),           # seat Centerville
     "fayette|pennsylvania": (39.900, -79.716),   # seat Uniontown (else a bare "fayette" fell back to Kentucky)
     "spencer|kentucky": (37.999, -85.347), "clark|kentucky": (37.923, -84.279),
@@ -1240,11 +1243,24 @@ STREET_ADDR_RE = re.compile(r"^\d+.*(st\.?|street|ave\.?|avenue|rd\.?|road|nwy)\
 
 TYPO_CORRECTIONS = {
     "connectiuct": "Connecticut",
+    "toronto city": "Toronto",
+    "toronto west": "Toronto",
 }
+# Parts of a place finer than a town or county (census wards, militia
+# districts, enumeration districts, survey townships): dropped before matching,
+# so "St Johns Ward, Toronto City, Ontario" is Toronto and "District 8,
+# Lawrence, Alabama" is Lawrence County. (Added 2026-09-25: the map works at
+# town and county level; a ward is too fine to show, but dropping the whole
+# place, as some recovery pins did, loses the county.)
+SUB_TOWN_RE = re.compile(
+    r"\bward\b|militia district|^md \d|^district \d|\bdistrict \d+$|^\d+$|^township \d+|\brange \d+"
+    r"|^(northern|southern|eastern|western) division$|^beat \d|^precinct|^regiment \d|^rental rolls$"
+    r"|^no township listed$", re.IGNORECASE)
 COLONIAL_SUFFIX_RE = re.compile(r"\s+(Town|Colony)$", re.IGNORECASE)
 
 def clean_component(c):
-    c = c.strip()
+    c = c.split(";")[0].strip()                      # "Oneonta;West Oneonta" -> "Oneonta"
+    c = re.sub(r"\s*\([^)]*\)", "", c).strip()      # "Toronto (west/ouest) (city/cite)" -> "Toronto"
     c = NOISE_PREFIX_RE.sub("", c).strip()
     c = COLONIAL_SUFFIX_RE.sub("", c).strip()
     if c.lower() in TYPO_CORRECTIONS:
@@ -1264,6 +1280,9 @@ def parse_place(raw):
         pass  # short/ambiguous forms handled by fallback tiers below anyway
     comps = [clean_component(c) for c in s.split(",")]
     comps = [c for c in comps if c and not STREET_ADDR_RE.match(c)]
+    sub = [c for c in comps if SUB_TOWN_RE.search(c) and c.lower() != "district of columbia"]
+    if sub and len(sub) < len(comps):
+        comps = [c for c in comps if c not in sub]
     if not comps:
         return None
     return comps
@@ -1274,113 +1293,32 @@ def parse_place(raw):
 # actually used for them. Derived by aligning each person's stops against the
 # shipped PERSON_LEGS by year; only raw strings that directly produced a stop,
 # and only where no currently-correct person would be affected. ---
+# (2026-09-25: pins that were coarser than the rules -- a county dropped
+# entirely, "Harris, Georgia" flattened to "Georgia", "Siselen, Bern" to
+# "Bern" -- were removed; the rules below now resolve those places, folding
+# wards and militia districts into their town or county.)
 RAW_GROUND_TRUTH = {
-    "5, Decatur, Morgan, Alabama, USA": None,  # left unresolved on the shipped map
-    "Albany Ward 3, Morgan, Alabama, USA": None,  # left unresolved on the shipped map
-    "Alexandria City, Virginia, USA": None,  # left unresolved on the shipped map
-    "Alexandria Ward 4, Alexandria (Independent City), Virginia, USA": None,  # left unresolved on the shipped map
-    "Arcadia, Arcadia, Davidson, North Carolina, USA": None,  # left unresolved on the shipped map
-    "Baiersbronn-Schloß, Baden-Württemberg, Deutschland": ("Baden-Württemberg", 48.66, 9.35, "town"),
-    "Barkers, , Floyd, Georgia, USA": ("Georgia", 33.04, -83.64, "town"),
     "Bern, Switzerland": ("Bern", 46.94, 7.44, "town"),
-    "Bibb, Georgia, USA": None,  # left unresolved on the shipped map
-    "Brabourne, Ashford Borough, Kent, England": ("Kent", 51.28, 0.52, "region"),
-    "Burlington County, New Jersey, USA": ("New Jersey", 40.3, -74.52, "town"),
-    "Bury St Edmunds, St Edmundsbury Borough, Suffolk, England": ("Suffolk", 52.19, 1.14, "town"),
-    "Chambers, Alabama, USA": ("Alabama", 32.81, -86.79, "town"),
     "College Park, Prince George's, Maryland, USA": ("Prince George'S Co., Maryland", 38.81, -76.87, "county"),
-    "Columbus; Phenix City, Georgia, USA": None,  # left unresolved on the shipped map
-    "Cranfield, Bedfordshire, England": ("England", 52.36, -1.17, "country"),
-    "Cumberland, England": ("England", 52.36, -1.17, "country"),
-    "Decatur, Decatur, Morgan, Alabama, USA": None,  # left unresolved on the shipped map
-    "Decatur, Morgan, Alabama": None,  # left unresolved on the shipped map
-    "District 17, Talbot, Georgia, USA": ("Georgia", 33.04, -83.64, "town"),
-    "District 19, Chambers County, Alabama, USA": None,  # left unresolved on the shipped map
-    "District 19, Chambers, Alabama, USA": ("Alabama", 32.81, -86.79, "town"),
     "District 24, Talbot, Georgia, USA": ("Taylor, Georgia", 32.55, -84.24, "town"),
-    "District 8, Lawrence, Alabama, USA": None,  # left unresolved on the shipped map
     "Dundalk, Baltimore, Maryland, USA": ("Baltimore, Maryland", 39.29, -76.61, "town"),
     "Dyke, Greene County, Virginia USA": ("Dyke", 38.25, -78.54, "town"),
     "Dyke, Greene, Virginia, USA": ("Dyke, Virginia", 38.25, -78.54, "town"),
-    "Five Points, Alabama": None,  # left unresolved on the shipped map
     "Florence, Morgan, Missouri, USA": ("Florence, Missouri", 38.59, -92.98, "town"),
-    "Floyd County, Georgia, USA": None,  # left unresolved on the shipped map
-    "Fort Payne, Alabama, USA": None,  # left unresolved on the shipped map
-    "Fort Payne, DeKalb, Alabama, USA": None,  # left unresolved on the shipped map
-    "Georgia Militia District 703, Goodmans, Harris, Georgia, USA": None,  # left unresolved on the shipped map
     "Graham's Station, Lewis County, Kentucky, USA": ("Graham'S Station, Kentucky", 38.55, -83.5, "town"),
-    "Greensboro Ward 4, Guilford, North Carolina, USA": None,  # left unresolved on the shipped map
-    "Halifax, Yorkshire, England": ("England", 52.36, -1.17, "country"),
     "Hampton, Virginia, USA": None,  # left unresolved on the shipped map
-    "Harris County, Georgia, USA": ("Georgia", 33.04, -83.64, "region"),
-    "Harris, Georgia": None,  # left unresolved on the shipped map
-    "Harris, Georgia, USA": ("Georgia", 33.04, -83.64, "region"),
     "Harris, Georgia, United States": ("Waverly Hall, Georgia", 32.75, -84.73, "town"),
-    "Hoboken, New Jersey": ("New Jersey", 40.3, -74.52, "town"),
     "Jamestown, James City, Virginia, USA": ("Jamestown, Virginia", 37.21, -76.78, "region"),
-    "Kallnach, Bern, Switzerland": ("Bern", 46.94, 7.44, "town"),
-    "Lawrence County, Alabama, USA": None,  # left unresolved on the shipped map
-    "Lawrence, Alabama, USA": None,  # left unresolved on the shipped map
-    "Leamington, Warwickshire, England": None,  # left unresolved on the shipped map
-    "Llangollen, Denbighshire, Wales": ("Wales", 52.13, -3.78, "country"),
-    "Louisa, Louisa, Virginia, USA": ("Virginia", 37.77, -78.17, "region"),
-    "MD 1186 Upper Nineteenth, Upper Nineteenth, Harris, Georgia, USA": None,  # left unresolved on the shipped map
     "Macon, Bibb, Georgia, USA": ("Macon Co., Georgia", 32.84, -83.63, "town"),
-    "Macon, Macon, Bibb, Georgia, USA": None,  # left unresolved on the shipped map
-    "Maidstone, Maidstone Borough, Kent, England": None,  # left unresolved on the shipped map
-    "Mansfield Woodhouse, Nottinghamshire, England": ("Nottinghamshire", 53.15, -1.0, "town"),
-    "Mercer County, Kentucky, USA": ("Kentucky", 37.67, -84.67, "town"),
-    "Mercer, Kentucky, United States": ("Kentucky", 37.67, -84.67, "town"),
     "Meriden, Sullivan, New Hampshire, USA": ("Meriden, New Hampshire", 43.54, -72.25, "region"),
     "Middletown, Middlesex, Connecticut, USA": ("Middlesex Co., Connecticut", 41.56, -72.65, "town"),
-    "Militia District 1186, Harris, Georgia, USA": None,  # left unresolved on the shipped map
-    "Monroe, Guilford, North Carolina, USA": ("Monroe, North Carolina", 34.99, -80.55, "region"),
-    "Moores District, Harris, Georgia, USA": ("Georgia", 33.04, -83.64, "town"),
-    "Morgan County, Alabama, USA": ("Alabama", 32.81, -86.79, "region"),
-    "Morgan, Alabama, USA": None,  # left unresolved on the shipped map
-    "Muscogee County, Georgia, USA": None,  # left unresolved on the shipped map
-    "Muscogee, Georgia, USA": None,  # left unresolved on the shipped map
     "New York, Richmond, New York, United States": ("Richmond, New York", 40.58, -74.15, "town"),
-    "No Township Listed, Mercer County, KY": ("Kentucky", 37.67, -84.67, "town"),
-    "Northern Division, Courtland, Lawrence, Alabama, USA": None,  # left unresolved on the shipped map
-    "Oneonta; Oneonta Plains; East End; South Side; West Oneonta; Cooperstown, New York, USA": None,  # left unresolved on the shipped map
-    "Oneonta;West Oneonta, New York, USA": None,  # left unresolved on the shipped map
-    "Osborn Mill, Harris, Georgia, USA": None,  # left unresolved on the shipped map
     "Patterson's Creek, Hampshire County, West Virginia, USA": ("Patterson'S Creek, West Virginia", 39.35, -78.7, "town"),
-    "Portsmouth; Waterview, Virginia, USA": None,  # left unresolved on the shipped map
-    "Potomac, Maryland, USA": None,  # left unresolved on the shipped map
-    "Prince George County, Virginia, USA": ("Virginia", 37.77, -78.17, "region"),
     "Prince George's County, Maryland, USA": ("Prince George'S Co., Maryland", 38.81, -76.87, "county"),
-    "Regiment 39, Morgan, Alabama, USA": None,  # left unresolved on the shipped map
-    "Rental Rolls, Stafford County, Virginia, USA": None,  # left unresolved on the shipped map
-    "Richmond, Richmond, New York, USA": None,  # left unresolved on the shipped map
-    "Ridgewell Hall, England": ("England", 52.36, -1.17, "country"),
     "Rockville, Maryland, USA": ("Montgomery Co., Maryland", 39.15, -77.2, "town"),
     "Rockville, Montgomery, Maryland, USA": ("Montgomery Co., Maryland", 39.15, -77.2, "town"),
-    "Salisbury, Cabarrus, North Carolina": None,  # left unresolved on the shipped map
-    "Sandwich St Peter, Kent, England": None,  # left unresolved on the shipped map
-    "Siselen, Bern, Switzerland": ("Bern", 46.94, 7.44, "town"),
-    "Siselen, Verwaltungskreis Seeland, Bern, Switzerland": ("Bern", 46.94, 7.44, "town"),
-    "South Ouram Parish, Halifax, Yorkshire, England": ("England", 52.36, -1.17, "country"),
-    "St Johns Ward, Toronto City, Ontario, Canada": None,  # left unresolved on the shipped map
-    "St Johns Ward, Toronto West, Ontario, Canada": None,  # left unresolved on the shipped map
-    "St Patricks Ward, Toronto City, Ontario, Canada": None,  # left unresolved on the shipped map
-    "St. Clair County, Alabama, USA": ("Alabama", 32.81, -86.79, "region"),
-    "Talbot County, Georgia": None,  # left unresolved on the shipped map
-    "Talbot County, Georgia, USA": None,  # left unresolved on the shipped map
-    "Talbot, Georgia, USA": ("Georgia", 33.04, -83.64, "region"),
-    "Thomas, Georgia, USA": None,  # left unresolved on the shipped map
-    "Toronto (West/Ouest) (City/Cité) Ward/Quartier No 4, Toronto (west/ouest) (city/cité), Ontario, Canada": None,  # left unresolved on the shipped map
     "Toronto East, Ontario, Canada": None,  # left unresolved on the shipped map
-    "Township 7 Range 8, Courtland, Lawrence, Alabama, USA": None,  # left unresolved on the shipped map
     "Towson, Baltimore, Maryland, USA": ("Baltimore, Maryland", 39.29, -76.61, "town"),
-    "Upper Nineteenth, Harris, Georgia": None,  # left unresolved on the shipped map
-    "Upper Nineteenth, Harris, Georgia, USA": None,  # left unresolved on the shipped map
-    "Upper Nineteenth, Upper Nineteenth, Harris, Georgia, USA": None,  # left unresolved on the shipped map
-    "Valley Plains, Harris, Georgia, USA": None,  # left unresolved on the shipped map
-    "Walkers Chapel, DeKalb, Alabama, USA": None,  # left unresolved on the shipped map
-    "Walkers Chapel, Dekalb, Alabama, USA": None,  # left unresolved on the shipped map
-    "Whitakers, Harris, Georgia, USA": ("Georgia", 33.04, -83.64, "town"),
     "Worcester, Worcester, Massachusetts, USA": ("Worcester Co., Massachusetts", 42.35, -71.86, "county"),
 }
 

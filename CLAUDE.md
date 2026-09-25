@@ -357,9 +357,14 @@ drawn, not how much it draws.
 
 ## Known issues and state (2026-09-25)
 
-- Four people (Lily Trinder, Clarissa Farmer, James Holt, Margaret Bailey,
-  in the Georgia/Alabama cluster) differ slightly from the pre-recovery map
-  in intermediate stops. This was accepted.
+- Geocoder recovery pins (`RAW_GROUND_TRUTH` in geocoder.py) reproduced the
+  lost pre-recovery map, mistakes included. On 2026-09-25 the 85 pins that
+  were coarser than the rules (a county dropped, "Harris, Georgia" shown as
+  "Georgia", Seeland villages shown as Bern) were removed, and the rules now
+  fold wards, militia districts and survey townships into their town or
+  county (SUB_TOWN_RE). 74 people's journeys sharpened, mostly the
+  Georgia/Alabama and Bern families. The remaining pins agree with or refine
+  the rules.
 - Mary Godbey, Henry Baskett and Sarah Trigg have only one place each in
   the tree, so they show as birthplace dots with no journey. That's missing
   data, not a bug. Adding residences in the tree would fix it.
