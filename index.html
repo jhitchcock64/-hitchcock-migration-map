@@ -350,17 +350,16 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   </div>
   <div id="legend">
     <div class="lines-toggle" role="group" aria-label="How moves are drawn">
-      <button class="lines-btn active" id="lines-direct" aria-pressed="true" title="Each move as a line from the old home to the new one">Direct lines</button>
-      <button class="lines-btn" id="lines-likely" aria-pressed="false" title="Moves along the roads, rivers and sea lanes of their time">Likely routes</button>
+      <button class="lines-btn active" id="lines-likely" aria-pressed="true" title="Moves along the roads, rivers, railroads and highways of their time">Likely routes</button>
+      <button class="lines-btn" id="lines-direct" aria-pressed="false" title="Each move as a line from the old home to the new one">Direct lines</button>
     </div>
-    <div class="likely-note likely-only">Moves follow the roads, rivers and sea lanes of their time. The route is inferred; the records give only the places and years.</div>
+    <div class="likely-note likely-only">Moves follow the roads, rivers, railroads and highways of their time. The route is inferred; the records give only the places and years.</div>
     <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
     <div class="cb-labels" id="cb-labels"></div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.7px;"></span> 1 ancestor on this route</div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:6px;"></span> 4 ancestors on this route</div>
     <div class="lw-item"><span class="lw-swatch twin-swatch"></span> confirmed family traveling together</div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:9px;border-color:#8a7248;"></span> many ancestors, same general route (zoom in to split apart)</div>
-    <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.5px;border-top-style:dashed;"></span> short, repeated back-and-forth (e.g. two nearby towns)</div>
     <div class="lw-item likely-only"><span class="stripe-swatch"></span> a road or river several ancestors used; one stripe per route, oldest to newest, width by number of ancestors</div>
     <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = who traveled &middot; click = trace the line to the target &middot; search top-left</div>
   </div>
@@ -600,8 +599,8 @@ const CLUSTER_LL = CLUSTERS.map(c => curveLL(c.curve));
 // edges and, for each routed move, the edges it takes (negative = walked
 // backwards) plus the short overland links at each end (h, t). Moves without
 // an entry keep their direct line in this view too.
-let likelyRoutes = false;
-try { likelyRoutes = localStorage.getItem("hm-likely-routes") === "1"; } catch (e) {}
+let likelyRoutes = true;       // the default view since 2026-09-25
+try { likelyRoutes = localStorage.getItem("hm-likely-routes") !== "0"; } catch (e) {}
 { const q = new URLSearchParams(location.search).get("lines"); if (q) likelyRoutes = q === "likely"; }   // ?lines=likely|direct
 const CORR_EDGE_LL = CORRIDORS.edges.map(e => e.c.map(p => toLL(p[0], p[1])));
 const routeVia = i => likelyRoutes ? CORRIDORS.routes[i] || null : null;
@@ -780,12 +779,8 @@ function addMapLayers() {
   const lineLayout = { "line-cap": "round", "line-join": "round", "line-sort-key": ["get", "sort"] };
   // routes (hidden while a thread is focused; the dimmed layer shows them then)
   map.addLayer({ id: "routes-plain", type: "line", source: "routes",
-    filter: ["all", ["!", ["get", "family"]], ["!", ["get", "osc"]], notHiddenByCluster],
+    filter: ["all", ["!", ["get", "family"]], notHiddenByCluster],
     layout: lineLayout, paint: { "line-color": ["get", "color"], "line-opacity": 0.72, "line-width": ["get", "w"] } }, before);
-  map.addLayer({ id: "routes-osc", type: "line", source: "routes",
-    filter: ["all", ["get", "osc"], ["!", ["get", "family"]], notHiddenByCluster],
-    layout: lineLayout, paint: { "line-color": ["get", "color"], "line-opacity": 0.72, "line-width": ["get", "w"],
-                                 "line-dasharray": [1.4, 1.1] } }, before);
   for (const side of [-1, 1])
     map.addLayer({ id: "routes-family" + side, type: "line", source: "routes",
       filter: ["all", ["get", "family"], notHiddenByCluster],
@@ -915,12 +910,11 @@ function applyAggregation(force) {
   if (!force && key === aggregationShown) return;
   aggregationShown = key;
   const keep = aggregating ? ["!", ["get", "clustered"]] : true;
-  map.setFilter("routes-plain", ["all", ["!", ["get", "family"]], ["!", ["get", "osc"]], keep]);
-  map.setFilter("routes-osc", ["all", ["get", "osc"], ["!", ["get", "family"]], keep]);
+  map.setFilter("routes-plain", ["all", ["!", ["get", "family"]], keep]);
   for (const side of [-1, 1]) map.setFilter("routes-family" + side, ["all", ["get", "family"], keep]);
   map.setFilter("route-arrows", keep);
   const normal = focusActive ? "none" : "visible";
-  for (const id of ["routes-plain", "routes-osc", "routes-family-1", "routes-family1", "route-arrows", "bundles", "bundle-casings"])
+  for (const id of ["routes-plain", "routes-family-1", "routes-family1", "route-arrows", "bundles", "bundle-casings"])
     map.setLayoutProperty(id, "visibility", normal);
   map.setLayoutProperty("bundles-dim", "visibility", focusActive ? "visible" : "none");
   for (const id of ["clusters", "cluster-arrows"]) map.setLayoutProperty(id, "visibility", aggregating ? "visible" : "none");
@@ -1048,7 +1042,7 @@ function resetView() {
 }
 
 // ---- hover and click: MapLibre finds the drawn features near the pointer ----
-const ROUTE_LAYERS = ["routes-plain", "routes-osc", "routes-family-1", "routes-family1"];
+const ROUTE_LAYERS = ["routes-plain", "routes-family-1", "routes-family1"];
 function featuresNear(point, px, layers) {
   const box = [[point.x - px, point.y - px], [point.x + px, point.y + px]];
   return map.queryRenderedFeatures(box, { layers: layers.filter(id => map.getLayer(id)) });

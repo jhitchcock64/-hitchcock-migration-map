@@ -278,9 +278,47 @@ NODES = {
     'ragtown':        ('Carson River (Ragtown), NV', 39.460, -118.960),
     'carson_pass':    ('Carson Pass, CA', 38.695, -119.990),
     'sacramento':     ('Sacramento, CA', 38.582, -121.494),
+    # --- Montreal to the Hudson: the Richelieu, Lake Champlain, Lake George
+    'montreal':       ('Montreal', 45.504, -73.554),
+    'st_johns':       ('Fort St. Johns (Saint-Jean), Richelieu River', 45.307, -73.262),
+    '~lake_champlain_n': ('~', 44.900, -73.340),
+    '~lake_champlain_m': ('~', 44.450, -73.330),
+    'crown_point':    ('Crown Point, NY', 43.940, -73.430),
+    'ticonderoga':    ('Ticonderoga, NY', 43.842, -73.387),
+    'fort_george':    ('Fort George (head of Lake George), NY', 43.420, -73.710),
+    'fort_edward':    ('Fort Edward (Hudson), NY', 43.267, -73.584),
+    '~saratoga':      ('~', 43.100, -73.590),
+    'newburgh':       ('Newburgh, NY', 41.503, -74.010),
+    'goshen_ny':      ('Goshen, NY', 41.402, -74.324),
+    'easton':         ('Easton, PA', 40.688, -75.221),
+    'bethlehem':      ('Bethlehem, PA', 40.626, -75.370),
+    'reading':        ('Reading, PA', 40.336, -75.927),
+    # --- the Great Lakes and the St. Lawrence
+    'detroit':        ('Detroit', 42.331, -83.046),
+    '~erie_w':        ('~', 41.900, -82.700),
+    '~erie_m1':       ('~', 42.150, -81.600),
+    '~erie_m2':       ('~', 42.500, -80.300),
+    '~erie_e':        ('~', 42.780, -79.300),
+    'fort_niagara':   ('Fort Niagara (Niagara portage), NY', 43.262, -79.063),
+    '~ontario_w':     ('~', 43.420, -78.300),
+    '~ontario_m':     ('~', 43.600, -77.300),
+    '~ontario_e':     ('~', 43.900, -76.500),
+    '~st_lawrence_1': ('~', 44.330, -75.920),
+    '~st_lawrence_2': ('~', 44.720, -75.450),
+    '~st_lawrence_3': ('~', 45.020, -74.750),
+    '~st_lawrence_4': ('~', 45.300, -74.150),
+    # --- the Kennebec
+    'hallowell':      ('Hallowell (Kennebec River), ME', 44.286, -69.790),
+    '~kennebec_mouth': ('~', 43.720, -69.780),
+    '~cape_ann':      ('~', 42.620, -70.450),
 }
 
 ROAD, RIVER, SEA, CANAL = 'road', 'river', 'sea', 'canal'
+
+# Places closed to travellers in some years: every edge touching them is unusable then.
+# British-occupied New York City (September 1776 - November 1783): an American
+# going between New England or the Hudson and Pennsylvania went around it.
+CLOSED = {'new_york': (1776, 1783)}
 
 # name, mode, (first, last year), path, optional per-segment years {(a, b): (first, last)}
 CORRIDORS = [
@@ -345,6 +383,9 @@ CORRIDORS = [
                'new_brunswick', 'trenton', 'philadelphia', 'wilmington_de', 'elkton', 'baltimore']),
     dict(name='Post Road', mode=ROAD, years=(1700, 1860),
          path=['baltimore', 'bladensburg', 'alexandria', 'fredericksburg', 'richmond', 'petersburg']),
+    # the Revolution's inland road between the Hudson and Pennsylvania (around New York)
+    dict(name='Road from the Hudson to Pennsylvania (via Easton)', mode=ROAD, years=(1740, 1860),
+         path=['newburgh', 'goshen_ny', 'easton', 'bethlehem', 'reading', 'lancaster_pa']),
     dict(name='Upper Road', mode=ROAD, years=(1750, 1860),
          path=['petersburg', 'boydton', 'hillsborough', 'salisbury']),
     dict(name='Fall Line Road', mode=ROAD, years=(1735, 1860),
@@ -395,22 +436,38 @@ CORRIDORS = [
 
     # the Hudson: sloops sailed it both ways from the start (it's tidal to Albany)
     dict(name='Hudson River', mode=RIVER, geometry='spline', years=(1620, 1900), upstream_from=1620,
-         path=['albany', 'catskill', 'poughkeepsie', '~west_point', '~tappan_zee', 'new_york']),
+         path=['albany', 'catskill', 'poughkeepsie', 'newburgh', '~west_point', '~tappan_zee', 'new_york']),
+    # the old water route between Montreal and Albany (the "Great Warpath"): down the
+    # Richelieu, Lake Champlain and Lake George, a short portage, then the Hudson.
+    # Lakes run both ways, so upstream_from is the first year.
+    dict(name='Richelieu, Lake Champlain and Hudson route', mode=RIVER, geometry='spline', years=(1609, 1900),
+         upstream_from=1609,
+         path=['montreal', 'st_johns', '~lake_champlain_n', '~lake_champlain_m', 'crown_point', 'ticonderoga',
+               'fort_george', 'fort_edward', '~saratoga', 'albany']),
+    dict(name='Kennebec River', mode=RIVER, geometry='spline', years=(1620, 1900), upstream_from=1620,
+         path=['hallowell', '~kennebec_mouth']),
+    # Great Lakes and St. Lawrence: sailing ships, then steamers (the Niagara portage between the lakes)
+    dict(name='Great Lakes and St. Lawrence', mode=SEA, years=(1760, 1860),
+         path=['detroit', '~erie_w', '~erie_m1', '~erie_m2', '~erie_e', 'buffalo', 'fort_niagara', '~ontario_w',
+               '~ontario_m', '~ontario_e', '~st_lawrence_1', '~st_lawrence_2', '~st_lawrence_3', '~st_lawrence_4',
+               'montreal']),
 
-    # coastal sea lanes, used for long moves along the coast before roads were good
-    dict(name='Coastal sea lane', mode=SEA, years=(1620, 1790),
+    # coastal sea lanes: sailing packets and, from the 1820s, coastal steamers, until the railroads
+    dict(name='Coastal sea lane', mode=SEA, years=(1620, 1860),
          path=['boston', '~mass_bay', '~race_point', '~cape_cod_e', '~monomoy', '~vineyard_snd', 'newport',
                '~block_isl_snd', 'new_london', 'saybrook', 'new_haven', '~li_sound_w', 'new_york',
                '~sandy_hook', '~nj_coast', '~cape_may', '~delmarva', '~cape_henry', '~currituck', '~hatteras',
                '~cape_lookout', '~cape_fear', 'charleston']),
-    dict(name='Coastal sea lane (Delaware Bay)', mode=SEA, years=(1620, 1790),
+    dict(name='Coastal sea lane (Maine)', mode=SEA, years=(1620, 1860),
+         path=['~kennebec_mouth', '~cape_ann', '~mass_bay']),
+    dict(name='Coastal sea lane (Delaware Bay)', mode=SEA, years=(1620, 1860),
          path=['~cape_may', '~delaware_bay', 'new_castle', 'philadelphia']),
-    dict(name='Coastal sea lane (Chesapeake)', mode=SEA, years=(1607, 1790),
+    dict(name='Coastal sea lane (Chesapeake)', mode=SEA, years=(1607, 1860),
          path=['~cape_henry', 'hampton_roads', 'jamestown']),
-    dict(name='Coastal sea lane (Chesapeake Bay)', mode=SEA, years=(1620, 1790),
+    dict(name='Coastal sea lane (Chesapeake Bay)', mode=SEA, years=(1620, 1860),
          path=['hampton_roads', '~chesapeake_mid', 'st_marys', 'annapolis']),
-    dict(name='Coastal sea lane (Carolina sounds)', mode=SEA, years=(1660, 1790),
+    dict(name='Coastal sea lane (Carolina sounds)', mode=SEA, years=(1660, 1860),
          path=['~hatteras', '~ocracoke', '~pamlico', 'bath_nc']),
-    dict(name='Coastal sea lane (Albemarle Sound)', mode=SEA, years=(1660, 1790),
+    dict(name='Coastal sea lane (Albemarle Sound)', mode=SEA, years=(1660, 1860),
          path=['~pamlico', '~croatan', 'edenton']),
 ]

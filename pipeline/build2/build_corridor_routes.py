@@ -137,6 +137,7 @@ for i, e in enumerate(EDGES):
 def cost_per_km(e, sign, year):
     """None if the edge can't be used that year in that direction."""
     if not (e['years'][0] <= year <= e['years'][1]): return None
+    if 'closed' in e and e['closed'][0] <= year <= e['closed'][1]: return None     # e.g. occupied New York
     m = e['mode']
     if m == 'river':
         if sign == 1: c = 0.35

@@ -169,15 +169,17 @@ Routes are drawn with:
 - Color: `colorForYear(mean_year)`, a rank-based 7-stop palette (see below).
 - Width: `lwFor(count)`, by number of ancestors on the route.
 - Twin stroke for `family_group` (confirmed family traveling together).
-- Dashed for `oscillation` (repeated back-and-forth between nearby towns).
+- `oscillation` (repeated back-and-forth between nearby towns): an arrowhead
+  at each end and a "↔" tooltip. (It was also dashed until 2026-09-25;
+  James dropped the dashes.)
 - Arrowheads at the destination.
 - Below zoom 4.5 (`AGGREGATE_ZOOM_THRESHOLD`), routes that belong to a
   cluster with at least 2 visible members are hidden and the cluster band is
   drawn instead.
 
-Likely routes (added 2026-09-25, James's idea; the "Direct lines / Likely
-routes" buttons in the legend, remembered per browser; `?lines=likely` or
-`?lines=direct` in the URL overrides):
+Likely routes (added 2026-09-25, James's idea; the default view; the
+"Likely routes / Direct lines" buttons in the legend, remembered per
+browser; `?lines=likely` or `?lines=direct` in the URL overrides):
 - Overland moves follow the way people travelled in their year: period
   roads, rivers, canals and coastal sea lanes; railroads (from the year each
   line opened to 1955); US and Canadian highways from 1920; Interstates
@@ -185,7 +187,8 @@ routes" buttons in the legend, remembered per browser; `?lines=likely` or
 - Hand-authored part: `pipeline/corridors/network.py` (nodes are real
   towns, fords, gaps; roads are smooth curves through them; rivers are
   Natural Earth centerlines; each corridor has years in use, rivers an
-  `upstream_from` year for steamboats). Railroads and highways:
+  `upstream_from` year for steamboats; `CLOSED` shuts places in some years,
+  e.g. British-occupied New York City 1776-83). Railroads and highways:
   `pipeline/corridors/modern.py` (Atack's historical railroad GIS; Natural
   Earth roads, which it nodes itself, since NE doesn't split roads at
   junctions), read with `shapefile.py` (stdlib shapefile/dbf reader and

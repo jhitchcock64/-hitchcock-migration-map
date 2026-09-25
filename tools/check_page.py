@@ -33,7 +33,7 @@ CHECKS = """() => {
   // (index.html), or routes the Canvas 2D renderer stroked (legacy.html)
   const ml = typeof map !== 'undefined' && map && typeof map.getSource === 'function';
   out.renderer = ml ? 'maplibre' : 'canvas2d';
-  out.routes_drawn = ml ? map.queryRenderedFeatures({ layers: ['routes-plain', 'routes-osc', 'routes-family1', 'clusters'] }).length
+  out.routes_drawn = ml ? map.queryRenderedFeatures({ layers: ['routes-plain', 'routes-osc', 'routes-family1', 'clusters', 'bundles'].filter(l => map.getLayer(l)) }).length
                         : ROUTES.filter(r => r._screen).length;
   return out;
 }"""
