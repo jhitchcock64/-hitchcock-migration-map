@@ -1497,7 +1497,7 @@ function settleWhenReleased() {
 function settle() {
   clearTimeout(settleTimer); settleTimer = null;
   gestureActive = false;
-  redrawAll();
+  renderNow(); // immediately: a click right after a drag hit-tests against this render
   updateLabels();
 }
 // is a layer drawn at view t0 still usable for the current view?
@@ -1508,7 +1508,7 @@ function layerCovers(t0) {
     -M * s + cy <= 0 && (base.height + M) * s + cy >= base.height;
 }
 function gestureFrame() {
-  if (!layerCovers(renderedTransform)) { redrawAll(); return; }
+  if (!layerCovers(renderedTransform)) { renderNow(); return; }
   const { s, cx, cy } = layerShift(renderedTransform);
   mapStage.style.transform = `translate(${cx}px,${cy}px) scale(${s})`;
   if (basemapShownT && !layerCovers(basemapShownT)) requestBasemap(); // arrives a few frames later
@@ -1517,10 +1517,20 @@ function gestureFrame() {
   zoomLevelEl.textContent = currentTransform.k.toFixed(1) + "×";
 }
 
-// Full, sharp render of every layer at the current view. The basemap is
-// requested here and swapped in when its worker finishes; until then the
-// previous bitmap is shown, stretched to the new view.
+// Ask for a full render. Several requests in one frame (a Time period tick
+// makes two: zoom-to-fit, then the focus panel) collapse into one render
+// at the next animation frame -- a full render is the expensive thing here.
+let renderPending = false;
 function redrawAll() {
+  if (renderPending) return;
+  renderPending = true;
+  requestAnimationFrame(() => { if (renderPending) renderNow(); });
+}
+// Full, sharp render of every layer at the current view, right now. The
+// basemap is requested here and swapped in when its worker finishes; until
+// then the previous bitmap is shown, stretched to the new view.
+function renderNow() {
+  renderPending = false;
   overlayG.attr("transform", stageGroupTransform());
   requestBasemap();
   placeBasemap();
@@ -1996,7 +2006,7 @@ if (window.innerWidth <= 640) {
   const vx = (rect.width/2 - base.offsetX)/base.scale, vy = (rect.height/2 - base.offsetY)/base.scale;
   currentTransform = d3.zoomIdentity.translate(vx - cx*k, vy - cy*k).scale(k);
 }
-redrawAll();
+renderNow();
 updateLabels();
 </script>
 </body>

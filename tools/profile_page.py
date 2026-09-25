@@ -53,7 +53,7 @@ WRAP = ['redrawAll', 'drawRoutes', 'drawThread', 'updateLabels', 'positionConvLa
         'applyZoomAt', 'doHover', 'handleClick', 'setTarget', 'recomputeClusterVisibility',
         'applyYearRange', 'computeYearRangeSegs', 'zoomToFitSegs', 'renderFocusedChain',
         'buildFocusDropdown', 'focusThread', 'runSearch',
-        'gestureFrame', 'settle']   # v2 only
+        'gestureFrame', 'settle', 'renderNow']   # v2 only (in v2, redrawAll only schedules renderNow)
 
 INSTRUMENT = """(names) => {
   const P = window.__prof = { calls: {}, frames: [], rec: false };
