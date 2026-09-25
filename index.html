@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Migration Lines to Margaret Jean Hitchcock -- Interactive</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
 :root {
   --bg: #ece2c8; --panel-bg: #f5eeda; --land: #d9cca2; --land-stroke: #8a7248;
@@ -22,6 +23,10 @@ header p { margin:0; color:var(--muted); font-size:13px; max-width:900px; line-h
 header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:4px; }
 
 #map-wrap { position:relative; flex:1; min-height:0; overflow:hidden; }
+/* MapLibre draws the map (basemap, routes, labels) into #map; the search box,
+   legend, zoom buttons, panels and tooltip sit above it. */
+#map { position:absolute; inset:0; z-index:1; }
+#map .maplibregl-ctrl-attrib { font-size:11px; }
 .map-layer { position:absolute; top:0; left:0; width:100%; height:100%; }
 /* The stage holds everything drawn in map coordinates, rendered with an
    overscan margin on every side (sized in computeBase). During a pan or zoom
@@ -291,14 +296,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   <p>Scroll or pinch to zoom, drag to pan, hover any line for who traveled it. Click a line to trace its full generational thread to the current target, or set a new target / isolate a path between two people below.</p>
 </header>
 <div id="map-wrap">
-  <canvas id="basemap-canvas"></canvas>
-  <canvas id="routes-gl"></canvas>
-  <canvas id="thread-canvas"></canvas>
-  <div id="map-stage">
-    <canvas id="routes-canvas" class="map-layer"></canvas>
-    <svg id="overlay-svg" class="map-layer"></svg>
-  </div>
-  <div id="zoom-capture" class="map-layer" role="application" aria-label="Interactive migration map. Use the search box to find an ancestor, or the zoom buttons to navigate."></div>
+  <div id="map" role="application" aria-label="Interactive migration map. Use the search box to find an ancestor, or the zoom buttons to navigate."></div>
   <div id="search-box">
     <div id="search-modes" role="group" aria-label="Search mode">
       <button class="mode-btn active" data-mode="target" title="Click a result to make them the map's target">Family journey</button>
@@ -346,13 +344,12 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:9px;border-color:#8a7248;"></span> many ancestors, same general route (zoom in to split apart)</div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.5px;border-top-style:dashed;"></span> short, repeated back-and-forth (e.g. two nearby towns)</div>
     <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = detail &middot; search top-left</div>
-    <div class="hint credit">map detail: Natural Earth &middot; US Census Bureau</div>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="data.js"></script>
-<script src="basemap/index.js"></script>
 <script>
 ROUTES.forEach((r,i)=>{ r._i = i; });
 PLACES.forEach((p,i)=>{ p._i = i; });
@@ -504,158 +501,367 @@ function assemblePath(chain) {
   return segs;
 }
 
-const mapWrap = document.getElementById("map-wrap");
-const zoomLevelEl = document.getElementById("zoomLevel");
-// No viewBox: the overlay SVG uses stage pixels, and its group carries the
-// whole data -> stage mapping (see stageGroupTransform), so it, the routes
-// canvas and the basemap bitmap share one coordinate system, overscan
-// margin included.
-const mapStage = document.getElementById("map-stage");
-const overlaySvg = d3.select("#overlay-svg");
-const overlayG = overlaySvg.append("g");
-
-// ---- basemap: drawn into a bitmap off the main thread ----
-// Land, lakes, rivers and state borders used to be live SVG, which the GPU
-// had to repaint from its full path data (~324 KB for the near detail) on
-// every frame -- the slowest thing on the page. Now a worker draws them
-// with the CPU (2-3x faster than an integrated GPU for paths this size) and
-// hands back a finished bitmap, displayed zero-copy. The page never waits:
-// until a new bitmap arrives, the last one is shown stretched to fit.
-// Shapes, colours, widths and dashes match the old SVG styles
-// (.land/.river/.lake/.state-border); widths and dashes are in map units,
-// so they scale with zoom exactly as in SVG.
-const BASEMAP_DETAIL_THRESHOLD = 3.5;
-function drawBasemapInto(ctx, P, st, m, detailed) {
-  // m = [a, e, f]: map (x, y) -> device pixel (a*x + e, a*y + f)
-  ctx.setTransform(m[0], 0, 0, m[0], m[1], m[2]);
-  ctx.miterLimit = 4; // SVG's default; canvas defaults to 10
-  const land = detailed ? P.land_near : P.land_far;
-  const states = detailed ? P.states_near : P.states_far;
-  ctx.fillStyle = st.land; ctx.strokeStyle = st.landStroke; ctx.lineWidth = 0.012;
-  ctx.fill(land); ctx.stroke(land);
-  ctx.fill(P.central_america); ctx.stroke(P.central_america);
-  ctx.globalAlpha = 0.85; ctx.strokeStyle = st.lake; ctx.lineWidth = 0.018;
-  ctx.lineCap = "round"; ctx.lineJoin = "round";
-  ctx.stroke(P.rivers);
-  ctx.globalAlpha = 1; ctx.lineCap = "butt"; ctx.lineJoin = "miter";
-  ctx.fillStyle = st.lake; ctx.strokeStyle = st.landStroke; ctx.lineWidth = 0.02;
-  ctx.fill(P.lakes); ctx.stroke(P.lakes);
-  ctx.globalAlpha = 0.75; ctx.strokeStyle = st.stateStroke; ctx.lineWidth = 0.026;
-  ctx.setLineDash([0.2, 0.15]);
-  ctx.stroke(states);
-  ctx.setLineDash([]); ctx.globalAlpha = 1;
-}
-const BASEMAP_WORKER_SRC = `
-let P = null, st = null;
-${drawBasemapInto.toString()}
-onmessage = (e) => {
-  const d = e.data;
-  if (d.type === "init") {
-    P = {}; for (const n in d.paths) P[n] = new Path2D(d.paths[n]);
-    st = d.styles; return;
-  }
-  const c = new OffscreenCanvas(d.w, d.h);
-  drawBasemapInto(c.getContext("2d", { willReadFrequently: true }), P, st, d.m, d.detailed); // willReadFrequently = CPU drawing
-  const bmp = c.transferToImageBitmap();
-  postMessage({ id: d.id, bmp }, [bmp]);
-};`;
-const basemapCanvas = document.getElementById("basemap-canvas");
-const basemapBitmapCtx = basemapCanvas.getContext("bitmaprenderer");
-const basemapStyles = (() => {
-  const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
-  return { land: v("--land"), landStroke: v("--land-stroke"), lake: v("--lake"), stateStroke: v("--state-stroke") };
-})();
-let basemapWorker = null;
-try {
-  if (typeof OffscreenCanvas === "undefined" || typeof Worker === "undefined") throw 0;
-  basemapWorker = new Worker(URL.createObjectURL(new Blob([BASEMAP_WORKER_SRC], { type: "text/javascript" })));
-  basemapWorker.onmessage = e => basemapDrawn(e.data.id, e.data.bmp);
-  basemapWorker.onerror = () => { basemapWorker = null; basemapInFlight = null; requestBasemap(); }; // fall back to the main thread
-  const { land_far, land_near, states_far, states_near, lakes, rivers, central_america } = BASEMAP;
-  basemapWorker.postMessage({ type: "init", styles: basemapStyles,
-    paths: { land_far, land_near, states_far, states_near, lakes, rivers, central_america } });
-} catch (err) { basemapWorker = null; }
-let basemapMainPaths = null;
-// Fallback when workers can't draw (older browsers): same drawing, main thread.
-function drawBasemapMain(req) {
-  if (!basemapMainPaths) {
-    basemapMainPaths = {};
-    for (const n of ["land_far","land_near","states_far","states_near","lakes","rivers","central_america"]) basemapMainPaths[n] = new Path2D(BASEMAP[n]);
-  }
-  const c = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(req.w, req.h)
-    : Object.assign(document.createElement("canvas"), { width: req.w, height: req.h });
-  drawBasemapInto(c.getContext("2d", { willReadFrequently: true }), basemapMainPaths, basemapStyles, req.m, req.detailed);
-  return c.transferToImageBitmap ? Promise.resolve(c.transferToImageBitmap()) : createImageBitmap(c);
-}
-let basemapShownT = null;      // view the bitmap on screen was drawn at
-let basemapRequestedT = null;  // view of the latest request
-let basemapInFlight = null, basemapPending = false, basemapSeq = 0;
-// Ask for a basemap at the current view. At most one drawing is in flight;
-// while it runs, further requests collapse into one for the latest view.
-function requestBasemap() {
-  if (BM) return;                                      // drawn with WebGL instead (drawBasemapGL)
-  if (basemapRequestedT === currentTransform) return; // (computeBase clears it on resize)
-  if (basemapInFlight) { basemapPending = true; return; }
-  basemapPending = false;
-  const t = currentTransform, dpr = LAYER.dpr, k = base.scale * t.k;
-  const req = { type: "draw", id: ++basemapSeq, w: LAYER.wDev, h: LAYER.hDev,
-    m: [dpr * k, dpr * (LAYER.padX + base.offsetX + base.scale * t.x), dpr * (LAYER.padY + base.offsetY + base.scale * t.y)],
-    detailed: t.k > BASEMAP_DETAIL_THRESHOLD };
-  basemapRequestedT = t;
-  basemapInFlight = { id: req.id, t, w: req.w, h: req.h };
-  if (basemapWorker) basemapWorker.postMessage(req);
-  else drawBasemapMain(req).then(bmp => basemapDrawn(req.id, bmp));
-}
-function basemapDrawn(id, bmp) {
-  const info = basemapInFlight;
-  basemapInFlight = null;
-  if (info && info.id === id && info.w === basemapCanvas.width && info.h === basemapCanvas.height) {
-    basemapBitmapCtx.transferFromImageBitmap(bmp);
-    basemapShownT = info.t;
-    placeBasemap();
-  } else if (bmp.close) bmp.close(); // the window was resized meanwhile
-  if (basemapPending) requestBasemap();
-}
-// Stretch/shift the basemap bitmap from the view it was drawn at to the current one.
-function placeBasemap() {
-  if (BM || !basemapShownT) { basemapCanvas.style.visibility = "hidden"; return; }
-  const { s, cx, cy } = layerShift(basemapShownT);
-  basemapCanvas.style.transform = (s === 1 && cx === 0 && cy === 0) ? "" : `translate(${cx}px,${cy}px) scale(${s})`;
-  basemapCanvas.style.visibility = "";
-}
-
 let CURRENT_TARGET = GRAPH.james_id;
 let TARGET_ANCESTOR_SET = ancestorSetOf(CURRENT_TARGET);
 
-const convRing = overlayG.append("circle").attr("class","convergence-ring").attr("r", 0.6);
-{
-  const [icx, icy] = targetConvPoint();
-  convRing.attr("cx", icx).attr("cy", icy);
-}
-const placesLayer = overlayG.append("g");
-const dotSel = placesLayer.selectAll("circle").data(PLACES).join("circle")
-  .attr("class","place-dot").attr("cx", d=>d.x).attr("cy", d=>d.y).attr("r", 0.1);
-const refDotSel = placesLayer.selectAll(".ref-city-dot").data(REF_CITIES).join("circle")
-  .attr("class","ref-city-dot").attr("cx", d=>d.x).attr("cy", d=>d.y).attr("r", 0.1);
-
-// --- canvas + zoom-capture setup ---
-// Routes are drawn with WebGL when the browser has WebGL2 (GL, below);
-// otherwise with Canvas 2D on the stage canvas, as the live page does.
-// `ctx` is the 2D context for whatever still uses Canvas 2D: the focused
-// thread (on #thread-canvas with WebGL, on the stage canvas without), and
-// the routes themselves in the fallback.
-const canvas = document.getElementById("routes-canvas");
-const stageCtx = canvas.getContext("2d");
-const threadCanvas = document.getElementById("thread-canvas");
-const threadCtx = threadCanvas.getContext("2d");
-let ctx = stageCtx;
-const zoomCapture = document.getElementById("zoom-capture");
+// ============ the map: MapLibre GL, OpenFreeMap "Liberty" style ============
+// MapLibre draws the basemap (OpenFreeMap vector tiles, OpenStreetMap data)
+// and handles pan, zoom, pinch and label placement. Our data stays in the
+// pipeline's projected units (x = lon + 35, y = 65 - lat); toLL() converts
+// to longitude/latitude for MapLibre, whose map is Web Mercator.
+// "k" (the zoom readout, thresholds such as AGGREGATE_ZOOM_THRESHOLD) keeps
+// its old meaning: 1x = the default view of the whole map, Z1 in MapLibre's
+// zoom levels, so k = 2^(zoom - Z1).
+const mapWrap = document.getElementById("map-wrap");
+const zoomLevelEl = document.getElementById("zoomLevel");
 const tooltip = d3.select("#tooltip");
-let convLabelEl = null; // created once we know screen position (HTML overlay for crisp constant-size text)
+const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const MAX_ZOOM = 13;          // town and street level
+function toLL(x, y) {
+  let lon = x - 35;
+  if (lon < -180) lon += 360; else if (lon >= 180) lon -= 360;
+  return [lon, 65 - y];
+}
+// the old default view (VB), as a lon/lat box
+const DEFAULT_BOUNDS = [toLL(VB.x0, VB.y0 + VB.h), toLL(VB.x0 + VB.w, VB.y0)];
+// phones: the old page opened on the data's touch-weighted centre at 2.6x
+const MOBILE_VIEW = { center: toLL(-36.57, 25.43), k: 2.6 };
 
-let currentTransform = d3.zoomIdentity;
-let base = { scale: 1, offsetX: 0, offsetY: 0 };
+const map = new maplibregl.Map({
+  container: "map",
+  style: STYLE_URL,
+  bounds: DEFAULT_BOUNDS,
+  maxZoom: MAX_ZOOM,
+  dragRotate: false, pitchWithRotate: false, touchPitch: false,
+  attributionControl: { compact: true },
+});
+map.touchZoomRotate.disableRotation();
+map.keyboard.disableRotation();
+let Z1 = map.getZoom();       // zoom of the default view; recomputed on resize
+function computeZ1() {
+  const cam = map.cameraForBounds(DEFAULT_BOUNDS);
+  Z1 = cam ? cam.zoom : map.getZoom();
+  map.setMinZoom(Math.max(0, Z1 - 0.01));   // no further out than the whole map (1x)
+}
+const kToZoom = k => Z1 + Math.log2(k);
+// the old code's view object: only .k is still meaningful
+const currentTransform = { get k() { return Math.pow(2, map.getZoom() - Z1); } };
+// visible-map pixel position of a point in projected units
+function dataToScreen(x, y) { const p = map.project(toLL(x, y)); return [p.x, p.y]; }
 
+// ---- geometry: curves -> lon/lat polylines ----
+// A bow is sampled in the old projection (so it keeps the shape the pipeline
+// gave it) and each sample converted; waypointed routes convert point by point.
+function curveLL(c, n) {
+  if (c.mode === "path") return c.coords.map(p => toLL(p[0], p[1]));
+  n = n || 24;
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, mt = 1 - t;
+    pts.push(toLL(mt*mt*c.x1 + 2*mt*t*c.cx + t*t*c.x2, mt*mt*c.y1 + 2*mt*t*c.cy + t*t*c.y2));
+  }
+  return pts;
+}
+// a straight segment in the old projection (ocean legs), sampled so it keeps that line
+function straightLL(x1, y1, x2, y2) {
+  const pts = [];
+  for (let i = 0; i <= 16; i++) { const t = i / 16; pts.push(toLL(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t)); }
+  return pts;
+}
+// screen direction (degrees clockwise from east) of the line from a to b, in Web Mercator
+function bearingDeg(a, b) {
+  const mercY = lat => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
+  const dx = (b[0] - a[0]) * Math.PI / 180, dy = -(mercY(b[1]) - mercY(a[1]));
+  return Math.atan2(dy, dx) * 180 / Math.PI;
+}
+const ROUTE_LL = ROUTES.map(r => curveLL(r.curve));
+const CLUSTER_LL = CLUSTERS.map(c => curveLL(c.curve));
+
+// ---- arrowhead and dot images (signed-distance fields, so MapLibre can colour them) ----
+// Arrow: a triangle pointing east with its tip on the right edge; the icon is
+// anchored on its right edge, so the tip sits on the route's end point.
+function sdfImage(size, dist) {   // dist(px, py) = signed distance in px, negative inside
+  const data = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const a = Math.max(0, Math.min(255, 191 - dist(x + 0.5, y + 0.5) * 24));
+    const o = (y * size + x) * 4; data[o] = data[o+1] = data[o+2] = 255; data[o+3] = a;
+  }
+  return { width: size, height: size, data };
+}
+function triangleDist(size, halfAngle) {
+  const pad = 4, tipX = size - pad, len = size - 2 * pad, cy = size / 2;
+  const h = Math.tan(halfAngle) * len;
+  const P = [[tipX, cy], [tipX - len, cy - h], [tipX - len, cy + h]];
+  return (px, py) => {           // distance to the triangle (negative inside)
+    let d = Infinity, inside = true;
+    for (let i = 0; i < 3; i++) {
+      const [ax, ay] = P[i], [bx, by] = P[(i + 1) % 3];
+      const ex = bx - ax, ey = by - ay, L = ex * ex + ey * ey;
+      const t = Math.max(0, Math.min(1, ((px - ax) * ex + (py - ay) * ey) / L));
+      d = Math.min(d, Math.hypot(px - ax - t * ex, py - ay - t * ey));
+      if (ex * (py - ay) - ey * (px - ax) > 0) inside = false;
+    }
+    return inside ? -d : d;
+  };
+}
+const ARROW_PX = 64;                       // icon image size; its triangle is ARROW_PX - 8 long
+const ARROW_LEN = ARROW_PX - 8;
+function addImages() {
+  // (the triangle is walked tip -> upper corner -> lower corner: inside = every cross product <= 0)
+  map.addImage("arrow45", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.45)), { sdf: true, pixelRatio: 1 });
+  map.addImage("arrow40", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.40)), { sdf: true, pixelRatio: 1 });
+  map.addImage("arrow35", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.35)), { sdf: true, pixelRatio: 1 });
+  map.addImage("dot", sdfImage(24, (x, y) => Math.hypot(x - 12, y - 12) - 5), { sdf: true, pixelRatio: 2 });
+}
+
+// ---- data for the map, rebuilt when the target changes ----
+function routeFeatures() {
+  // same selection and order as before: relevant to the target; thickest first (bottom)
+  const inVisibleCluster = new Set();
+  for (const c of CLUSTERS) if (c._visMembers.length >= MIN_VISIBLE_CLUSTER_SIZE) for (const i of c._visMembers) inVisibleCluster.add(i);
+  const lines = [], arrows = [];
+  ROUTES.forEach((r, i) => {
+    if (!isRouteRelevant(r)) return;
+    const ll = ROUTE_LL[i], color = colorForYear(r.mean_year), w = lwFor(r.count);
+    const props = { i, color, w, family: !!r.family_group, osc: !!r.oscillation,
+                    clustered: inVisibleCluster.has(i), sort: -r.count };
+    lines.push({ type: "Feature", id: i, properties: props, geometry: { type: "LineString", coordinates: ll } });
+    const alen = Math.max(9, w * 1.3);
+    const n = ll.length;
+    arrows.push({ type: "Feature", properties: { ...props, rot: bearingDeg(ll[n-2], ll[n-1]), size: alen / ARROW_LEN },
+                  geometry: { type: "Point", coordinates: ll[n-1] } });
+    if (r.oscillation)
+      arrows.push({ type: "Feature", properties: { ...props, rot: bearingDeg(ll[1], ll[0]), size: alen / ARROW_LEN },
+                    geometry: { type: "Point", coordinates: ll[0] } });
+  });
+  return { lines, arrows };
+}
+function clusterFeatures() {
+  const lines = [], arrows = [];
+  CLUSTERS.forEach((c, ci) => {
+    if (c._visMembers.length < MIN_VISIBLE_CLUSTER_SIZE) return;
+    const meanYear = c._visYears.reduce((a, b) => a + b, 0) / c._visYears.length;
+    const color = colorForYear(meanYear), w = aggLwFor(c._visCount), ll = CLUSTER_LL[ci], n = ll.length;
+    lines.push({ type: "Feature", id: ci, properties: { ci, color, w }, geometry: { type: "LineString", coordinates: ll } });
+    arrows.push({ type: "Feature", properties: { color, rot: bearingDeg(ll[n-2], ll[n-1]), size: (7 + w * 0.5) / ARROW_LEN },
+                  geometry: { type: "Point", coordinates: ll[n-1] } });
+  });
+  return { lines, arrows };
+}
+// family places: labelled where a relevant route starts or ends, by tier, then how many routes touch them
+function placeFeatures() {
+  const keys = new Set();
+  for (const r of ROUTES) if (isRouteRelevant(r)) {
+    const c = r.curve, ends = c.mode === "path" ? [c.coords[0], c.coords[c.coords.length-1]] : [[c.x1, c.y1], [c.x2, c.y2]];
+    for (const [x, y] of ends) keys.add(Math.round(x*10) + "," + Math.round(y*10));
+  }
+  return PLACES.filter(p => keys.has(Math.round(p.x*10) + "," + Math.round(p.y*10))).map(p => ({
+    type: "Feature", properties: { label: p.label, sort: p.tier * 100000 - p.touches },
+    geometry: { type: "Point", coordinates: toLL(p.x, p.y) } }));
+}
+// the focused thread: every segment, its arrowhead and its start dot
+function threadFeatures() {
+  const lines = [], arrows = [], dots = [];
+  (currentFocusSegs || []).forEach((s, i) => {
+    const ll = s.waypts ? s.waypts.map(p => toLL(p[0], p[1]))
+      : s.ocean ? straightLL(s.x1, s.y1, s.x2, s.y2)
+      : curveLL({ mode: "bow", x1: s.x1, y1: s.y1, cx: s.cx, cy: s.cy, x2: s.x2, y2: s.y2 });
+    const hovered = i === hoveredSegIdx, n = ll.length;
+    const props = { i, color: colorForYear(s.year), hovered, dim: hoveredSegIdx >= 0 && !hovered };
+    lines.push({ type: "Feature", properties: props, geometry: { type: "LineString", coordinates: ll } });
+    arrows.push({ type: "Feature", properties: { ...props, rot: bearingDeg(ll[n-2], ll[n-1]), size: (hovered ? 12 : 9) / ARROW_LEN },
+                  geometry: { type: "Point", coordinates: ll[n-1] } });
+    dots.push({ type: "Feature", properties: { hovered }, geometry: { type: "Point", coordinates: ll[0] } });
+  });
+  return { lines, arrows, dots };
+}
+const fc = features => ({ type: "FeatureCollection", features });
+
+// ---- layers ----
+let mapReady = false;
+function addMapLayers() {
+  addImages();
+  const firstLabel = map.getStyle().layers.find(l => l.type === "symbol" && /place|label|name/i.test(l.id));
+  const before = firstLabel && firstLabel.id;
+  // terrain shading, from free elevation tiles (Mapzen/Terrarium, AWS Open Data)
+  map.addSource("dem", { type: "raster-dem", encoding: "terrarium", tileSize: 256, maxzoom: 13,
+    tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+    attribution: '<a href="https://registry.opendata.aws/terrain-tiles/">Terrain: Mapzen / AWS Open Data</a>' });
+  map.addLayer({ id: "hillshade", type: "hillshade", source: "dem",
+    paint: { "hillshade-exaggeration": 0.45, "hillshade-shadow-color": "#473b2e",
+             "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#5c4d3c" } },
+    map.getStyle().layers.find(l => l.type === "symbol")?.id);
+  // County-level lines: US counties (Census 1:500k) and first-level divisions
+  // elsewhere, from basemap/county_lines.js (built by pipeline/basemap/),
+  // loaded the first time the view reaches 5x. (OpenFreeMap's own tiles only
+  // carry county boundaries from about zoom 10, i.e. ~150x here.)
+  map.addSource("counties", { type: "geojson", data: fc([]) });
+  map.addLayer({ id: "county-lines", type: "line", source: "counties", minzoom: kToZoom(COUNTY_MIN_K),
+    paint: { "line-color": "#a09aa8", "line-width": 0.7, "line-opacity": 0.55 } }, before);
+
+  for (const id of ["routes", "route-arrows", "clusters", "cluster-arrows", "places", "thread", "thread-arrows", "thread-dots", "stationary", "target"])
+    map.addSource(id, { type: "geojson", data: fc([]) });
+
+  // (which routes a cluster band hides is switched by applyAggregation as the zoom changes)
+  const notHiddenByCluster = ["!", ["get", "clustered"]];
+  const lineLayout = { "line-cap": "round", "line-join": "round", "line-sort-key": ["get", "sort"] };
+  // routes (hidden while a thread is focused; the dimmed layer shows them then)
+  map.addLayer({ id: "routes-plain", type: "line", source: "routes",
+    filter: ["all", ["!", ["get", "family"]], ["!", ["get", "osc"]], notHiddenByCluster],
+    layout: lineLayout, paint: { "line-color": ["get", "color"], "line-opacity": 0.72, "line-width": ["get", "w"] } }, before);
+  map.addLayer({ id: "routes-osc", type: "line", source: "routes",
+    filter: ["all", ["get", "osc"], ["!", ["get", "family"]], notHiddenByCluster],
+    layout: lineLayout, paint: { "line-color": ["get", "color"], "line-opacity": 0.72, "line-width": ["get", "w"],
+                                 "line-dasharray": [1.4, 1.1] } }, before);
+  for (const side of [-1, 1])
+    map.addLayer({ id: "routes-family" + side, type: "line", source: "routes",
+      filter: ["all", ["get", "family"], notHiddenByCluster],
+      layout: lineLayout, paint: { "line-color": ["get", "color"], "line-opacity": 0.72,
+        "line-width": ["max", ["*", ["get", "w"], 0.42], 1.1],
+        "line-offset": ["*", side, ["max", ["*", ["get", "w"], 0.55], 1.6]] } }, before);
+  map.addLayer({ id: "route-arrows", type: "symbol", source: "route-arrows", filter: notHiddenByCluster,
+    layout: { "icon-image": "arrow45", "icon-size": ["get", "size"], "icon-rotate": ["get", "rot"], "icon-anchor": "right",
+              "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true },
+    paint: { "icon-color": ["get", "color"], "icon-opacity": 0.95 } }, before);
+  // cluster bands, drawn over the routes below the aggregation zoom
+  map.addLayer({ id: "clusters", type: "line", source: "clusters",
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": ["get", "color"], "line-opacity": 0.8, "line-width": ["get", "w"] } }, before);
+  map.addLayer({ id: "cluster-arrows", type: "symbol", source: "cluster-arrows",
+    layout: { "icon-image": "arrow35", "icon-size": ["get", "size"], "icon-rotate": ["get", "rot"], "icon-anchor": "right",
+              "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true },
+    paint: { "icon-color": ["get", "color"], "icon-opacity": 0.9 } }, before);
+  // dimmed context while a thread is focused
+  map.addLayer({ id: "routes-dim", type: "line", source: "routes", layout: { "visibility": "none", "line-join": "round" },
+    paint: { "line-color": "#8a7248", "line-opacity": 0.12, "line-width": 1 } }, before);
+  // the focused thread
+  map.addLayer({ id: "thread-glow", type: "line", source: "thread", filter: ["get", "hovered"],
+    layout: { "line-cap": "round" }, paint: { "line-color": ["get", "color"], "line-opacity": 0.35, "line-width": 13 } });
+  map.addLayer({ id: "thread", type: "line", source: "thread", layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": ["get", "color"], "line-opacity": ["case", ["get", "dim"], 0.45, 0.95],
+             "line-width": ["case", ["get", "hovered"], 6, 4] } });
+  map.addLayer({ id: "thread-arrows", type: "symbol", source: "thread-arrows",
+    layout: { "icon-image": "arrow40", "icon-size": ["get", "size"], "icon-rotate": ["get", "rot"], "icon-anchor": "right",
+              "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true },
+    paint: { "icon-color": ["get", "color"], "icon-opacity": ["case", ["get", "dim"], 0.45, 0.95] } });
+  map.addLayer({ id: "thread-dots", type: "circle", source: "thread-dots",
+    paint: { "circle-radius": ["case", ["get", "hovered"], 4.2, 2.6], "circle-color": "#2c2417" } });
+  map.addLayer({ id: "stationary", type: "circle", source: "stationary",
+    paint: { "circle-radius": 9, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#9c3c2e",
+             "circle-stroke-width": 2.5, "circle-stroke-opacity": 0.85 } });
+  map.addLayer({ id: "stationary-dot", type: "circle", source: "stationary",
+    paint: { "circle-radius": 3, "circle-color": "#9c3c2e", "circle-opacity": 0.85 } });
+  // family places (placed before the style's own labels, so they win collisions)
+  map.addLayer({ id: "places", type: "symbol", source: "places",
+    layout: { "icon-image": "dot", "icon-size": 1, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"],
+              "text-size": 12, "text-anchor": "bottom-left", "text-offset": [0.35, -0.1], "symbol-sort-key": ["get", "sort"],
+              "icon-allow-overlap": false },
+    paint: { "icon-color": "#9c3c2e", "icon-opacity": 0.9, "text-color": "#2c2417",
+             "text-halo-color": "rgba(255,255,255,0.9)", "text-halo-width": 1.6 } });
+  // the target: ring and label at the birthplace
+  map.addLayer({ id: "target-ring", type: "circle", source: "target",
+    paint: { "circle-radius": 7, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#9c3c2e", "circle-stroke-width": 1.6 } });
+  map.addLayer({ id: "target-label", type: "symbol", source: "target",
+    layout: { "text-field": ["get", "label"], "text-font": ["Noto Sans Italic"], "text-size": 15, "text-anchor": "left",
+              "text-offset": [0.8, 0], "text-allow-overlap": true, "text-ignore-placement": true },
+    paint: { "text-color": "#2c2417", "text-halo-color": "rgba(255,255,255,0.9)", "text-halo-width": 2 } });
+}
+// Below AGGREGATE_ZOOM_THRESHOLD (4.5x) routes that belong to a cluster band
+// are hidden and the band is drawn instead; while a thread is focused, all
+// routes show (dimmed) and no bands. Filters change only when that flips.
+let aggregationShown = null;
+function applyAggregation(force) {
+  if (!mapReady) return;
+  const aggregating = !focusActive && currentTransform.k < AGGREGATE_ZOOM_THRESHOLD;
+  const key = aggregating + "|" + focusActive;
+  if (!force && key === aggregationShown) return;
+  aggregationShown = key;
+  const keep = aggregating ? ["!", ["get", "clustered"]] : true;
+  map.setFilter("routes-plain", ["all", ["!", ["get", "family"]], ["!", ["get", "osc"]], keep]);
+  map.setFilter("routes-osc", ["all", ["get", "osc"], ["!", ["get", "family"]], keep]);
+  for (const side of [-1, 1]) map.setFilter("routes-family" + side, ["all", ["get", "family"], keep]);
+  map.setFilter("route-arrows", keep);
+  const normal = focusActive ? "none" : "visible";
+  for (const id of ["routes-plain", "routes-osc", "routes-family-1", "routes-family1", "route-arrows"])
+    map.setLayoutProperty(id, "visibility", normal);
+  for (const id of ["clusters", "cluster-arrows"]) map.setLayoutProperty(id, "visibility", aggregating ? "visible" : "none");
+  map.setLayoutProperty("routes-dim", "visibility", focusActive ? "visible" : "none");
+}
+
+// ---- keeping the map in step with the page's state ----
+// redrawAll() is what the rest of the page calls after changing the target,
+// the focus, the hovered move or the view; it pushes only what changed.
+let shownTarget = null, shownThread = null;
+function redrawAll() {
+  if (!mapReady) return;
+  if (shownTarget !== CURRENT_TARGET) {
+    shownTarget = CURRENT_TARGET;
+    const r = routeFeatures(), c = clusterFeatures();
+    map.getSource("routes").setData(fc(r.lines));
+    map.getSource("route-arrows").setData(fc(r.arrows));
+    map.getSource("clusters").setData(fc(c.lines));
+    map.getSource("cluster-arrows").setData(fc(c.arrows));
+    map.getSource("places").setData(fc(placeFeatures()));
+    const [tx, ty] = targetConvPoint();
+    map.getSource("target").setData({ type: "Feature", properties: { label: targetLabel() },
+                                      geometry: { type: "Point", coordinates: toLL(tx, ty) } });
+  }
+  const threadKey = focusActive ? [currentFocusSegs, hoveredSegIdx, focusedStationaryPoint] : null;
+  if (!threadKey || !shownThread || threadKey.some((v, i) => v !== shownThread[i])) {
+    shownThread = threadKey;
+    const t = focusActive ? threadFeatures() : { lines: [], arrows: [], dots: [] };
+    map.getSource("thread").setData(fc(t.lines));
+    map.getSource("thread-arrows").setData(fc(t.arrows));
+    map.getSource("thread-dots").setData(fc(t.dots));
+    const sp = focusActive && focusedStationaryPoint;
+    map.getSource("stationary").setData(fc(sp ? [{ type: "Feature", properties: {},
+      geometry: { type: "Point", coordinates: toLL(sp.x, sp.y) } }] : []));
+  }
+  applyAggregation();
+  updateZoomReadout();
+}
+const renderNow = redrawAll;
+function updateZoomReadout() {
+  zoomLevelEl.textContent = currentTransform.k.toFixed(1) + "×";
+  if (currentTransform.k >= COUNTY_MIN_K * 0.8) loadCountyLines();
+}
+// county-level lines, loaded once, just before they're first needed
+const COUNTY_MIN_K = 5;
+let countyLinesRequested = false;
+function loadCountyLines() {
+  if (countyLinesRequested || !mapReady) return;
+  countyLinesRequested = true;
+  const s = document.createElement("script");
+  s.src = "basemap/county_lines.js";
+  s.onload = () => {
+    const q = COUNTY_LINES.quant;
+    const features = COUNTY_LINES.lines.map(e => {
+      const c = []; let x = 0, y = 0;
+      for (let i = 0; i < e.length; i += 2) {
+        if (i === 0) { x = e[0]; y = e[1]; } else { x += e[i]; y += e[i + 1]; }
+        c.push([x * q, y * q]);
+      }
+      return { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: c } };
+    });
+    map.getSource("counties").setData(fc(features));
+  };
+  document.head.appendChild(s);
+}
+// label layout is MapLibre's now
+function updateLabels() {}
+function scheduleLabelUpdate() {}
+
+function setTarget(pid) {
+  if (!GRAPH.people[pid]) return;
+  CURRENT_TARGET = pid;
+  TARGET_ANCESTOR_SET = ancestorSetOf(pid); // includes pid itself
+  recomputeClusterVisibility();
+  const name = GRAPH.people[pid].name;
+  document.title = `Migration Lines to ${name}`;
+  document.getElementById("page-title").textContent = `Migration Lines to ${name}`;
+  clearFocus();
+  redrawAll();
+}
 function targetConvPoint() {
   const p = GRAPH.people[CURRENT_TARGET];
   return (p && p.bx != null) ? [p.bx, p.by_y] : [-41.501, 22.557]; // fall back to Ithaca if birthplace unresolved
@@ -665,221 +871,131 @@ function targetLabel() {
   if (!p) return "";
   return `${p.name}${p.by ? ", b. " + p.by : ""}`;
 }
-function setTarget(pid) {
-  if (!GRAPH.people[pid]) return;
-  CURRENT_TARGET = pid;
-  TARGET_ANCESTOR_SET = ancestorSetOf(pid); // includes pid itself
-  recomputeClusterVisibility();
-  const name = GRAPH.people[pid].name;
-  document.title = `Migration Lines to ${name}`;
-  document.getElementById("page-title").textContent = `Migration Lines to ${name}`;
-  const [cx, cy] = targetConvPoint();
-  convRing.attr("cx", cx).attr("cy", cy);
-  positionConvLabel(true);
-  clearFocus();
+
+// ---- moving the view ----
+function lonLatBoundsOf(xys) {
+  let w = Infinity, e = -Infinity, s = Infinity, n = -Infinity;
+  for (const [x, y] of xys) { const [lon, lat] = toLL(x, y); w = Math.min(w, lon); e = Math.max(e, lon); s = Math.min(s, lat); n = Math.max(n, lat); }
+  return [[w, s], [e, n]];
+}
+// fit a set of moves (padded 15%, at least 3 units), between 1x and 20x as before
+function zoomToFitSegs(segs) {
+  if (!segs.length) return;
+  let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+  for (const s of segs) for (const [x,y] of [[s.x1,s.y1],[s.x2,s.y2]]) {
+    minX=Math.min(minX,x); maxX=Math.max(maxX,x); minY=Math.min(minY,y); maxY=Math.max(maxY,y);
+  }
+  const padX = Math.max((maxX-minX)*0.15, 3), padY = Math.max((maxY-minY)*0.15, 3);
+  const box = lonLatBoundsOf([[minX-padX, minY-padY], [maxX+padX, maxY+padY]]);
+  const cam = map.cameraForBounds(box);
+  const zoom = Math.max(kToZoom(1), Math.min(kToZoom(20), cam ? cam.zoom : Z1));
+  map.jumpTo({ center: cam ? cam.center : map.getCenter(), zoom });
   redrawAll();
-  scheduleLabelUpdate();
+}
+function zoomToPoint(x, y) { map.jumpTo({ center: toLL(x, y), zoom: kToZoom(8) }); redrawAll(); }
+// zoom by `factor` keeping the point under (mx, my) fixed (zoom buttons, cluster clicks)
+function applyZoomAt(mx, my, factor) {
+  const k1 = Math.max(1, Math.min(Math.pow(2, MAX_ZOOM - Z1), currentTransform.k * factor));
+  map.easeTo({ zoom: kToZoom(k1), around: map.unproject([mx, my]), duration: 250 });
+}
+function resetView() {
+  if (window.innerWidth <= 640) map.jumpTo({ center: MOBILE_VIEW.center, zoom: kToZoom(MOBILE_VIEW.k) });
+  else map.fitBounds(DEFAULT_BOUNDS, { duration: 0 });
 }
 
-// Overscan: the stage is drawn this many CSS px beyond each edge of the
-// visible map, so a pan can slide it that far before anything blank shows.
-let OVERSCAN = 0;
-// Geometry of the stage layers (routes canvas, overlay SVG, basemap bitmap).
-// Each is its own GPU layer, and a layer that doesn't start exactly on a
-// device pixel, or whose pixel size isn't exactly its CSS size x dpr, gets
-// resampled -- visibly blurred. So the margin is a whole number of device
-// pixels, the layers are nudged by the map's own sub-pixel offset on the
-// page (the header's height is rarely a whole number of device pixels), and
-// their CSS size is set from their pixel size. padX/padY = where the visible
-// map's top-left corner sits inside a layer, in CSS px.
-let LAYER = { dpr: 1, padX: 0, padY: 0, wDev: 1, hDev: 1 };
-// Same idea for the viewport-sized layers; fx/fy = where the visible map's
-// top-left corner sits inside them, in CSS px.
-let VIEWPORT = { dpr: 1, fx: 0, fy: 0, wDev: 1, hDev: 1 };
-function computeBase() {
-  const rect = mapWrap.getBoundingClientRect();
-  const dpr = layerDpr();
-  OVERSCAN = Math.round(0.3 * Math.max(rect.width, rect.height) * dpr) / dpr;
-  const M = OVERSCAN;
-  const fx = (rect.left * dpr - Math.floor(rect.left * dpr)) / dpr;
-  const fy = (rect.top * dpr - Math.floor(rect.top * dpr)) / dpr;
-  LAYER = { dpr, padX: M + fx, padY: M + fy,
-            wDev: Math.ceil((rect.width + 2 * M + fx) * dpr), hDev: Math.ceil((rect.height + 2 * M + fy) * dpr) };
-  const css = { left: -LAYER.padX + "px", top: -LAYER.padY + "px",
-                width: LAYER.wDev / dpr + "px", height: LAYER.hDev / dpr + "px",
-                transformOrigin: `${LAYER.padX}px ${LAYER.padY}px` }; // = the visible map's top-left corner
-  Object.assign(mapStage.style, css);
-  const scale = Math.min(rect.width / VB.w, rect.height / VB.h);
-  base = {
-    scale,
-    offsetX: (rect.width - VB.w * scale) / 2 - VB.x0 * scale,
-    offsetY: (rect.height - VB.h * scale) / 2 - VB.y0 * scale,
-    width: rect.width, height: rect.height,
-  };
-  // Viewport layers (WebGL routes, thread canvas): the visible map only, at
-  // the full device resolution, snapped to the device-pixel grid the same way.
-  const vdpr = window.devicePixelRatio || 1;
-  const vfx = (rect.left * vdpr - Math.floor(rect.left * vdpr)) / vdpr;
-  const vfy = (rect.top * vdpr - Math.floor(rect.top * vdpr)) / vdpr;
-  VIEWPORT = { dpr: vdpr, fx: vfx, fy: vfy,
-               wDev: Math.ceil((rect.width + vfx) * vdpr), hDev: Math.ceil((rect.height + vfy) * vdpr) };
-  const useGL = !!GL;
-  for (const c of [routesGLCanvas, threadCanvas]) {
-    c.width = useGL ? VIEWPORT.wDev : 1; c.height = useGL ? VIEWPORT.hDev : 1;
-    Object.assign(c.style, { left: -vfx + "px", top: -vfy + "px", width: VIEWPORT.wDev / vdpr + "px",
-                             height: VIEWPORT.hDev / vdpr + "px", display: useGL ? "" : "none" });
+// ---- hover and click: MapLibre finds the drawn features near the pointer ----
+const ROUTE_LAYERS = ["routes-plain", "routes-osc", "routes-family-1", "routes-family1"];
+function featuresNear(point, px, layers) {
+  const box = [[point.x - px, point.y - px], [point.x + px, point.y + px]];
+  return map.queryRenderedFeatures(box, { layers: layers.filter(id => map.getLayer(id)) });
+}
+function routesNear(point, px) {
+  const seen = new Set(), out = [];
+  for (const f of featuresNear(point, px, ROUTE_LAYERS)) {
+    const i = f.properties.i;
+    if (!seen.has(i)) { seen.add(i); out.push(ROUTES[i]); }
   }
-  // the stage canvas only draws routes in the Canvas 2D fallback
-  canvas.width = useGL ? 1 : LAYER.wDev;
-  canvas.height = useGL ? 1 : LAYER.hDev;
-  canvas.style.width = css.width;
-  canvas.style.height = css.height;
-  canvas.style.display = useGL ? "none" : "";
-  // shift by the margin so all drawing code keeps using visible-map coordinates
-  stageCtx.setTransform(dpr, 0, 0, dpr, LAYER.padX * dpr, LAYER.padY * dpr);
-  threadCtx.setTransform(vdpr, 0, 0, vdpr, vfx * vdpr, vfy * vdpr);
-  ctx = useGL ? threadCtx : stageCtx;
-  // the basemap bitmap has the stage's geometry, in its own element
-  Object.assign(basemapCanvas.style, css);
-  // (only the bitmap-basemap fallback draws here; with WebGL keep it tiny)
-  const bmFallback = typeof BM === "undefined" || !BM;
-  basemapCanvas.width = bmFallback ? LAYER.wDev : 1;
-  basemapCanvas.height = bmFallback ? LAYER.hDev : 1;
-  basemapShownT = null; // resizing clears the canvas; a fresh bitmap is requested by the next redraw
-  basemapRequestedT = null;
+  return out;
 }
-// Device-pixel resolution of the stage layers, capped at 2x: a phone at 3x
-// with overscan would otherwise need canvases beyond what mobile browsers allow.
-function layerDpr() { return Math.min(window.devicePixelRatio || 1, 2); }
-// Snap a visible-map position to the device-pixel grid, so text placed by
-// transform (labels) is as crisp as text placed by layout.
-function snapX(x) { const f = LAYER.padX - OVERSCAN, d = window.devicePixelRatio || 1; return Math.round((x + f) * d) / d - f; }
-function snapY(y) { const f = LAYER.padY - OVERSCAN, d = window.devicePixelRatio || 1; return Math.round((y + f) * d) / d - f; }
-// How a layer drawn at view t0 must be scaled (about the visible map's
-// top-left corner) and shifted to show the current view: visible-map point
-// p drawn under t0 must now appear at s*p + (cx, cy).
-function layerShift(t0) {
-  const t = currentTransform, s = t.k / t0.k;
-  return { s, cx: base.scale * (t.x - s * t0.x) + base.offsetX * (1 - s),
-              cy: base.scale * (t.y - s * t0.y) + base.offsetY * (1 - s) };
+function clusterNear(point, px) {
+  const f = featuresNear(point, px, ["clusters"])[0];
+  return f ? CLUSTERS[f.properties.ci] : null;
 }
-// data -> stage-pixel transform for the SVG groups (same maths as dataToScreen, plus the margin)
-function stageGroupTransform() {
-  const t = currentTransform, k = t.k * base.scale;
-  return `translate(${LAYER.padX + base.offsetX + base.scale * t.x},${LAYER.padY + base.offsetY + base.scale * t.y}) scale(${k})`;
+function threadSegsNear(point, px) {
+  const seen = new Set(), out = [];
+  for (const f of featuresNear(point, px, ["thread"])) {
+    const i = f.properties.i;
+    if (!seen.has(i) && currentFocusSegs && currentFocusSegs[i]) { seen.add(i); out.push(currentFocusSegs[i]); }
+  }
+  return out;
 }
+function doHover(e) {
+  const pt = e.point, ev = e.originalEvent;
+  if (focusActive) {
+    // while a thread is focused only the highlighted line is hoverable
+    const hitSegs = threadSegsNear(pt, 8);
+    if (hitSegs.length > 1) showMultiSegTip(ev, hitSegs);
+    else if (hitSegs.length === 1) showSegTip(ev, hitSegs[0]);
+    else hideTip();
+    return;
+  }
+  const hitCluster = clusterNear(pt, 8);
+  if (hitCluster) { showClusterTip(ev, hitCluster); return; }
+  const matches = routesNear(pt, 7);
+  if (matches.length > 1) { showMultiTip(ev, matches); return; }
+  if (matches.length === 1) showTip(ev, matches[0]); else hideTip();
+}
+function handleClick(e) {
+  const pt = e.point;
+  closeRoutePicker();
+  const hitCluster = clusterNear(pt, 9);
+  if (hitCluster) {
+    // zoom in just past the aggregation threshold, centred where you clicked,
+    // so the individual lines it represents reveal themselves
+    applyZoomAt(pt.x, pt.y, (AGGREGATE_ZOOM_THRESHOLD + 1.5) / currentTransform.k);
+    return;
+  }
+  const matches = routesNear(pt, 8);
+  if (matches.length > 1) { showRoutePicker(matches); return; }
+  const best = matches[0];
+  if (best && best.anchor) focusThread(best.anchor);
+  else if (focusActive) clearFocus(); // clicked empty space while focused -> clear
+}
+let hoverScheduled = false, lastHover = null;
+map.on("mousemove", e => {
+  lastHover = e;
+  if (hoverScheduled) return;
+  hoverScheduled = true;
+  requestAnimationFrame(() => { hoverScheduled = false; if (!map.isMoving()) doHover(lastHover); });
+});
+map.on("mouseout", () => hideTip());
+map.on("movestart", () => hideTip());
+map.on("click", handleClick);
+map.on("zoom", () => { updateZoomReadout(); applyAggregation(); });
 
-function dataToScreen(x, y) {
-  const vx = currentTransform.k * x + currentTransform.x;
-  const vy = currentTransform.k * y + currentTransform.y;
-  return [vx * base.scale + base.offsetX, vy * base.scale + base.offsetY];
-}
+document.getElementById("zoomIn").onclick = () => { const c = map.getContainer(); applyZoomAt(c.clientWidth/2, c.clientHeight/2, 1.6); };
+document.getElementById("zoomOut").onclick = () => { const c = map.getContainer(); applyZoomAt(c.clientWidth/2, c.clientHeight/2, 1/1.6); };
+document.getElementById("zoomReset").onclick = () => { resetView(); redrawAll(); };
+map.on("resize", () => { computeZ1(); applyAggregation(true); updateZoomReadout(); });
 
-// Flatten either curve mode into screen-space points, for hit-testing (both
-// modes) -- drawing itself uses the real quadraticCurveTo for bow mode rather
-// than these flattened points, so the rendered curve stays perfectly smooth.
-function curveScreenPts(curve) {
-  if (curve.mode === "path") {
-    return curve.coords.map(p => dataToScreen(p[0], p[1]));
+map.on("load", () => {
+  computeZ1();
+  if (window.innerWidth <= 640) resetView();
+  addMapLayers();
+  mapReady = true;
+  redrawAll();
+});
+// if the map style can't load (e.g. the tile service is down), say so rather than show a blank map
+map.on("error", e => {
+  if (!mapReady && e && e.error && /style|Failed to fetch/i.test(String(e.error.message || e.error))) {
+    document.getElementById("map").insertAdjacentHTML("beforeend",
+      '<div style="position:absolute;top:45%;width:100%;text-align:center;font:14px sans-serif;color:#6b5d43">' +
+      'The map background (OpenFreeMap) could not be loaded. Please try again later.</div>');
   }
-  const [x1,y1] = dataToScreen(curve.x1, curve.y1);
-  const [cx,cy] = dataToScreen(curve.cx, curve.cy);
-  const [x2,y2] = dataToScreen(curve.x2, curve.y2);
-  const pts = [];
-  const N = 10;
-  for (let i = 0; i <= N; i++) {
-    const t = i/N, mt = 1-t;
-    pts.push([mt*mt*x1 + 2*mt*t*cx + t*t*x2, mt*mt*y1 + 2*mt*t*cy + t*t*y2]);
-  }
-  return pts;
-}
+});
 
-function strokeCurvePath(curve) {
-  ctx.beginPath();
-  if (curve.mode === "path") {
-    const pts = curve.coords.map(p => dataToScreen(p[0], p[1]));
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-  } else {
-    const [x1,y1] = dataToScreen(curve.x1, curve.y1);
-    const [cx,cy] = dataToScreen(curve.cx, curve.cy);
-    const [x2,y2] = dataToScreen(curve.x2, curve.y2);
-    ctx.moveTo(x1,y1);
-    ctx.quadraticCurveTo(cx, cy, x2, y2);
-  }
-}
-// --- pts-based variants: reuse the already-transformed screen points
-// (the same array cached as r._screen) instead of re-projecting the curve.
-// curveScreenPts samples a quadratic at N=10, so a polyline through those
-// points is visually identical to quadraticCurveTo at these line widths. ---
-function strokeScreenPts(pts) {
-  ctx.beginPath();
-  ctx.moveTo(pts[0][0], pts[0][1]);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-}
-function strokeTwinPts(pts, offset) {
-  const [x1,y1] = pts[0], [x2,y2] = pts[pts.length-1];
-  const dx = x2-x1, dy = y2-y1, dist = Math.hypot(dx,dy) || 1;
-  const px = -dy/dist, py = dx/dist;
-  for (const sign of [-1, 1]) {
-    const ox = px*offset*sign, oy = py*offset*sign;
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0]+ox, pts[0][1]+oy);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0]+ox, pts[i][1]+oy);
-    ctx.stroke();
-  }
-}
-
-function curveEndAngle(curve) {
-  if (curve.mode === "path") {
-    const pts = curve.coords;
-    const [ex,ey] = dataToScreen(pts[pts.length-1][0], pts[pts.length-1][1]);
-    const [px,py] = dataToScreen(pts[pts.length-2][0], pts[pts.length-2][1]);
-    return { ang: Math.atan2(ey-py, ex-px), ex, ey };
-  }
-  const [cx,cy] = dataToScreen(curve.cx, curve.cy);
-  const [ex,ey] = dataToScreen(curve.x2, curve.y2);
-  return { ang: Math.atan2(ey-cy, ex-cx), ex, ey };
-}
-function curveStartAngle(curve) {
-  if (curve.mode === "path") {
-    const pts = curve.coords;
-    const [sx,sy] = dataToScreen(pts[0][0], pts[0][1]);
-    const [nx,ny] = dataToScreen(pts[1][0], pts[1][1]);
-    return { ang: Math.atan2(sy-ny, sx-nx), ex: sx, ey: sy }; // pointing back toward the start
-  }
-  const [cx,cy] = dataToScreen(curve.cx, curve.cy);
-  const [sx,sy] = dataToScreen(curve.x1, curve.y1);
-  return { ang: Math.atan2(sy-cy, sx-cx), ex: sx, ey: sy };
-}
-function drawArrowhead({ang, ex, ey}, alen, color) {
-  ctx.beginPath();
-  ctx.moveTo(ex, ey);
-  ctx.lineTo(ex - alen*Math.cos(ang-0.45), ey - alen*Math.sin(ang-0.45));
-  ctx.lineTo(ex - alen*Math.cos(ang+0.45), ey - alen*Math.sin(ang+0.45));
-  ctx.closePath();
-  ctx.globalAlpha = 0.95;
-  ctx.fillStyle = color;
-  ctx.fill();
-}
 
 let focusedAnchor = null; // person_id currently focused, or null
-
-function strokeTwin(curve, offset) {
-  // Two parallel strokes offset perpendicular to the route's overall
-  // direction -- approximates a true curve-normal offset well enough at this
-  // scale, and avoids needing per-point normals on a bow/great-circle curve.
-  const pts = curveScreenPts(curve);
-  const [x1,y1] = pts[0], [x2,y2] = pts[pts.length-1];
-  const dx = x2-x1, dy = y2-y1, dist = Math.hypot(dx,dy) || 1;
-  const px = -dy/dist, py = dx/dist;
-  for (const sign of [-1, 1]) {
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0]+px*offset*sign, pts[0][1]+py*offset*sign);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0]+px*offset*sign, pts[i][1]+py*offset*sign);
-    ctx.stroke();
-  }
-}
 
 let focusActive = false;
 
@@ -910,762 +1026,6 @@ function recomputeClusterVisibility() {
     c._visMembers = vis;
     c._visCount = vis.reduce((s,idx) => s + ROUTES[idx].count, 0);
     c._visYears = vis.length ? vis.map(idx => ROUTES[idx].mean_year) : [c.mean_year];
-  }
-}
-
-// Data-space bounding box of a curve (a quadratic stays inside the hull of
-// its control points), cached on the object. Used to skip drawing anything
-// that lies wholly outside the stage -- at high zoom, most routes.
-function curveBBox(o) {
-  if (o._bbox) return o._bbox;
-  const c = o.curve;
-  const pts = c.mode === "path" ? c.coords : [[c.x1,c.y1],[c.cx,c.cy],[c.x2,c.y2]];
-  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
-  for (const [x,y] of pts) { if (x<x0) x0=x; if (x>x1) x1=x; if (y<y0) y0=y; if (y>y1) y1=y; }
-  return (o._bbox = [x0, y0, x1, y1]);
-}
-function offStage(o, pad) {
-  const [x0, y0, x1, y1] = curveBBox(o);
-  const [sx0, sy0] = dataToScreen(x0, y0), [sx1, sy1] = dataToScreen(x1, y1);
-  const M = OVERSCAN + pad;
-  return sx1 < -M || sx0 > base.width + M || sy1 < -M || sy0 > base.height + M;
-}
-
-// ============ routes with WebGL ============
-// Canvas 2D takes 100-300 ms to stroke ~900 wide translucent routes on an
-// integrated GPU; WebGL draws the same in a few ms, so routes are redrawn
-// every frame at the current view -- sharp even mid-zoom -- and never
-// stretched. The drawing reproduces drawRoutes2D exactly:
-//  * A stroke with round joins and caps is the union of one "capsule"
-//    (rectangle + half-disc at each end) per segment; each capsule is one
-//    instance of a fixed template mesh, placed by the vertex shader.
-//  * Map -> screen is a uniform scale plus shift (no rotation), so segment
-//    directions, twin-stroke offsets and arrowhead angles computed once in
-//    map units stay right at every zoom; per frame only u_view changes.
-//  * Canvas composites each stroke once, so a translucent route never gets
-//    darker where its own capsules overlap. Every stroke (and arrowhead)
-//    gets its own depth, closer the later it is drawn; with depth test LESS
-//    a stroke can't cover its own pixels twice but still covers earlier ones.
-//    MSAA makes that exact per sample.
-//  * Everything is one instanced draw call, in the same order as Canvas 2D
-//    (route strokes, its arrowheads, next route, ..., then cluster bands),
-//    so translucent overlaps blend in the same order.
-//  * Dashes (oscillating routes) are cut in the fragment shader from the
-//    distance along the stroke, with a round cap on every dash, as canvas does.
-const routesGLCanvas = document.getElementById("routes-gl");
-const GL_VS = `#version 300 es
-precision highp float;
-in vec4 a_tpl;     // template: end (0/1), along and across offsets in half-widths, vertex index
-in vec2 a_p0;      // stroke segment start (map units) | arrowhead tip
-in vec2 a_p1;      // stroke segment end (map units)   | arrowhead direction
-in float a_hw;     // half line width, CSS px          | arrowhead length
-in vec2 a_shift;   // CSS px shift (twin strokes)      | x = arrowhead half-angle
-in vec4 a_color;   // straight RGBA
-in float a_depth;
-in float a_kind;   // 0 = stroke segment, 1 = arrowhead
-in vec3 a_dash;    // dash on, off (CSS px; on = 0 is solid), distance along the stroke to p0 (map units)
-uniform vec3 u_view;  // map -> visible-map CSS px: u_view.x * p + u_view.yz
-uniform vec3 u_frame; // visible-map origin inside the canvas (CSS px), device pixel ratio
-uniform vec2 u_size;  // canvas size, device px
-out vec4 v_color;
-out float v_along, v_perp, v_len, v_hw;
-flat out vec3 v_dash;
-void main() {
-  v_color = a_color;
-  vec2 P0 = a_p0 * u_view.x + u_view.yz;
-  vec2 pos;
-  v_along = 0.0; v_perp = 0.0; v_len = 0.0; v_hw = 1.0; v_dash = vec3(0.0);
-  if (a_kind > 0.5) {
-    float ang = atan(a_p1.y, a_p1.x), sp = a_shift.x;
-    int i = int(a_tpl.w + 0.5);
-    pos = i == 1 ? P0 - a_hw * vec2(cos(ang - sp), sin(ang - sp))
-        : i == 2 ? P0 - a_hw * vec2(cos(ang + sp), sin(ang + sp))
-        : P0;   // vertex 0 is the tip; the rest of the template collapses onto it
-  } else {
-    vec2 P1 = a_p1 * u_view.x + u_view.yz;
-    vec2 d = P1 - P0; float len = length(d);
-    vec2 dir = len > 1e-6 ? d / len : vec2(1.0, 0.0);
-    vec2 nrm = vec2(-dir.y, dir.x);
-    pos = (a_tpl.x > 0.5 ? P1 : P0) + a_hw * (a_tpl.y * dir + a_tpl.z * nrm) + a_shift;
-    v_along = a_tpl.x * len + a_hw * a_tpl.y;
-    v_perp = a_hw * a_tpl.z;
-    v_len = len; v_hw = a_hw;
-    v_dash = vec3(a_dash.x, a_dash.y, a_dash.z * u_view.x);
-  }
-  vec2 dev = (pos + u_frame.xy) * u_frame.z;
-  gl_Position = vec4(dev.x / u_size.x * 2.0 - 1.0, 1.0 - dev.y / u_size.y * 2.0, a_depth, 1.0);
-}`;
-const GL_FS = `#version 300 es
-precision highp float;
-in vec4 v_color;
-in float v_along, v_perp, v_len, v_hw;
-flat in vec3 v_dash;
-out vec4 fragColor;
-void main() {
-  if (v_dash.x > 0.0) {
-    // keep the pixel only if it's within half a line width of a dash that
-    // lies on this segment (dashes run on continuously across segments)
-    float P = v_dash.x + v_dash.y, s = v_dash.z + v_along, k = floor(s / P), best = 1e9;
-    for (int j = -1; j <= 1; j++) {
-      float a0 = max((k + float(j)) * P - v_dash.z, 0.0);
-      float a1 = min((k + float(j)) * P - v_dash.z + v_dash.x, v_len);
-      if (a1 >= a0) best = min(best, max(max(a0 - v_along, v_along - a1), 0.0));
-    }
-    if (best * best + v_perp * v_perp > v_hw * v_hw) discard;
-  }
-  fragColor = vec4(v_color.rgb * v_color.a, v_color.a);
-}`;
-const GL_HALF_DISC_STEPS = 12;
-const GL_FLOATS = 16; // per instance: p0 2, p1 2, hw 1, shift 2, color 4, depth 1, kind 1, dash 3
-let GL = null;
-function initRoutesGL() {
-  let gl = null;
-  try { gl = routesGLCanvas.getContext("webgl2", { antialias: true, depth: true, stencil: true, alpha: true, premultipliedAlpha: true }); } catch (e) {}
-  if (!gl) return null;
-  const sh = (type, src) => {
-    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
-    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
-    return s;
-  };
-  const prog = gl.createProgram();
-  try {
-    gl.attachShader(prog, sh(gl.VERTEX_SHADER, GL_VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, GL_FS));
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
-  } catch (e) { console.warn("WebGL routes unavailable, using Canvas 2D:", e); return null; }
-  // capsule template: rectangle (its first triangle doubles as the arrowhead:
-  // template vertex indices 0,1,2), then a half-disc on each end
-  const T = [];
-  const v = (e, a, c, idx) => T.push(e, a, c, idx);
-  v(0, 0, 1, 0); v(0, 0, -1, 1); v(1, 0, 1, 2);
-  v(1, 0, 1, 3); v(0, 0, -1, 3); v(1, 0, -1, 3);
-  for (let j = 0; j < GL_HALF_DISC_STEPS; j++) {
-    const ta = -Math.PI / 2 + Math.PI * j / GL_HALF_DISC_STEPS, tb = -Math.PI / 2 + Math.PI * (j + 1) / GL_HALF_DISC_STEPS;
-    v(1, 0, 0, 3); v(1, Math.cos(ta), Math.sin(ta), 3); v(1, Math.cos(tb), Math.sin(tb), 3);
-    v(0, 0, 0, 3); v(0, -Math.cos(ta), Math.sin(ta), 3); v(0, -Math.cos(tb), Math.sin(tb), 3);
-  }
-  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
-  const tplBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, tplBuf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(T), gl.STATIC_DRAW);
-  const loc = n => gl.getAttribLocation(prog, n);
-  gl.enableVertexAttribArray(loc("a_tpl")); gl.vertexAttribPointer(loc("a_tpl"), 4, gl.FLOAT, false, 16, 0);
-  const instBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, instBuf);
-  let off = 0;
-  for (const [n, size] of [["a_p0",2],["a_p1",2],["a_hw",1],["a_shift",2],["a_color",4],["a_depth",1],["a_kind",1],["a_dash",3]]) {
-    const l = loc(n);
-    gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, gl.FLOAT, false, GL_FLOATS * 4, off);
-    gl.vertexAttribDivisor(l, 1); off += size * 4;
-  }
-  gl.useProgram(prog);
-  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
-  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // premultiplied source-over, as canvas
-  return { gl, prog, vao, instBuf, tplCount: T.length / 4, count: 0, key: null,
-           uView: gl.getUniformLocation(prog, "u_view"), uFrame: gl.getUniformLocation(prog, "u_frame"),
-           uSize: gl.getUniformLocation(prog, "u_size"), drawnRoutes: [], drawnClusters: [] };
-}
-GL = initRoutesGL();
-if (GL) routesGLCanvas.addEventListener("webglcontextlost", (e) => {
-  // the GPU was reset: carry on with Canvas 2D routes and the bitmap basemap
-  e.preventDefault(); GL = null; BM = null; computeBase(); screenCacheT = null; redrawAll();
-});
-
-// A curve as the polyline the Canvas 2D code strokes (bow: 11 samples of the
-// quadratic -- sampling in map units then projecting is the same as
-// projecting then sampling, since the projection is affine).
-function curveDataPts(curve) {
-  if (curve.mode === "path") return curve.coords;
-  const pts = [];
-  for (let i = 0; i <= 10; i++) {
-    const t = i/10, mt = 1-t;
-    pts.push([mt*mt*curve.x1 + 2*mt*t*curve.cx + t*t*curve.x2, mt*mt*curve.y1 + 2*mt*t*curve.cy + t*t*curve.y2]);
-  }
-  return pts;
-}
-// direction the arrowhead points (same as curveEndAngle / curveStartAngle)
-function curveEndDir(c) {
-  if (c.mode === "path") { const p = c.coords, n = p.length; return [p[n-1][0]-p[n-2][0], p[n-1][1]-p[n-2][1]]; }
-  return [c.x2 - c.cx, c.y2 - c.cy];
-}
-function curveStartDir(c) {
-  if (c.mode === "path") { const p = c.coords; return [p[0][0]-p[1][0], p[0][1]-p[1][1]]; }
-  return [c.x1 - c.cx, c.y1 - c.cy];
-}
-const _rgbCache = new Map();
-function rgbOf(css) {
-  let c = _rgbCache.get(css);
-  if (!c) { const d = d3.color(css).rgb(); c = [d.r / 255, d.g / 255, d.b / 255]; _rgbCache.set(css, c); }
-  return c;
-}
-// Build the instance list for the current target / focus / aggregation
-// state -- same routes, order and styles as drawRoutes2D.
-function buildRouteInstances(aggregating) {
-  const dimmed = focusActive;
-  const hiddenByCluster = new Set();
-  if (aggregating) for (const c of CLUSTERS)
-    if (c._visMembers.length >= MIN_VISIBLE_CLUSTER_SIZE) for (const idx of c._visMembers) hiddenByCluster.add(idx);
-  const sorted = ROUTES.filter((r,idx) => isRouteRelevant(r) && !hiddenByCluster.has(idx)).sort((a,b) => b.count - a.count);
-  const out = [];
-  let nStrokes = 0;
-  const pending = [];   // [kind, args] in draw order; depths assigned once the total is known
-  const stroke = (pts, hw, shift, rgb, a, dash) => pending.push([0, pts, hw, shift, rgb, a, dash]);
-  const arrow = (tip, dir, len, spread, rgb, a) => pending.push([1, tip, dir, len, spread, rgb, a]);
-  const drawnClusters = [];
-  for (const r of sorted) {
-    const pts = curveDataPts(r.curve);
-    const rgb = dimmed ? rgbOf("#8a7248") : rgbOf(colorForYear(r.mean_year));
-    const alpha = dimmed ? 0.12 : 0.72;
-    const w = dimmed ? 1 : lwFor(r.count);
-    const dash = (r.oscillation && !dimmed) ? [w*1.4, w*1.1] : null;
-    if (r.family_group && !dimmed) {
-      const tw = Math.max(w * 0.42, 1.1), offset = Math.max(w * 0.55, 1.6);
-      const [x1,y1] = pts[0], [x2,y2] = pts[pts.length-1];
-      const dx = x2-x1, dy = y2-y1, dist = Math.hypot(dx,dy) || 1;
-      const px = -dy/dist, py = dx/dist;
-      for (const sign of [-1, 1]) stroke(pts, tw/2, [px*offset*sign, py*offset*sign], rgb, alpha, dash);
-    } else {
-      stroke(pts, w/2, [0,0], rgb, alpha, dash);
-    }
-    if (!dimmed) {
-      const alen = Math.max(9, lwFor(r.count) * 1.3);
-      arrow(pts[pts.length-1], curveEndDir(r.curve), alen, 0.45, rgb, 0.95);
-      if (r.oscillation) arrow(pts[0], curveStartDir(r.curve), alen, 0.45, rgb, 0.95);
-    }
-  }
-  if (aggregating) {
-    for (const c of CLUSTERS) {
-      if (c._visMembers.length < MIN_VISIBLE_CLUSTER_SIZE) continue;
-      drawnClusters.push(c);
-      const meanYear = c._visYears.reduce((a,b)=>a+b,0) / c._visYears.length;
-      const rgb = rgbOf(colorForYear(meanYear)), lw = aggLwFor(c._visCount);
-      const pts = curveDataPts(c.curve);
-      stroke(pts, lw/2, [0,0], rgb, 0.8, null);
-      arrow(pts[pts.length-1], curveEndDir(c.curve), 7 + lw*0.5, 0.35, rgb, 0.9);
-    }
-  }
-  const n = pending.length;
-  const depth = i => 0.999 - 1.998 * (i + 1) / (n + 1); // later = closer
-  pending.forEach((p, i) => {
-    const z = depth(i);
-    if (p[0] === 1) {
-      const [, tip, dir, len, spread, rgb, a] = p;
-      out.push(tip[0], tip[1], dir[0], dir[1], len, spread, 0, rgb[0], rgb[1], rgb[2], a, z, 1, 0, 0, 0);
-      return;
-    }
-    const [, pts, hw, shift, rgb, a, dash] = p;
-    let s = 0;
-    for (let k = 0; k < pts.length - 1; k++) {
-      const [ax, ay] = pts[k], [bx, by] = pts[k+1];
-      out.push(ax, ay, bx, by, hw, shift[0], shift[1], rgb[0], rgb[1], rgb[2], a, z, 0,
-               dash ? dash[0] : 0, dash ? dash[1] : 0, s);
-      s += Math.hypot(bx - ax, by - ay);
-    }
-  });
-  const gl = GL.gl;
-  gl.bindBuffer(gl.ARRAY_BUFFER, GL.instBuf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(out), gl.DYNAMIC_DRAW);
-  GL.count = out.length / GL_FLOATS;
-  GL.drawnRoutes = sorted; GL.drawnClusters = drawnClusters;
-  screenCacheT = null;
-}
-// ============ basemap with WebGL ============
-// Land, lakes, rivers and borders are drawn in the same WebGL pass as the
-// routes, underneath them. Below zoom 3.5 the data is the page's original
-// BASEMAP (so the default view looks exactly as before); from 3.5 on, detail
-// tiles built by pipeline/basemap/build_basemap.py from Census counties
-// (1:500k) and Natural Earth 1:10m, loaded as they come on screen.
-//  * Filled shapes use the stencil buffer: every ring is drawn as a fan of
-//    triangles, counting +1/-1 per winding, then the covered pixels (count
-//    != 0) are painted -- SVG's nonzero fill rule, with any polygon.
-//  * Lines are one instanced quad per segment. Widths and dash lengths are
-//    in map units, as in the old SVG styles, up to a cap in screen pixels,
-//    so lines don't swell into bands at high zoom (the caps take effect only
-//    above ~8-11x). Lines thinner than a device pixel are drawn one pixel
-//    wide at proportionally lower opacity, as a canvas would render them.
-//  * Each translucent line layer gets its own depth, so a layer never
-//    darkens where its own segments overlap (same trick as the routes).
-const BM_FILL_VS = `#version 300 es
-precision highp float;
-in vec2 a_pos;
-uniform vec3 u_view; uniform vec3 u_frame; uniform vec2 u_size; uniform float u_z; uniform float u_clip;
-void main() {
-  if (u_clip > 0.5) { gl_Position = vec4(a_pos, u_z, 1.0); return; }   // full-screen cover quad
-  vec2 dev = (a_pos * u_view.x + u_view.yz + u_frame.xy) * u_frame.z;
-  gl_Position = vec4(dev.x / u_size.x * 2.0 - 1.0, 1.0 - dev.y / u_size.y * 2.0, u_z, 1.0);
-}`;
-const BM_FILL_FS = `#version 300 es
-precision highp float;
-uniform vec4 u_color; out vec4 fragColor;
-void main() { fragColor = vec4(u_color.rgb * u_color.a, u_color.a); }`;
-const BM_LINE_VS = `#version 300 es
-precision highp float;
-in vec2 a_tpl;              // end (0/1), side (-1/+1)
-in vec2 a_p0; in vec2 a_p1; // segment in map units
-in float a_s0;              // distance along the line to p0, map units
-uniform vec3 u_view; uniform vec3 u_frame; uniform vec2 u_size; uniform float u_z;
-uniform float u_hw;         // half width, CSS px
-out float v_along; flat out float v_s0;
-void main() {
-  vec2 P0 = a_p0 * u_view.x + u_view.yz, P1 = a_p1 * u_view.x + u_view.yz;
-  vec2 d = P1 - P0; float len = length(d);
-  vec2 dir = len > 1e-6 ? d / len : vec2(1.0, 0.0), nrm = vec2(-dir.y, dir.x);
-  // square ends half a width long, which closes the joins of thin lines
-  vec2 pos = (a_tpl.x > 0.5 ? P1 + dir * u_hw : P0 - dir * u_hw) + nrm * a_tpl.y * u_hw;
-  v_along = a_tpl.x > 0.5 ? len + u_hw : -u_hw;
-  v_s0 = a_s0;
-  vec2 dev = (pos + u_frame.xy) * u_frame.z;
-  gl_Position = vec4(dev.x / u_size.x * 2.0 - 1.0, 1.0 - dev.y / u_size.y * 2.0, u_z, 1.0);
-}`;
-const BM_LINE_FS = `#version 300 es
-precision highp float;
-in float v_along; flat in float v_s0;
-uniform vec4 u_color;
-uniform vec3 u_dash;        // on, off (map units; on = 0: solid), effective px per map unit for dashes
-uniform float u_pxPerUnit;
-out vec4 fragColor;
-void main() {
-  if (u_dash.x > 0.0) {
-    float s = (v_s0 + v_along / u_pxPerUnit) * u_dash.z;       // distance along, in dash-pattern px
-    if (mod(s, (u_dash.x + u_dash.y) * u_dash.z) > u_dash.x * u_dash.z) discard;
-  }
-  fragColor = vec4(u_color.rgb * u_color.a, u_color.a);
-}`;
-// Styles: the old SVG classes (.land .river .lake .state-border), plus
-// county lines and the seam that hides gaps where Census and Natural Earth
-// land meet along the Canadian and Mexican borders. w = width in map units;
-// cap = maximum width in CSS px; px = fixed width in CSS px.
-const BM_STYLE = (() => {
-  const s = basemapStyles;
-  return {
-    land:   { fill: s.land },
-    seam:   { color: s.land, w: 0.04 },
-    county: { color: s.stateStroke, alpha: 0.45, px: 0.8, minZoom: 5 },
-    coast:  { color: s.landStroke, w: 0.012, cap: 1.5 },
-    rivers: { color: s.lake, alpha: 0.85, w: 0.018, cap: 1.6 },
-    lakes:  { fill: s.lake },
-    lakeEdge: { color: s.landStroke, w: 0.02, cap: 1.5 },
-    state:  { color: s.stateStroke, alpha: 0.75, w: 0.026, cap: 2.2, dash: [0.2, 0.15] },
-    border: { color: s.stateStroke, alpha: 0.75, w: 0.026, cap: 2.2, dash: [0.2, 0.15] },
-  };
-})();
-const BM_LINE_ORDER = ["seam", "county", "coast", "rivers"];   // then lakes (fill + edge), then state lines
-let BM = null;
-function initBasemapGL(gl) {
-  const sh = (type, src) => {
-    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
-    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
-    return s;
-  };
-  const prog = (vs, fs) => {
-    const p = gl.createProgram();
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
-    const u = {}; for (let i = 0; i < gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i++) {
-      const n = gl.getActiveUniform(p, i).name; u[n] = gl.getUniformLocation(p, n); }
-    return { p, u, a: n => gl.getAttribLocation(p, n) };
-  };
-  const fill = prog(BM_FILL_VS, BM_FILL_FS), line = prog(BM_LINE_VS, BM_LINE_FS);
-  const fillVao = gl.createVertexArray(), lineVao = gl.createVertexArray();
-  const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
-  gl.bindVertexArray(lineVao);
-  const tpl = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, tpl);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,-1, 0,1, 1,-1, 1,-1, 0,1, 1,1]), gl.STATIC_DRAW);
-  gl.enableVertexAttribArray(line.a("a_tpl")); gl.vertexAttribPointer(line.a("a_tpl"), 2, gl.FLOAT, false, 0, 0);
-  for (const n of ["a_p0", "a_p1", "a_s0"]) { gl.enableVertexAttribArray(line.a(n)); gl.vertexAttribDivisor(line.a(n), 1); }
-  gl.bindVertexArray(fillVao);
-  gl.enableVertexAttribArray(fill.a("a_pos"));
-  gl.bindVertexArray(null);
-  return { fill, line, fillVao, lineVao, quad, levels: { 0: new Map(), 1: new Map(), 2: new Map(), 3: new Map() },
-           loading: new Set() };
-}
-// shapes -> GPU buffers: rings as triangle fans (for the stencil fill),
-// lines as per-segment instances [x0, y0, x1, y1, s0]
-function bmUpload(gl, shapes) {
-  const out = {};
-  for (const [layer, list] of Object.entries(shapes)) {
-    if (!list.length) continue;
-    if (layer === "land" || layer === "lakes") {
-      let n = 0; for (const r of list) if (r.length >= 6) n += (r.length / 2 - 2) * 3;
-      const f = new Float32Array(n * 2); let o = 0;
-      for (const r of list) {
-        for (let i = 2; i + 3 < r.length; i += 2) {
-          f[o++] = r[0]; f[o++] = r[1]; f[o++] = r[i]; f[o++] = r[i+1]; f[o++] = r[i+2]; f[o++] = r[i+3];
-        }
-      }
-      const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, f, gl.STATIC_DRAW);
-      out[layer] = { buf: b, count: n };
-      // lake outlines (the old .lake stroke): detail tiles bring their own
-      // (shores only, not seams between lake pieces); level 0 outlines its rings
-      if (layer === "lakes" && !shapes.lakeEdge) shapes.lakeEdge = list.map(r => r.concat(r.slice(0, 2)));
-    }
-  }
-  for (const [layer, list] of Object.entries(shapes)) {
-    if (layer === "land" || layer === "lakes" || !list.length) continue;
-    let n = 0; for (const l of list) n += l.length / 2 - 1;
-    const f = new Float32Array(n * 5); let o = 0;
-    for (const l of list) {
-      let s = 0;
-      for (let i = 0; i + 3 < l.length; i += 2) {
-        f[o++] = l[i]; f[o++] = l[i+1]; f[o++] = l[i+2]; f[o++] = l[i+3]; f[o++] = s;
-        s += Math.hypot(l[i+2] - l[i], l[i+3] - l[i+1]);
-      }
-    }
-    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, f, gl.STATIC_DRAW);
-    out[layer] = { buf: b, count: n };
-  }
-  return out;
-}
-// Level 0: the page's original BASEMAP (SVG path strings: M/L/Z only).
-function bmParsePath(d, closeRings) {
-  const shapes = [];
-  for (const sub of d.split("M")) {
-    if (!sub) continue;
-    const closed = /Z\s*$/.test(sub);
-    const nums = sub.replace(/Z/g, "").split(/[L,\s]+/).filter(Boolean).map(Number);
-    if (nums.length < 4) continue;
-    if (closed && closeRings) nums.push(nums[0], nums[1]);
-    shapes.push(nums);
-  }
-  return shapes;
-}
-function bmLevel0(gl) {
-  const land = bmParsePath(BASEMAP.land_far, false).concat(bmParsePath(BASEMAP.central_america, false));
-  return bmUpload(gl, {
-    land,
-    coast: bmParsePath(BASEMAP.land_far, true).concat(bmParsePath(BASEMAP.central_america, true)),
-    rivers: bmParsePath(BASEMAP.rivers, true),
-    lakes: bmParsePath(BASEMAP.lakes, false),
-    state: bmParsePath(BASEMAP.states_far, true),
-  });
-}
-// A detail tile arrives (its script calls this): decode and upload it.
-window.BASEMAP_TILE = function (lv, tx, ty, data) {
-  const key = tx + "," + ty;
-  BM && BM.loading.delete(lv + ":" + key);
-  if (!BM || !GL) return;
-  const q = BASEMAP_INDEX.quant, shapes = {};
-  for (const [layer, list] of Object.entries(data)) {
-    shapes[layer] = list.map(e => {
-      const a = new Array(e.length); let x = 0, y = 0;
-      for (let i = 0; i < e.length; i += 2) {
-        if (i === 0) { x = e[0]; y = e[1]; } else { x += e[i]; y += e[i+1]; }
-        a[i] = x * q; a[i+1] = y * q;
-      }
-      return a;
-    });
-  }
-  BM.levels[lv].set(key, bmUpload(GL.gl, shapes));
-  redrawAll();
-};
-// visible map area in map units (with a margin)
-function bmViewBox() {
-  const t = currentTransform, k = t.k * base.scale;
-  const x0 = (-base.offsetX) / base.scale, y0 = (-base.offsetY) / base.scale;
-  const mx = base.width / k * 0.15, my = base.height / k * 0.15;
-  return [(-base.offsetX / base.scale - t.x) / t.k - mx, (-base.offsetY / base.scale - t.y) / t.k - my,
-          ((base.width - base.offsetX) / base.scale - t.x) / t.k + mx, ((base.height - base.offsetY) / base.scale - t.y) / t.k + my];
-}
-// Which tiles of level lv cover the view, and are they all loaded? (Starts loading the missing ones.)
-function bmTilesFor(lv, box) {
-  const L = BASEMAP_INDEX.levels[lv], T = L.tile, keys = [];
-  let complete = true;
-  for (let tx = Math.floor(box[0] / T); tx <= Math.floor(box[2] / T); tx++)
-    for (let ty = Math.floor(box[1] / T); ty <= Math.floor(box[3] / T); ty++) {
-      const key = tx + "," + ty;
-      if (!L._set) L._set = new Set(L.tiles);
-      if (!L._set.has(key)) continue;           // nothing there (open ocean)
-      if (BM.levels[lv].has(key)) { keys.push(key); continue; }
-      complete = false;
-      const id = lv + ":" + key;
-      if (!BM.loading.has(id)) {
-        BM.loading.add(id);
-        const s = document.createElement("script");
-        s.src = `basemap/detail_${lv}_${tx}_${ty}.js`;
-        s.onerror = () => { BM.loading.delete(id); };
-        document.head.appendChild(s);
-      }
-    }
-  return { keys, complete };
-}
-function drawBasemapGL() {
-  if (!BM) return;
-  const gl = GL.gl, t = currentTransform, k = t.k;
-  if (!BM.levels[0].has("all")) BM.levels[0].set("all", bmLevel0(gl));
-  // the finest level whose on-screen tiles are all loaded (loading the wanted one meanwhile)
-  let want = 0;
-  if (typeof BASEMAP_INDEX !== "undefined")
-    for (const lv of [1, 2, 3]) if (k >= BASEMAP_INDEX.levels[lv].minZoom) want = lv;
-  let tiles = [BM.levels[0].get("all")];
-  if (want > 0) {
-    const box = bmViewBox();
-    for (let lv = want; lv >= 1; lv--) {
-      const r = bmTilesFor(lv, box);
-      if (r.complete) { tiles = r.keys.map(key => BM.levels[lv].get(key)); break; }
-    }
-  }
-  const pxPerUnit = k * base.scale;
-  const view = [pxPerUnit, t.x * base.scale + base.offsetX, t.y * base.scale + base.offsetY];
-  const setCommon = (P) => {
-    gl.useProgram(P.p);
-    gl.uniform3f(P.u.u_view, ...view);
-    gl.uniform3f(P.u.u_frame, VIEWPORT.fx, VIEWPORT.fy, VIEWPORT.dpr);
-    gl.uniform2f(P.u.u_size, routesGLCanvas.width, routesGLCanvas.height);
-  };
-  const rgba = (css, a) => { const c = rgbOf(css); return [c[0], c[1], c[2], a == null ? 1 : a]; };
-  let z = 0.95;
-  const fillLayer = (layer, color) => {
-    const F = BM.fill;
-    setCommon(F);
-    gl.bindVertexArray(BM.fillVao);
-    gl.disable(gl.DEPTH_TEST);
-    gl.enable(gl.STENCIL_TEST);
-    gl.colorMask(false, false, false, false);
-    gl.stencilFunc(gl.ALWAYS, 0, 0xff);
-    gl.stencilOpSeparate(gl.FRONT, gl.KEEP, gl.KEEP, gl.INCR_WRAP);
-    gl.stencilOpSeparate(gl.BACK, gl.KEEP, gl.KEEP, gl.DECR_WRAP);
-    gl.uniform1f(F.u.u_clip, 0); gl.uniform1f(F.u.u_z, 0);
-    for (const tile of tiles) {
-      const g = tile[layer]; if (!g) continue;
-      gl.bindBuffer(gl.ARRAY_BUFFER, g.buf);
-      gl.vertexAttribPointer(F.a("a_pos"), 2, gl.FLOAT, false, 0, 0);
-      gl.drawArrays(gl.TRIANGLES, 0, g.count);
-    }
-    // paint every covered pixel once, and reset the stencil for the next layer
-    gl.colorMask(true, true, true, true);
-    gl.stencilFunc(gl.NOTEQUAL, 0, 0xff);
-    gl.stencilOp(gl.ZERO, gl.ZERO, gl.ZERO);
-    gl.uniform1f(F.u.u_clip, 1);
-    gl.uniform4f(F.u.u_color, ...rgba(color));
-    gl.bindBuffer(gl.ARRAY_BUFFER, BM.quad);
-    gl.vertexAttribPointer(F.a("a_pos"), 2, gl.FLOAT, false, 0, 0);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    gl.disable(gl.STENCIL_TEST);
-  };
-  const lineLayer = (layer) => {
-    const st = BM_STYLE[layer];
-    if (st.minZoom && k < st.minZoom) return;
-    const Lp = BM.line;
-    setCommon(Lp);
-    gl.bindVertexArray(BM.lineVao);
-    gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.depthMask(true);
-    // width in CSS px: map units up to the cap, or fixed
-    let wpx = st.px != null ? st.px : Math.min(st.w * pxPerUnit, st.cap || Infinity);
-    let alpha = st.alpha == null ? 1 : st.alpha;
-    const minW = 1 / VIEWPORT.dpr;               // one device pixel
-    if (wpx < minW) { alpha *= wpx / minW; wpx = minW; }
-    gl.uniform1f(Lp.u.u_hw, wpx / 2);
-    gl.uniform4f(Lp.u.u_color, ...rgba(st.color, alpha));
-    gl.uniform1f(Lp.u.u_z, z); z -= 0.02;
-    gl.uniform1f(Lp.u.u_pxPerUnit, pxPerUnit);
-    // dashes scale with the map until the line width reaches its cap
-    const dashScale = st.cap ? Math.min(pxPerUnit, st.cap / st.w) : pxPerUnit;
-    gl.uniform3f(Lp.u.u_dash, st.dash ? st.dash[0] : 0, st.dash ? st.dash[1] : 0, dashScale);
-    for (const tile of tiles) {
-      const g = tile[layer]; if (!g) continue;
-      gl.bindBuffer(gl.ARRAY_BUFFER, g.buf);
-      gl.vertexAttribPointer(Lp.a("a_p0"), 2, gl.FLOAT, false, 20, 0);
-      gl.vertexAttribPointer(Lp.a("a_p1"), 2, gl.FLOAT, false, 20, 8);
-      gl.vertexAttribPointer(Lp.a("a_s0"), 1, gl.FLOAT, false, 20, 16);
-      gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, g.count);
-    }
-  };
-  fillLayer("land", BM_STYLE.land.fill);
-  for (const l of BM_LINE_ORDER) lineLayer(l);
-  fillLayer("lakes", BM_STYLE.lakes.fill);
-  lineLayer("lakeEdge");
-  lineLayer("border");
-  lineLayer("state");
-  gl.bindVertexArray(null);
-}
-
-try { if (GL) BM = initBasemapGL(GL.gl); }
-catch (e) { console.warn("WebGL basemap unavailable, using the bitmap basemap:", e); BM = null; }
-
-function drawRoutesGL() {
-  const aggregating = !focusActive && currentTransform.k < AGGREGATE_ZOOM_THRESHOLD;
-  const key = CURRENT_TARGET + "|" + focusActive + "|" + aggregating;
-  if (key !== GL.key) { buildRouteInstances(aggregating); GL.key = key; }
-  const gl = GL.gl, t = currentTransform;
-  gl.viewport(0, 0, routesGLCanvas.width, routesGLCanvas.height);
-  gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clearStencil(0);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
-  drawBasemapGL();
-  // routes: their own program and state, fresh depth
-  gl.clear(gl.DEPTH_BUFFER_BIT);
-  gl.useProgram(GL.prog);
-  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS); gl.depthMask(true);
-  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-  // dataToScreen: (k*x + t.x) * base.scale + offsetX
-  gl.uniform3f(GL.uView, t.k * base.scale, t.x * base.scale + base.offsetX, t.y * base.scale + base.offsetY);
-  gl.uniform3f(GL.uFrame, VIEWPORT.fx, VIEWPORT.fy, VIEWPORT.dpr);
-  gl.uniform2f(GL.uSize, routesGLCanvas.width, routesGLCanvas.height);
-  gl.bindVertexArray(GL.vao);
-  if (GL.count) gl.drawArraysInstanced(gl.TRIANGLES, 0, GL.tplCount, GL.count);
-}
-// Hover and click hit-test against r._screen / c._screen (screen-space
-// polylines). The Canvas 2D path fills them while drawing; with WebGL they
-// are computed on demand, once per view.
-let screenCacheT = null;
-function ensureScreenCache() {
-  if (!GL || screenCacheT === currentTransform) return;
-  for (const r of ROUTES) r._screen = null;
-  for (const c of CLUSTERS) c._screen = null;
-  for (const r of GL.drawnRoutes) r._screen = curveScreenPts(r.curve);
-  for (const c of GL.drawnClusters) c._screen = curveScreenPts(c.curve);
-  screenCacheT = currentTransform;
-}
-
-// Draw routes, cluster bands and (when focused) the thread at the current view.
-function drawRoutes() {
-  if (GL) {
-    drawRoutesGL();
-    ctx.clearRect(-VIEWPORT.fx, -VIEWPORT.fy, VIEWPORT.wDev / VIEWPORT.dpr, VIEWPORT.hDev / VIEWPORT.dpr);
-    if (focusActive) drawThread();
-    return;
-  }
-  drawRoutes2D();
-}
-// Canvas 2D fallback (and the reference the WebGL drawing reproduces).
-function drawRoutes2D() {
-  ctx.clearRect(-LAYER.padX, -LAYER.padY, LAYER.wDev / LAYER.dpr, LAYER.hDev / LAYER.dpr);
-  const dimmed = focusActive;
-  const aggregating = !dimmed && currentTransform.k < AGGREGATE_ZOOM_THRESHOLD;
-
-  const hiddenByCluster = new Set(); // route indices absorbed into a visible aggregate
-  if (aggregating) {
-    for (const c of CLUSTERS) {
-      if (c._visMembers.length >= MIN_VISIBLE_CLUSTER_SIZE) for (const idx of c._visMembers) hiddenByCluster.add(idx);
-    }
-  }
-
-  const relevant = ROUTES.filter((r,idx) => isRouteRelevant(r) && !hiddenByCluster.has(idx));
-  const sorted = relevant.slice().sort((a,b) => b.count - a.count); // thick/rare first (bottom), thin/common last (top)
-  if (!isDragging) {
-    for (const r of ROUTES) r._screen = null; // clear stale hit-test data from any previously-visible, now-filtered-out routes
-    for (const c of CLUSTERS) c._screen = null;
-  }
-
-  let dashSet = false;
-  for (const r of sorted) {
-    if (offStage(r, 20)) continue; // 20px pad covers line width and arrowheads
-    // Transform this route's control points to screen space ONCE per frame,
-    // then reuse the same array for stroke, arrowheads, and hit-testing --
-    // previously each route was re-projected 3x (curveScreenPts + strokeCurvePath
-    // + curveEnd/StartAngle). While dragging we still need pts to draw, but skip
-    // stashing them on r._screen since hover isn't reachable mid-drag anyway.
-    const pts = curveScreenPts(r.curve);
-    if (!isDragging) r._screen = pts;
-    const color = dimmed ? "#8a7248" : colorForYear(r.mean_year); // computed once, reused below instead of 3x
-    ctx.strokeStyle = color;
-    ctx.globalAlpha = dimmed ? 0.12 : 0.72;
-    const w = dimmed ? 1 : lwFor(r.count);
-    ctx.lineWidth = Math.max(w * 0.42, 1.1);
-    ctx.lineJoin = "round"; ctx.lineCap = "round";
-    if (r.oscillation && !dimmed) { ctx.setLineDash([w*1.4, w*1.1]); dashSet = true; }
-    else if (dashSet) { ctx.setLineDash([]); dashSet = false; }
-    if (r.family_group && !dimmed) {
-      strokeTwinPts(pts, Math.max(w * 0.55, 1.6));
-    } else {
-      strokeScreenPts(pts);
-      ctx.lineWidth = w;
-      ctx.stroke();
-    }
-    if (dashSet) { ctx.setLineDash([]); dashSet = false; }
-    if (!dimmed) {
-      const alen = Math.max(9, lwFor(r.count) * 1.3);
-      // arrowhead angle stays curve-exact (reads the control point) -- only 2
-      // extra transforms, and keeps arrow orientation pixel-identical to before
-      drawArrowhead(curveEndAngle(r.curve), alen, color);
-      if (r.oscillation) drawArrowhead(curveStartAngle(r.curve), alen, color);
-    }
-  }
-
-  // aggregate cluster lines -- drawn after (on top of) individual routes so
-  // they read clearly as the summary of what's beneath them
-  if (aggregating) {
-    for (const c of CLUSTERS) {
-      if (c._visMembers.length < MIN_VISIBLE_CLUSTER_SIZE) continue;
-      if (offStage(c, 30)) continue;
-      const pts = curveScreenPts(c.curve); // transform once, reuse for stroke + arrowhead + hit-test
-      c._screen = pts;
-      const meanYear = c._visYears.reduce((a,b)=>a+b,0) / c._visYears.length;
-      const cColor = colorForYear(meanYear); // computed once, reused for stroke + arrow fill
-      ctx.strokeStyle = cColor;
-      ctx.globalAlpha = 0.8;
-      ctx.lineWidth = aggLwFor(c._visCount);
-      ctx.lineJoin = "round"; ctx.lineCap = "round";
-      strokeScreenPts(pts);
-      ctx.stroke();
-      const { ang, ex, ey } = curveEndAngle(c.curve); // curve-exact arrowhead angle
-      const alen = 7 + aggLwFor(c._visCount)*0.5;
-      ctx.beginPath();
-      ctx.moveTo(ex, ey);
-      ctx.lineTo(ex - alen*Math.cos(ang-0.35), ey - alen*Math.sin(ang-0.35));
-      ctx.lineTo(ex - alen*Math.cos(ang+0.35), ey - alen*Math.sin(ang+0.35));
-      ctx.closePath();
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = cColor;
-      ctx.fill();
-    }
-  }
-  ctx.globalAlpha = 1;
-  if (focusActive) drawThread();
-}
-
-function drawThread(pid) {
-  const segs = currentFocusSegs;
-  if (!segs) return;
-  const someHovered = hoveredSegIdx >= 0;
-  segs.forEach((s, i) => {
-    const isHovered = i === hoveredSegIdx;
-    const curve = s.waypts
-      ? { mode: "path", coords: s.waypts }
-      : s.ocean
-      ? { mode: "path", coords: [[s.x1,s.y1],[s.x2,s.y2]] }
-      : { mode: "bow", x1: s.x1, y1: s.y1, cx: s.cx, cy: s.cy, x2: s.x2, y2: s.y2 };
-    if (isHovered) {
-      strokeCurvePath(curve);
-      ctx.strokeStyle = colorForYear(s.year);
-      ctx.globalAlpha = 0.35;
-      ctx.lineWidth = 13;
-      ctx.lineCap = "round";
-      ctx.stroke();
-    }
-    strokeCurvePath(curve);
-    ctx.strokeStyle = colorForYear(s.year);
-    ctx.globalAlpha = someHovered && !isHovered ? 0.45 : 0.95;
-    ctx.lineWidth = isHovered ? 6 : 4;
-    ctx.lineCap = "round";
-    ctx.stroke();
-    const { ang, ex, ey } = curveEndAngle(curve);
-    const alen = isHovered ? 12 : 9;
-    ctx.beginPath();
-    ctx.moveTo(ex, ey);
-    ctx.lineTo(ex - alen*Math.cos(ang-0.4), ey - alen*Math.sin(ang-0.4));
-    ctx.lineTo(ex - alen*Math.cos(ang+0.4), ey - alen*Math.sin(ang+0.4));
-    ctx.closePath();
-    ctx.fillStyle = colorForYear(s.year);
-    ctx.fill();
-    const [sx,sy] = dataToScreen(s.x1, s.y1);
-    ctx.beginPath();
-    ctx.arc(sx, sy, isHovered ? 4.2 : 2.6, 0, Math.PI*2);
-    ctx.fillStyle = "#2c2417";
-    ctx.fill();
-  });
-  ctx.globalAlpha = 1;
-  if (focusedStationaryPoint) {
-    const [sx, sy] = dataToScreen(focusedStationaryPoint.x, focusedStationaryPoint.y);
-    ctx.beginPath();
-    ctx.arc(sx, sy, 9, 0, Math.PI*2);
-    ctx.strokeStyle = "#9c3c2e";
-    ctx.lineWidth = 2.5;
-    ctx.globalAlpha = 0.85;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(sx, sy, 3, 0, Math.PI*2);
-    ctx.fillStyle = "#9c3c2e";
-    ctx.fill();
-    ctx.globalAlpha = 1;
   }
 }
 
@@ -1766,34 +1126,6 @@ function clearFocus() {
   redrawAll();
 }
 document.getElementById("focus-clear").onclick = clearFocus;
-
-// --- search: find an ancestor by name, jump to and focus their thread ---
-function zoomToFitSegs(segs) {
-  if (!segs.length) return;
-  let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
-  for (const s of segs) {
-    for (const [x,y] of [[s.x1,s.y1],[s.x2,s.y2]]) {
-      minX=Math.min(minX,x); maxX=Math.max(maxX,x); minY=Math.min(minY,y); maxY=Math.max(maxY,y);
-    }
-  }
-  const padX = Math.max((maxX-minX)*0.15, 3), padY = Math.max((maxY-minY)*0.15, 3);
-  minX-=padX; maxX+=padX; minY-=padY; maxY+=padY;
-  const k = Math.max(1, Math.min(20, Math.min(VB.w/(maxX-minX), VB.h/(maxY-minY))));
-  const cx = (minX+maxX)/2, cy = (minY+maxY)/2;
-  const rect = mapWrap.getBoundingClientRect();
-  const vx = (rect.width/2 - base.offsetX)/base.scale, vy = (rect.height/2 - base.offsetY)/base.scale;
-  currentTransform = d3.zoomIdentity.translate(vx - cx*k, vy - cy*k).scale(k);
-  redrawAll();
-  scheduleLabelUpdate();
-}
-function zoomToPoint(x, y) {
-  const k = 8;
-  const rect = mapWrap.getBoundingClientRect();
-  const vx = (rect.width/2 - base.offsetX)/base.scale, vy = (rect.height/2 - base.offsetY)/base.scale;
-  currentTransform = d3.zoomIdentity.translate(vx - x*k, vy - y*k).scale(k);
-  redrawAll();
-  scheduleLabelUpdate();
-}
 
 const searchInput = document.getElementById("search-input");
 const searchResults = document.getElementById("search-results");
@@ -1926,7 +1258,7 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest("#search-box")) searchResults.classList.remove("active");
 });
 document.addEventListener("click", (e) => {
-  if (!e.target.closest("#route-picker") && !e.target.closest("#zoom-capture")) closeRoutePicker();
+  if (!e.target.closest("#route-picker") && !e.target.closest("#map")) closeRoutePicker();
 });
 
 // --- Time period mode: highlight every voyage whose arrival year falls
@@ -2122,420 +1454,7 @@ surnameInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") { clearTimeout(surnameDebounce); applySurnameFilter(); surnameInput.blur(); }
 });
 
-
-
-
-
-
-const BASE_DOT_R = 0.1, BASE_RING_R = 0.6;
-
-// ---- gestures: move the finished picture, redraw sharp when the gesture settles ----
-// renderedTransform is the view the stage was last fully drawn at. While a
-// pan/zoom is in progress, gestureFrame() only computes how the stage must
-// be scaled and shifted to match the current view and applies that as a CSS
-// transform (the GPU just moves an existing image -- no repainting). Labels
-// stay crisp and constant-size: each is its own layer, moved by transform.
-// A wheel or trackpad zoom settles SETTLE_MS after its last event; a drag or
-// pinch settles when the button or fingers are lifted (never while held).
-let renderedTransform = d3.zoomIdentity;
-let gestureActive = false, settleTimer = null, touchCount = 0;
-const SETTLE_MS = 150;
-// Redraw mid-gesture (one full frame) rather than stretch the image further
-// than this, or when the drawn area no longer covers the visible map.
-const MAX_STRETCH = 2.5, MIN_STRETCH = 0.4;
-
-function noteGesture() {
-  if (!gestureActive) { gestureActive = true; hideTip(); }
-  clearTimeout(settleTimer);
-  settleTimer = setTimeout(settleWhenReleased, SETTLE_MS);
-}
-function settleWhenReleased() {
-  if (isDragging || touchCount > 0) { settleTimer = setTimeout(settleWhenReleased, SETTLE_MS); return; }
-  settle();
-}
-function settle() {
-  clearTimeout(settleTimer); settleTimer = null;
-  gestureActive = false;
-  renderNow(); // immediately: a click right after a drag hit-tests against this render
-  updateLabels();
-}
-// is a layer drawn at view t0 still usable for the current view?
-function layerCovers(t0) {
-  const { s, cx, cy } = layerShift(t0), M = OVERSCAN;
-  return s <= MAX_STRETCH && s >= MIN_STRETCH &&
-    -M * s + cx <= 0 && (base.width + M) * s + cx >= base.width &&
-    -M * s + cy <= 0 && (base.height + M) * s + cy >= base.height;
-}
-function gestureFrame() {
-  if (!layerCovers(renderedTransform)) { renderNow(); return; }
-  const { s, cx, cy } = layerShift(renderedTransform);
-  mapStage.style.transform = `translate(${cx}px,${cy}px) scale(${s})`;
-  if (GL) drawRoutes(); // WebGL routes are cheap enough to redraw sharp every frame
-  if (basemapShownT && !layerCovers(basemapShownT)) requestBasemap(); // arrives a few frames later
-  placeBasemap();
-  moveLabels();
-  zoomLevelEl.textContent = currentTransform.k.toFixed(1) + "×";
-}
-
-// Ask for a full render. Several requests in one frame (a Time period tick
-// makes two: zoom-to-fit, then the focus panel) collapse into one render
-// at the next animation frame -- a full render is the expensive thing here.
-let renderPending = false;
-function redrawAll() {
-  if (renderPending) return;
-  renderPending = true;
-  requestAnimationFrame(() => { if (renderPending) renderNow(); });
-}
-// Full, sharp render of every layer at the current view, right now. The
-// basemap is requested here and swapped in when its worker finishes; until
-// then the previous bitmap is shown, stretched to the new view.
-function renderNow() {
-  renderPending = false;
-  overlayG.attr("transform", stageGroupTransform());
-  requestBasemap();
-  placeBasemap();
-  dotSel.attr("r", BASE_DOT_R / currentTransform.k);
-  refDotSel.attr("r", BASE_DOT_R / currentTransform.k);
-  convRing.attr("r", BASE_RING_R / currentTransform.k);
-  drawRoutes();
-  mapStage.style.transform = "";
-  renderedTransform = currentTransform;
-  moveLabels();
-  zoomLevelEl.textContent = currentTransform.k.toFixed(1) + "\u00d7";
-}
-
-// Keep every shown label (and the target's label) pinned to its place at
-// the current view. Transform-only, so it never triggers layout or paint.
-function moveLabels() {
-  positionConvLabel();
-  for (const div of labelPool) if (div._x != null && div.style.display !== "none") placeLabelDiv(div);
-  for (const div of refLabelPool) if (div._x != null && div.style.display !== "none") placeLabelDiv(div);
-  for (const div of townLabelPool) if (div._x != null && div.style.display !== "none") placeLabelDiv(div);
-}
-function placeLabelDiv(div) {
-  const [sx, sy] = dataToScreen(div._x, div._y);
-  div.style.transform = `translate(${snapX(sx + 3)}px,${snapY(sy - 16)}px)`;
-}
-
-function positionConvLabel(forceTextUpdate) {
-  if (!convLabelEl) {
-    convLabelEl = document.createElement("div");
-    convLabelEl.style.position = "absolute";
-    convLabelEl.style.left = "0"; convLabelEl.style.top = "0";
-    convLabelEl.style.willChange = "transform";
-    convLabelEl.style.whiteSpace = "nowrap";
-    convLabelEl.style.zIndex = "5";
-    convLabelEl.style.fontFamily = "var(--font-display)";
-    convLabelEl.style.fontStyle = "italic";
-    convLabelEl.style.fontSize = "15px";
-    convLabelEl.style.color = "#2c2417";
-    convLabelEl.style.textShadow = "0 0 4px #ece2c8, 0 0 4px #ece2c8, 0 0 4px #ece2c8";
-    convLabelEl.style.pointerEvents = "none";
-    forceTextUpdate = true;
-    mapWrap.appendChild(convLabelEl);
-  }
-  if (forceTextUpdate) convLabelEl.textContent = targetLabel();
-  const [tx, ty] = targetConvPoint();
-  const [sx, sy] = dataToScreen(tx, ty);
-  convLabelEl.style.transform = `translate(${snapX(sx + 10)}px,${snapY(sy - 12)}px)`;
-}
-
-// --- place-label collision avoidance (debounced, screen-space greedy placement) ---
-// Labels are plain HTML divs (pooled/reused), NOT SVG text, so their font-size stays a
-// real constant screen size -- SVG text inside the zoom-transformed group would silently
-// inherit the zoom scale despite a fixed font-size value, which is exactly the bug from
-// two revisions ago.
-const labelPool = [];
-function getPooledLabel(i) {
-  while (labelPool.length <= i) {
-    const div = document.createElement("div");
-    div.className = "place-label-html";
-    div.style.display = "none";
-    mapWrap.appendChild(div);
-    labelPool.push(div);
-  }
-  return labelPool[i];
-}
-const refLabelPool = [];
-function getPooledRefLabel(i) {
-  while (refLabelPool.length <= i) {
-    const div = document.createElement("div");
-    div.className = "place-label-html ref-label";
-    div.style.display = "none";
-    mapWrap.appendChild(div);
-    refLabelPool.push(div);
-  }
-  return refLabelPool[i];
-}
-
-let labelUpdateTimer = null;
-function scheduleLabelUpdate() {
-  clearTimeout(labelUpdateTimer);
-  labelUpdateTimer = setTimeout(updateLabels, 120);
-}
-function currentlyVisibleRoutes() {
-  return ROUTES.filter(isRouteRelevant);
-}
-function routeEndpoints(r) {
-  const c = r.curve;
-  return c.mode === "path" ? [c.coords[0], c.coords[c.coords.length-1]] : [[c.x1,c.y1],[c.x2,c.y2]];
-}
-
-function updateLabels() {
-  const rect = mapWrap.getBoundingClientRect();
-  const margin = 40;
-  const placed = [];
-  const visiblePlaceKeys = new Set();
-  for (const r of currentlyVisibleRoutes()) {
-    for (const [x,y] of routeEndpoints(r)) visiblePlaceKeys.add(Math.round(x*10)+","+Math.round(y*10));
-  }
-  const candidates = PLACES.filter(p => visiblePlaceKeys.has(Math.round(p.x*10)+","+Math.round(p.y*10)))
-    .sort((a,b) => a.tier - b.tier || b.touches - a.touches);
-  const visibleIdx = new Set();
-  const shownPositions = [];
-  for (const p of candidates) {
-    const [sx, sy] = dataToScreen(p.x, p.y);
-    if (sx < -margin || sx > rect.width+margin || sy < -margin || sy > rect.height+margin) continue;
-    const w = p.label.length * 6.2 + 12, h = 15;
-    const box = { x1: sx, y1: sy-h, x2: sx+w, y2: sy };
-    const overlaps = placed.some(b => !(box.x2<b.x1 || box.x1>b.x2 || box.y2<b.y1 || box.y1>b.y2));
-    if (!overlaps) {
-      placed.push(box);
-      visibleIdx.add(p._i);
-      shownPositions.push([p, sx, sy]);
-    }
-    if (placed.length > 60) break; // hard cap regardless of zoom -- never show more than this at once
-  }
-  dotSel.classed("visible", d => visibleIdx.has(d._i));
-  shownPositions.forEach(([p], slot) => showLabelDiv(getPooledLabel(slot), p));
-  for (let i = shownPositions.length; i < labelPool.length; i++) labelPool[i].style.display = "none";
-
-  // reference cities: purely for atlas-style orientation, so only once
-  // genuinely zoomed in, and only where they don't crowd out anything
-  // family-relevant (checked against the SAME collision boxes above)
-  const showRefCities = currentTransform.k > 3;
-  const refVisibleIdx = new Set();
-  const refShown = [];
-  if (showRefCities) {
-    for (const p of REF_CITIES) {
-      const [sx, sy] = dataToScreen(p.x, p.y);
-      if (sx < -margin || sx > rect.width+margin || sy < -margin || sy > rect.height+margin) continue;
-      const w = p.label.length * 6.2 + 12, h = 15;
-      const box = { x1: sx, y1: sy-h, x2: sx+w, y2: sy };
-      const overlaps = placed.some(b => !(box.x2<b.x1 || box.x1>b.x2 || box.y2<b.y1 || box.y1>b.y2));
-      if (!overlaps) {
-        placed.push(box);
-        refVisibleIdx.add(p._i);
-        refShown.push([p, sx, sy]);
-      }
-      if (refShown.length > 20) break;
-    }
-  }
-  refDotSel.classed("visible", d => refVisibleIdx.has(d._i));
-  refShown.forEach(([p], slot) => showLabelDiv(getPooledRefLabel(slot), p));
-  for (let i = refShown.length; i < refLabelPool.length; i++) refLabelPool[i].style.display = "none";
-
-  // towns (US Census places), zoomed in further still, most prominent first,
-  // in whatever room the family places and reference cities leave
-  const townShown = [];
-  if (currentTransform.k >= TOWN_MIN_ZOOM && loadTowns()) {
-    const [bx0, by0, bx1, by1] = bmViewBox();
-    const idx = [];
-    for (let gx = Math.floor(bx0); gx <= Math.floor(bx1); gx++)
-      for (let gy = Math.floor(by0); gy <= Math.floor(by1); gy++) {
-        const cell = TOWN_GRID.get(gx + "," + gy);
-        if (cell) for (const i of cell) idx.push(i);
-      }
-    idx.sort((a, b) => a - b);                  // the town list is in order of prominence
-    for (const i of idx) {
-      const t = BASEMAP_TOWNS[i];
-      const [sx, sy] = dataToScreen(t[2], t[3]);
-      if (sx < 0 || sx > rect.width || sy < 0 || sy > rect.height) continue;
-      const w = t[0].length * 5.8 + 12, h = 14;
-      const box = { x1: sx - 4, y1: sy-h, x2: sx+w, y2: sy + 3 };
-      if (placed.some(b => !(box.x2<b.x1 || box.x1>b.x2 || box.y2<b.y1 || box.y1>b.y2))) continue;
-      placed.push(box);
-      townShown.push({ label: t[0], x: t[2], y: t[3] });
-      if (townShown.length >= TOWN_MAX_LABELS) break;
-    }
-  }
-  townShown.forEach((p, slot) => showLabelDiv(getPooledTownLabel(slot), p));
-  for (let i = townShown.length; i < townLabelPool.length; i++) townLabelPool[i].style.display = "none";
-}
-// --- towns: labels from the US Census gazetteer of places (basemap/towns.js,
-// built by pipeline/basemap/build_basemap.py), loaded the first time they're needed ---
-const TOWN_MIN_ZOOM = 7, TOWN_MAX_LABELS = 40;
-let TOWN_GRID = null, townsRequested = false;
-function loadTowns() {
-  if (TOWN_GRID) return true;
-  if (window.BASEMAP_TOWNS) {
-    TOWN_GRID = new Map();   // 1 x 1 map-unit cells -> town indices, for quick lookup
-    BASEMAP_TOWNS.forEach((t, i) => {
-      const key = Math.floor(t[2]) + "," + Math.floor(t[3]);
-      let c = TOWN_GRID.get(key); if (!c) TOWN_GRID.set(key, c = []);
-      c.push(i);
-    });
-    return true;
-  }
-  if (!townsRequested) {
-    townsRequested = true;
-    const s = document.createElement("script");
-    s.src = "basemap/towns.js";
-    s.onload = () => updateLabels();
-    document.head.appendChild(s);
-  }
-  return false;
-}
-const townLabelPool = [];
-function getPooledTownLabel(i) {
-  while (townLabelPool.length <= i) {
-    const div = document.createElement("div");
-    div.className = "place-label-html ref-label town-label";
-    div.style.display = "none";
-    mapWrap.appendChild(div);
-    townLabelPool.push(div);
-  }
-  return townLabelPool[i];
-}
-// Show pooled label `div` for place p. The label remembers its map position
-// so gestures can move it; text is only rewritten when it changes, since a
-// text change is what makes the browser repaint the label.
-function showLabelDiv(div, p) {
-  if (div.textContent !== p.label) div.textContent = p.label;
-  div._x = p.x; div._y = p.y;
-  placeLabelDiv(div);
-  if (div.style.display !== "block") div.style.display = "block";
-}
-
-// --- zoom via manual wheel/drag on the capture layer (avoids d3-zoom's SVG-CTM assumptions
-//     across three separate rendering surfaces) ---
-let isDragging = false, dragStart = null, transformStart = null, dragMoved = 0;
-zoomCapture.addEventListener("wheel", (e) => {
-  e.preventDefault();
-  const rect = mapWrap.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-  const factor = Math.pow(1.0015, -e.deltaY);
-  applyZoomAt(mx, my, factor);
-}, { passive:false });
-
-zoomCapture.addEventListener("mousedown", (e) => {
-  isDragging = true; zoomCapture.classList.add("dragging");
-  dragStart = [e.clientX, e.clientY]; transformStart = currentTransform;
-  dragMoved = 0;
-});
-// Pan/zoom input: at most one gestureFrame per animation frame. Labels are
-// laid out again only when the gesture settles; until then the ones already
-// shown just travel with the map.
-let redrawRafPending = false;
-function scheduleRedraw() {
-  noteGesture();
-  if (redrawRafPending) return;
-  redrawRafPending = true;
-  requestAnimationFrame(() => { redrawRafPending = false; if (gestureActive) gestureFrame(); });
-}
-window.addEventListener("mousemove", (e) => {
-  if (!isDragging) { handleHover(e); return; }
-  const dx = e.clientX - dragStart[0], dy = e.clientY - dragStart[1];
-  dragMoved = Math.max(dragMoved, Math.hypot(dx, dy));
-  currentTransform = d3.zoomIdentity.translate(transformStart.x + dx/base.scale, transformStart.y + dy/base.scale).scale(transformStart.k);
-  scheduleRedraw();
-});
-window.addEventListener("mouseup", (e) => {
-  if (isDragging) {
-    isDragging = false; zoomCapture.classList.remove("dragging");
-    if (gestureActive) settle(); // sharp redraw now, with fresh hit-test data (skipped while dragging)
-    if (dragMoved < 4) handleClick(e); // negligible movement = a click, not a pan
-  }
-});
-
-// --- touch: single-finger pan/tap mirrors mouse; two-finger pinch mirrors wheel ---
-let touchStartDist = null, touchStartTransform = null, touchStartMid = null;
-zoomCapture.addEventListener("touchstart", (e) => {
-  e.preventDefault();
-  touchCount = e.touches.length;
-  if (e.touches.length === 1) {
-    isDragging = true; zoomCapture.classList.add("dragging");
-    dragStart = [e.touches[0].clientX, e.touches[0].clientY];
-    transformStart = currentTransform;
-    dragMoved = 0;
-  } else if (e.touches.length === 2) {
-    isDragging = false;
-    const [t1,t2] = e.touches;
-    touchStartDist = Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY);
-    touchStartTransform = currentTransform;
-    touchStartMid = [(t1.clientX+t2.clientX)/2, (t1.clientY+t2.clientY)/2];
-  }
-}, { passive:false });
-zoomCapture.addEventListener("touchmove", (e) => {
-  e.preventDefault();
-  if (e.touches.length === 1 && isDragging) {
-    const dx = e.touches[0].clientX - dragStart[0], dy = e.touches[0].clientY - dragStart[1];
-    dragMoved = Math.max(dragMoved, Math.hypot(dx, dy));
-    currentTransform = d3.zoomIdentity.translate(transformStart.x + dx/base.scale, transformStart.y + dy/base.scale).scale(transformStart.k);
-    scheduleRedraw();
-  } else if (e.touches.length === 2 && touchStartDist) {
-    const [t1,t2] = e.touches;
-    const dist = Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY);
-    const rect = mapWrap.getBoundingClientRect();
-    const mx = touchStartMid[0]-rect.left, my = touchStartMid[1]-rect.top;
-    currentTransform = touchStartTransform; // recompute fresh from gesture start each move, no drift
-    applyZoomAt(mx, my, dist / touchStartDist);
-  }
-}, { passive:false });
-function onTouchEnd(e) {
-  touchCount = e.touches.length;
-  if (isDragging) {
-    isDragging = false; zoomCapture.classList.remove("dragging");
-    if (gestureActive) settle(); // sharp redraw now, with fresh hit-test data (skipped while dragging)
-    if (e.type === "touchend" && dragMoved < 4 && e.changedTouches.length) {
-      handleClick({ clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY });
-    }
-  } else if (touchCount === 0 && gestureActive) settle(); // end of a pinch
-  if (e.touches.length < 2) touchStartDist = null;
-}
-zoomCapture.addEventListener("touchend", onTouchEnd);
-zoomCapture.addEventListener("touchcancel", onTouchEnd);
-function findHitCluster(mx, my, threshold) {
-  let best=null, bestDist=threshold;
-  for (const c of CLUSTERS) {
-    const pts = c._screen; if (!pts) continue;
-    for (let i=0;i<pts.length-1;i++) {
-      const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
-      if (d<bestDist) { bestDist=d; best=c; }
-    }
-  }
-  return best;
-}
-
-function handleClick(e) {
-  ensureScreenCache();
-  const rect = mapWrap.getBoundingClientRect();
-  const mx = e.clientX-rect.left, my = e.clientY-rect.top;
-  closeRoutePicker();
-  const hitCluster = findHitCluster(mx, my, 9);
-  if (hitCluster) {
-    // zoom in just past the aggregation threshold, centered where you clicked,
-    // so the individual lines it represents reveal themselves
-    applyZoomAt(mx, my, (AGGREGATE_ZOOM_THRESHOLD + 1.5) / currentTransform.k, true);
-    return;
-  }
-  const threshold = 8;
-  const matches = [];
-  for (const r of ROUTES) {
-    const pts = r._screen; if (!pts) continue;
-    let bestForThisRoute = Infinity;
-    for (let i=0;i<pts.length-1;i++) {
-      const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
-      if (d < bestForThisRoute) bestForThisRoute = d;
-    }
-    if (bestForThisRoute < threshold) matches.push(r);
-  }
-  if (matches.length > 1) { showRoutePicker(matches); return; }
-  const best = matches[0];
-  closeRoutePicker();
-  if (best && best.anchor) focusThread(best.anchor);
-  else if (focusActive) clearFocus(); // clicked empty space while focused -> clear
-}
+// --- tooltips and the route picker ---
 function showRoutePicker(matches) {
   hideTip();
   const sorted = matches.slice().sort((a,b) => a.min_year - b.min_year);
@@ -2564,55 +1483,6 @@ function showRoutePicker(matches) {
 function closeRoutePicker() {
   document.getElementById("route-picker").classList.remove("active");
 }
-// immediate: a one-off jump (zoom buttons, cluster click) is drawn sharp at
-// once; continuous input (wheel, pinch) goes through the gesture path.
-function applyZoomAt(mx, my, factor, immediate) {
-  const k0 = currentTransform.k;
-  let k1 = Math.max(1, Math.min(60, k0 * factor));
-  factor = k1 / k0;
-  // keep the data point under the cursor fixed while scaling
-  const vx = (mx - base.offsetX) / base.scale;
-  const vy = (my - base.offsetY) / base.scale;
-  const dataX = (vx - currentTransform.x) / currentTransform.k;
-  const dataY = (vy - currentTransform.y) / currentTransform.k;
-  currentTransform = d3.zoomIdentity.translate(vx - dataX*k1, vy - dataY*k1).scale(k1);
-  if (immediate) settle(); else scheduleRedraw();
-}
-
-// --- hover hit-testing on canvas routes (throttled via rAF) ---
-let hoverScheduled = false, lastMouse = null;
-function handleHover(e) {
-  lastMouse = e;
-  if (hoverScheduled) return;
-  hoverScheduled = true;
-  // no hover mid-gesture: hit-test data describes the last sharp render, not
-  // the moving picture (this also stops a tooltip riding along during a zoom)
-  requestAnimationFrame(() => { hoverScheduled = false; if (!gestureActive) doHover(lastMouse); });
-}
-function distToSeg(px,py,x1,y1,x2,y2) {
-  const dx=x2-x1, dy=y2-y1, lenSq=dx*dx+dy*dy;
-  let t = lenSq===0 ? 0 : ((px-x1)*dx+(py-y1)*dy)/lenSq;
-  t = Math.max(0, Math.min(1, t));
-  const cx=x1+t*dx, cy=y1+t*dy;
-  return Math.hypot(px-cx, py-cy);
-}
-function findHitFocusedSegs(mx, my, threshold) {
-  if (!currentFocusSegs) return [];
-  const matches = [];
-  for (const s of currentFocusSegs) {
-    const curve = s.waypts ? { mode:"path", coords:s.waypts }
-      : s.ocean ? { mode:"path", coords:[[s.x1,s.y1],[s.x2,s.y2]] }
-      : { mode:"bow", x1:s.x1,y1:s.y1,cx:s.cx,cy:s.cy,x2:s.x2,y2:s.y2 };
-    const pts = curveScreenPts(curve);
-    let bestForThisSeg = Infinity;
-    for (let i=0;i<pts.length-1;i++) {
-      const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
-      if (d < bestForThisSeg) bestForThisSeg = d;
-    }
-    if (bestForThisSeg < threshold) matches.push(s);
-  }
-  return matches;
-}
 function showSegTip(event, s) {
   tooltip.classed("t-multi", false);
   tooltip.html(
@@ -2635,38 +1505,6 @@ function showMultiSegTip(event, segs) {
   tooltip.html(`<span class="t-name">${segs.length} voyages bundled on this line</span>` + rows + more);
   const rect = mapWrap.getBoundingClientRect();
   tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
-}
-
-function doHover(e) {
-  ensureScreenCache();
-  const rect = mapWrap.getBoundingClientRect();
-  const mx = e.clientX-rect.left, my = e.clientY-rect.top;
-  if (mx<0||my<0||mx>rect.width||my>rect.height) { hideTip(); return; }
-  if (focusActive) {
-    // while a thread/path is focused, only the highlighted line itself is
-    // hoverable -- the dimmed background is visual context, not
-    // interactive, so grazing one shouldn't pop up an unrelated tooltip
-    const hitSegs = findHitFocusedSegs(mx, my, 8);
-    if (hitSegs.length > 1) showMultiSegTip(e, hitSegs);
-    else if (hitSegs.length === 1) showSegTip(e, hitSegs[0]);
-    else hideTip();
-    return;
-  }
-  const hitCluster = findHitCluster(mx, my, 8);
-  if (hitCluster) { showClusterTip(e, hitCluster); return; }
-  const threshold = 7;
-  const matches = [];
-  for (const r of ROUTES) {
-    const pts = r._screen; if (!pts) continue;
-    let bestForThisRoute = Infinity;
-    for (let i=0;i<pts.length-1;i++) {
-      const d = distToSeg(mx,my, pts[i][0],pts[i][1], pts[i+1][0],pts[i+1][1]);
-      if (d < bestForThisRoute) bestForThisRoute = d;
-    }
-    if (bestForThisRoute < threshold) matches.push(r);
-  }
-  if (matches.length > 1) { showMultiTip(e, matches); return; }
-  if (matches.length === 1) showTip(e, matches[0]); else hideTip();
 }
 function showClusterTip(event, c) {
   tooltip.classed("t-multi", false);
@@ -2713,26 +1551,7 @@ function showTip(event, d) {
 }
 function hideTip() { tooltip.style("opacity",0); }
 
-document.getElementById("zoomIn").onclick = () => { const r=mapWrap.getBoundingClientRect(); applyZoomAt(r.width/2, r.height/2, 1.6, true); };
-document.getElementById("zoomOut").onclick = () => { const r=mapWrap.getBoundingClientRect(); applyZoomAt(r.width/2, r.height/2, 1/1.6, true); };
-document.getElementById("zoomReset").onclick = () => { currentTransform = d3.zoomIdentity; redrawAll(); scheduleLabelUpdate(); };
-
-window.addEventListener("resize", () => { computeBase(); redrawAll(); scheduleLabelUpdate(); });
-
-computeBase();
 recomputeClusterVisibility();
-if (window.innerWidth <= 640) {
-  // mobile: the wide default viewBox letterboxes badly on a tall narrow
-  // screen: zoom in on the touch-weighted centroid of the actual data
-  // (computed offline from PLACES) instead of showing mostly empty ocean
-  const k = 2.6;
-  const cx = -36.57, cy = 25.43;
-  const rect = mapWrap.getBoundingClientRect();
-  const vx = (rect.width/2 - base.offsetX)/base.scale, vy = (rect.height/2 - base.offsetY)/base.scale;
-  currentTransform = d3.zoomIdentity.translate(vx - cx*k, vy - cy*k).scale(k);
-}
-renderNow();
-updateLabels();
 </script>
 </body>
 </html>
