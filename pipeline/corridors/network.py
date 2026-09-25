@@ -416,10 +416,12 @@ NODES = {
     '~georges':       ('~', 41.300, -66.500),
     '~nantucket_s':   ('~', 40.300, -69.800),
     '~atl_mid_coast': ('~', 38.600, -72.500),
-    '~cabot_strait':  ('~', 47.200, -59.800),
-    '~gulf_stl':      ('~', 48.900, -63.500),
-    '~anticosti_s':   ('~', 49.100, -66.500),
-    '~stl_estuary':   ('~', 48.300, -69.200),
+    '~cape_race':     ('~', 46.300, -52.800),     # off Cape Race, where ships for Quebec turned in
+    '~cabot_strait':  ('~', 47.250, -59.900),
+    '~gulf_stl':      ('~', 48.400, -62.800),     # between the Magdalen Islands and Anticosti
+    '~honguedo':      ('~', 49.500, -64.700),     # the Honguedo Strait, between Anticosti and the Gaspe
+    '~stl_estuary_e': ('~', 49.100, -67.000),
+    '~stl_estuary':   ('~', 48.600, -69.000),
     'quebec':         ('Quebec City', 46.813, -71.208),
     'toronto':        ('Toronto', 43.645, -79.380),
     'plymouth_ma':    ('Plymouth, Massachusetts', 41.958, -70.667),
@@ -452,6 +454,33 @@ NODES = {
     '~bahamas_n':     ('~', 28.000, -79.300),
     '~charleston_off': ('~', 32.500, -79.300),
     'bermuda':        ('Bermuda', 32.300, -64.780),
+    # the sailing track to the Gulf: north of the Antilles, the Old Bahama Channel along Cuba
+    '~north_antilles': ('~', 21.000, -64.000),
+    '~silver_bank_n': ('~', 21.200, -69.500),
+    '~caicos_passage': ('~', 22.000, -72.600),
+    '~old_bahama_e':  ('~', 21.800, -75.500),
+    '~old_bahama_m':  ('~', 22.550, -77.900),
+    '~old_bahama_w':  ('~', 23.200, -80.000),
+    '~cuba_n':        ('~', 23.450, -81.200),
+    '~havana_off':    ('~', 23.350, -82.400),
+    # the Pacific coast (Pacific Mail steamers) and the Isthmus of Panama
+    'san_francisco':  ('San Francisco', 37.795, -122.395),
+    '~golden_gate':   ('~', 37.780, -122.700),
+    '~pt_conception': ('~', 34.300, -120.800),
+    '~baja_n':        ('~', 31.500, -117.600),
+    '~punta_eugenia': ('~', 27.600, -115.600),
+    '~magdalena':     ('~', 24.300, -112.600),
+    '~cabo_san_lucas': ('~', 22.600, -110.000),
+    '~cabo_corrientes': ('~', 20.300, -105.900),
+    '~michoacan_off': ('~', 17.600, -103.200),
+    'acapulco':       ('Acapulco', 16.845, -99.910),
+    '~oaxaca_off':    ('~', 15.400, -97.200),
+    '~tehuantepec':   ('~', 15.000, -95.000),
+    '~papagayo':      ('~', 10.800, -86.500),
+    '~osa_off':       ('~', 8.000, -84.000),
+    '~punta_mala':    ('~', 7.000, -80.000),
+    'panama_city':    ('Panama City', 8.950, -79.530),
+    'colon':          ('Colon (Aspinwall), Panama', 9.358, -79.900),
 }
 
 ROAD, RIVER, SEA, CANAL = 'road', 'river', 'sea', 'canal'
@@ -662,13 +691,38 @@ CORRIDORS = [
     dict(name='Chesapeake Bay', mode=SEA, years=(1600, 1970), cost_factor=0.5,
          path=['hampton_roads', '~chesapeake_mid', 'annapolis', 'baltimore_harbor', 'baltimore']),
     dict(name='Potomac', mode=SEA, years=(1600, 1970), cost_factor=0.5, path=['~chesapeake_mid', '~potomac_mouth', 'alexandria']),
+    # ships for Quebec left the great-circle track off Cape Race (from either branch)
     dict(name='Gulf of St. Lawrence', mode=SEA, years=(1600, 1970), cost_factor=0.5,
-         path=['~grand_banks', '~cabot_strait', '~gulf_stl', '~anticosti_s', '~stl_estuary', 'quebec', 'montreal']),
+         path=['~cape_race', '~cabot_strait', '~gulf_stl', '~honguedo', '~stl_estuary_e', '~stl_estuary', 'quebec',
+               'montreal']),
+    dict(name='North Atlantic (to Cape Race)', mode=SEA, years=(1600, 1970), cost_factor=0.5,
+         path=['~atl_2', '~cape_race']),
+    dict(name='North Atlantic (north of Ireland, to Cape Race)', mode=SEA, years=(1600, 1970), cost_factor=0.5,
+         path=['~atl_n3', '~cape_race']),
     dict(name='Lake Ontario', mode=SEA, years=(1760, 1900), path=['~ontario_w', 'toronto']),
     # under sail the trade winds made the long southern route the quick one to the West Indies
     dict(name='Atlantic (southern route, the trade winds)', mode=SEA, years=(1600, 1970), cost_factor=0.3,
          path=['~atl_e', '~finisterre', '~madeira', '~canaries_w', '~trades', '~barbados', '~caribbean_e',
                '~jamaica_s', 'cartagena']),
+    # under sail, ships for the Gulf ran down the trade winds, passed north of the
+    # Antilles, through the Caicos Passage and the Old Bahama Channel along Cuba's
+    # north coast, and into the Gulf past Havana
+    dict(name='Atlantic (the trade winds to the Gulf, by the Bahamas and Cuba)', mode=SEA, years=(1600, 1970),
+         cost_factor=0.3,
+         path=['~trades', '~north_antilles', '~silver_bank_n', '~caicos_passage', '~old_bahama_e', '~old_bahama_m',
+               '~old_bahama_w', '~cuba_n', '~havana_off', '~gulf_mid']),
+    dict(name='Approach to New York from the south', mode=SEA, years=(1600, 1970), cost_factor=0.5,
+         path=['~atl_mid_coast', '~sandy_hook']),
+    # the Panama route of the Gold Rush years: Pacific Mail steamers up and down
+    # the coast, the Panama Railroad across the isthmus (1855; before it, river
+    # boats and mules), and the Aspinwall steamers by Jamaica to New York
+    dict(name='Pacific coast (Pacific Mail steamers)', mode=SEA, years=(1849, 1970), cost_factor=0.5,
+         path=['san_francisco', '~golden_gate', '~pt_conception', '~baja_n', '~punta_eugenia', '~magdalena',
+               '~cabo_san_lucas', '~cabo_corrientes', '~michoacan_off', 'acapulco', '~oaxaca_off', '~tehuantepec',
+               '~papagayo', '~osa_off', '~punta_mala', 'panama_city']),
+    dict(name='Panama Railroad', mode='rail', years=(1855, 1914), path=['panama_city', 'colon']),
+    dict(name='Caribbean (Aspinwall steamers)', mode=SEA, years=(1849, 1970), cost_factor=0.5,
+         path=['colon', '~jamaica_s']),
     dict(name='Kingston Harbour', mode=SEA, years=(1600, 1970), cost_factor=0.5, path=['~jamaica_s', 'port_royal']),
     dict(name='Caribbean and the Gulf of Mexico', mode=SEA, years=(1600, 1970), cost_factor=0.5,
          path=['~jamaica_s', '~cayman', '~yucatan_ch', '~gulf_mid', '~mississippi_mouth', 'new_orleans']),

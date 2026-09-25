@@ -204,9 +204,12 @@ browser; `?lines=likely` or `?lines=direct` in the URL overrides):
   opened to 1955); US and Canadian highways from 1920; Interstates from
   1960; and (since 2026-09-25) ocean crossings: overland to a real port
   (connections never end at a '~' waypoint at sea), then sea lanes: the
-  northern Atlantic route, the trade-wind route via Madeira and Barbados to
-  the Caribbean (cheapest under sail), the direct crossing to the Bahamas
-  and the Gulf (steamships, from 1840), the Gulf of St. Lawrence, the
+  northern Atlantic route, the trade-wind route via Madeira (cheapest under
+  sail): by Barbados and Jamaica for the Caribbean, north of the Antilles and
+  the Old Bahama Channel past Havana for the Gulf; the direct crossing to
+  the Bahamas and the Gulf (steamships, from 1840); the Gulf of St.
+  Lawrence (turning in off Cape Race); the Pacific coast (Pacific Mail),
+  the Panama Railroad (1855) and the Aspinwall steamers by Jamaica; the
   Channel, North Sea and Irish Sea. Open sea costs half a coastal packet.
   Europe: the Rhine and Seine, roads from Bern and Basel to Paris and Le
   Havre, and railways (Natural Earth, dated by country in modern.py). Air
