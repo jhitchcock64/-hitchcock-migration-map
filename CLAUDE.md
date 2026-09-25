@@ -189,10 +189,18 @@ Routes are drawn with:
 Likely routes (added 2026-09-25, James's idea; the default view; the
 "Likely routes / Direct lines" buttons in the legend, remembered per
 browser; `?lines=likely` or `?lines=direct` in the URL overrides):
-- Overland moves follow the way people travelled in their year: period
-  roads, rivers, canals and coastal sea lanes; railroads (from the year each
-  line opened to 1955); US and Canadian highways from 1920; Interstates
-  from 1960. Air travel is deliberately not modelled (James).
+- Moves follow the way people travelled in their year: period roads,
+  rivers, canals and coastal sea lanes; railroads (from the year each line
+  opened to 1955); US and Canadian highways from 1920; Interstates from
+  1960; and (since 2026-09-25) ocean crossings: overland to a real port
+  (connections never end at a '~' waypoint at sea), then sea lanes: the
+  northern Atlantic route, the trade-wind route via Madeira and Barbados to
+  the Caribbean (cheapest under sail), the direct crossing to the Bahamas
+  and the Gulf (steamships, from 1840), the Gulf of St. Lawrence, the
+  Channel, North Sea and Irish Sea. Open sea costs half a coastal packet.
+  Europe: the Rhine and Seine, roads from Bern and Basel to Paris and Le
+  Havre, and railways (Natural Earth, dated by country in modern.py). Air
+  travel is deliberately not modelled (James).
 - Hand-authored part: `pipeline/corridors/network.py` (nodes are real
   towns, fords, gaps; roads are smooth curves through them; rivers are
   Natural Earth centerlines; each corridor has years in use, rivers an
@@ -211,9 +219,13 @@ browser; `?lines=likely` or `?lines=direct` in the URL overrides):
   over (node, by land / water / rail) with per-mode, per-era costs,
   boarding costs for boats and trains, and guards (detour limit, share on
   the network). Towns on the hand-made network link to the nearest station
-  and highway. It skips ocean crossings and moves under 80 km. Places known
-  only as a state ("Virginia") are routed from where the map puts them and
-  flagged `a: 1`; the route tooltip says it's approximate.
+  and highway. It skips moves under 80 km. Places known only as a state or
+  country ("Virginia", "Germany") are routed from where the map puts them
+  (connecting up to 400 km) and flagged `a: 1`; the tooltip says it's
+  approximate. If the cheapest path breaks the detour guard by going round
+  by sea, it retries over land. A*'s estimate (MIN_COST_PER_KM) must stay
+  at or below the cheapest real cost per km, or it misses the best path
+  (this bit once, when sea costs were halved).
 - Output: the network stretches used are merged into runs shared by the
   same routes (so one band each) and simplified; ~370 KB in data.js.
 - Drawing: each route keeps its own short links to and from the network

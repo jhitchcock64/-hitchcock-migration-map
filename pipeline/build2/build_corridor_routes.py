@@ -36,8 +36,9 @@ Moves listed in network.py's FORCED follow the nodes given there (the family's
 own research, e.g. Lochry's expedition) and carry a note (n) for the tooltip.
 A move is routed only if the path beats going direct (2.5/km), is no more
 than MAX_DETOUR x the direct distance (+50 km; river trips wind), and at
-least 40% of it is on the network. Moves under MIN_KM and ocean crossings
-keep their direct lines. A move to or from a place known only as a state,
+least 40% of it is on the network. Moves under MIN_KM keep their direct
+lines. Ocean crossings are routed too (overland to a port, a sea lane, a port
+to the destination); where that fails they keep the pipeline's ocean path. A move to or from a place known only as a state,
 colony or country ("Virginia"; see REGIONS) is routed from where the map
 already puts that place, and marked approximate (a: 1) so the page can say so.
 """
@@ -51,9 +52,11 @@ LEGS = json.load(open(HERE / 'person_legs.json', encoding='utf-8'))
 OUT = HERE / 'corridors_prepared.json'
 
 CONNECT_COST, CONNECT_KM, BOARD_COST, RAIL_BOARD_COST = 2.5, 160, 80, 40
+REGION_CONNECT_KM = 400   # a place known only as a state or country sits at its centre
 MIN_KM, MAX_DETOUR, DETOUR_SLACK_KM, MIN_ON_NETWORK = 80, 2.3, 50, 0.4
 TRANSFER_KM = 15          # a town on the hand-made network links to a station or highway this close
-MIN_COST_PER_KM = 0.3     # the cheapest mode: A*'s estimate of the rest of the trip
+MIN_COST_PER_KM = 0.15    # the cheapest mode (trade-wind sea lane, 0.5 x 0.3): A*'s estimate of
+                          # the rest of the trip; must not exceed any real cost, or A* can miss the best path
 WATER, RAIL = {'river', 'sea', 'canal'}, {'rail'}
 
 
@@ -108,13 +111,15 @@ GRID = defaultdict(list)                    # 1-degree cells -> node ids
 for n, (x, y) in NODE_LL.items(): GRID[(math.floor(x), math.floor(y))].append(n)
 
 
-def near(p, radius_km):
-    """[(node, km)] within radius of p (lon, lat)."""
+def near(p, radius_km, ports_only=False):
+    """[(node, km)] within radius of p (lon, lat); ports_only: skip the '~'
+    waypoints at sea, which a traveller can't walk to."""
     dy = radius_km / 111 + 1; dx = radius_km / (111 * max(0.2, math.cos(math.radians(p[1])))) + 1
     out = []
     for gx in range(math.floor(p[0] - dx), math.floor(p[0] + dx) + 1):
         for gy in range(math.floor(p[1] - dy), math.floor(p[1] + dy) + 1):
             for n in GRID.get((gx, gy), ()):
+                if ports_only and n.startswith('~'): continue
                 d = km(p, NODE_LL[n])
                 if d <= radius_km: out.append((n, d))
     return out
@@ -159,16 +164,26 @@ def klass(mode):
     return 1 if mode in WATER else 2 if mode in RAIL else 0
 
 
-def route(a, b, year):
-    """a, b: (lon, lat). A* over (node, travelling by land / water / rail) states.
-    Returns (signed edge list, entry node, exit node) or None."""
+def route(a, b, year, ra=CONNECT_KM, rb=CONNECT_KM):
+    """a, b: (lon, lat). Returns (signed edge list, entry node, exit node) or None.
+    If the cheapest path fails the guards because it goes round by sea (Bern ->
+    Le Havre down the Rhine and round by the Channel), try again over land."""
+    r = _route(a, b, year, set(), ra, rb)
+    if r == 'guard': r = _route(a, b, year, {'sea'}, ra, rb)
+    return r if r != 'guard' else None
+
+
+def _route(a, b, year, skip, ra, rb):
+    """A* over (node, travelling by land / water / rail) states; skip: modes not
+    to use. Returns (steps, entry, exit), None, or 'guard' when the best path
+    breaks the detour or on-network guards."""
     direct = km(a, b)
     if direct < MIN_KM: return None
-    exits = {n: d * CONNECT_COST for n, d in near(b, CONNECT_KM)}
+    exits = {n: d * CONNECT_COST for n, d in near(b, abs(rb), ports_only=rb > 0)}
     if not exits: return None
     h = lambda n: km(NODE_LL[n], b) * MIN_COST_PER_KM
     dist, prev, heap = {}, {}, []
-    for n, d in near(a, CONNECT_KM):
+    for n, d in near(a, abs(ra), ports_only=ra > 0):
         s = (n, 0)
         if d * CONNECT_COST < dist.get(s, 1e18):
             dist[s] = d * CONNECT_COST; heapq.heappush(heap, (dist[s] + h(n), dist[s], n, 0))
@@ -180,6 +195,7 @@ def route(a, b, year):
         if u in exits and d + exits[u] < best_cost: best, best_cost = (u, cls), d + exits[u]
         for v, i, sign in ARCS[u]:
             e = EDGES[i]
+            if e['mode'] in skip: continue
             c = cost_per_km(e, sign, year)
             if c is None: continue
             k = klass(e['mode']) if e['mode'] != 'transfer' else cls
@@ -197,7 +213,7 @@ def route(a, b, year):
     entry, exit_ = st[0], best[0]
     on_net = sum(EDGES[abs(s) - 1]['km'] for s in steps)
     total = on_net + km(a, NODE_LL[entry]) + km(NODE_LL[exit_], b)
-    if total > direct * MAX_DETOUR + DETOUR_SLACK_KM or on_net < MIN_ON_NETWORK * total: return None
+    if total > direct * MAX_DETOUR + DETOUR_SLACK_KM or on_net < MIN_ON_NETWORK * total: return 'guard'
     return steps, entry, exit_
 
 
@@ -268,16 +284,21 @@ _cache = {}
 def via(x1, y1, x2, y2, year, frm, to):
     f = forced(frm, to, year, x1, y1, x2, y2)
     if f: return f
-    v = _via(x1, y1, x2, y2, year)
+    ra = CONNECT_KM if precise(frm) else REGION_CONNECT_KM
+    rb = CONNECT_KM if precise(to) else REGION_CONNECT_KM
+    # someone recorded as born "at sea" can join a sea lane where they were (negative radius)
+    if 'at sea' in (frm or '').lower(): ra = -ra
+    if 'at sea' in (to or '').lower(): rb = -rb
+    v = _via(x1, y1, x2, y2, year, ra, rb)
     if v and not (precise(frm) and precise(to)): v = dict(v, a=1)
     return v
 
 
-def _via(x1, y1, x2, y2, year):
-    key = (round(x1, 3), round(y1, 3), round(x2, 3), round(y2, 3), year)
+def _via(x1, y1, x2, y2, year, ra=CONNECT_KM, rb=CONNECT_KM):
+    key = (round(x1, 3), round(y1, 3), round(x2, 3), round(y2, 3), year, ra, rb)
     if key not in _cache:
         a, b = to_ll(x1, y1), to_ll(x2, y2)
-        r = route(a, b, year)
+        r = route(a, b, year, ra, rb)
         if not r: _cache[key] = None
         else:
             steps, entry, exit_ = r
@@ -343,14 +364,12 @@ def main():
     for i, r in enumerate(ROUTES):
         c = r['curve']
         if c['mode'] == 'bow': (x1, y1), (x2, y2) = (c['x1'], c['y1']), (c['x2'], c['y2'])
-        else:
-            (x1, y1), (x2, y2) = c['coords'][0], c['coords'][-1]
-            if ocean(x1, x2): continue               # ocean crossings are never touched
+        else: (x1, y1), (x2, y2) = c['coords'][0], c['coords'][-1]
         v = via(x1, y1, x2, y2, r['mean_year'], r['from'], r['to'])
         if v: routes[str(i)] = v
     for pid, ls in LEGS.items():
         for l in ls:
-            if l.get('ocean') or l.get('year') is None: continue
+            if l.get('year') is None: continue
             v = via(l['x1'], l['y1'], l['x2'], l['y2'], l['year'], l['from'], l['to'])
             if v: legs[leg_key(l)] = v
 

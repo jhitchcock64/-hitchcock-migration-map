@@ -2,8 +2,8 @@
 Turns network.py (the hand-authored corridors) into network.json: one edge
 per consecutive pair of nodes, each with its drawn geometry in lon/lat.
 
-Roads, canals and sea lanes: a smooth curve (centripetal Catmull-Rom)
-through the corridor's nodes. Rivers: the real river line from Natural Earth 1:10m
+Roads and canals: a smooth curve (centripetal Catmull-Rom) through the
+corridor's nodes. Sea lanes: straight between their offshore waypoints. Rivers: the real river line from Natural Earth 1:10m
 (pipeline/basemap/cache/, see build_basemap.py for the download), cut
 between consecutive river towns (or, with geometry='spline', a curve through
 the listed points, for rivers Natural Earth doesn't cover end to end).
@@ -22,7 +22,7 @@ from collections import defaultdict
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from network import NODES, CORRIDORS, RIVER, CLOSED, FORCED
+from network import NODES, CORRIDORS, RIVER, SEA, CLOSED, FORCED
 
 CACHE = HERE.parent / 'basemap' / 'cache'
 OUT = HERE / 'network.json'
@@ -87,12 +87,15 @@ def dp(pts, tol):
 
 
 def river_graph(name):
-    """All Natural Earth lines named `name`, as a vertex graph (gaps under ~2 km bridged)."""
+    """All Natural Earth lines named `name` (or any of a list of names), as a
+    vertex graph (gaps under ~2 km bridged)."""
+    names = set(name) if isinstance(name, list) else {name}
     parts = []
-    for f in ('ne_10m_rivers_lake_centerlines.geojson', 'ne_10m_rivers_north_america.geojson'):
+    for f in ('ne_10m_rivers_lake_centerlines.geojson', 'ne_10m_rivers_north_america.geojson',
+              'ne_10m_rivers_europe.geojson'):
         for ft in json.load(open(CACHE / f, encoding='utf-8'))['features']:
             p = ft['properties']
-            if (p.get('name') or p.get('name_en')) != name: continue
+            if (p.get('name') or p.get('name_en')) not in names: continue
             g = ft['geometry']
             parts += g['coordinates'] if g['type'] == 'MultiLineString' else [g['coordinates']]
     key = lambda p: (round(p[0], 5), round(p[1], 5))
@@ -150,6 +153,10 @@ def main():
                     problems.append(f'{c["name"]}: {a} -> {b} not connected along the river; straight line used')
                     vs = [sa, sb]
                 geoms.append([ll[a]] + dp(vs, 0.012) + [ll[b]])
+        elif c['mode'] == SEA:
+            # ships' tracks: straight between the offshore waypoints (a smooth
+            # curve through them can bulge over a headland or an island)
+            geoms = [[ll[a], ll[b]] for a, b in zip(path, path[1:])]
         else:
             geoms = catmull_rom([ll[n] for n in path], per_seg=10)
         for (a, b), g in zip(zip(path, path[1:]), geoms):
@@ -187,7 +194,7 @@ def main():
 def build_modern():
     import modern
     nodes, edges = {}, []
-    for pieces in (modern.rail_pieces(CACHE), modern.road_pieces(CACHE)):
+    for pieces in (modern.rail_pieces(CACHE), modern.road_pieces(CACHE), modern.europe_rail_pieces(CACHE)):
         n, es = modern.finish(pieces)
         nodes.update(n); edges += es
     for e in edges:

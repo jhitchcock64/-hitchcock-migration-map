@@ -13,7 +13,12 @@ doesn't split roads where they meet, so this nodes them: lines are split
 where they cross, and a road ending within SNAP_KM of another road is joined
 to it.
 
-Both are then contracted: chains of segments between junctions become one
+European railways: Natural Earth 1:10m railroads (public domain;
+ne_10m_railroads.zip), today's network with no opening dates, so each line
+gets a rough year by country (europe_rail_year): Britain 1840, Sweden 1862,
+elsewhere 1850. Noded the same way as the highways.
+
+All are then contracted: chains of segments between junctions become one
 edge (years: the latest along the chain; name: the longest piece's), and
 simplified for drawing.
 """
@@ -23,6 +28,7 @@ from shapefile import read_zip, AlbersInverse
 
 RAIL_ZIP, RAIL_STEM = 'RR1826-1911Modified103123.zip', 'RR1826-1911Modified103123'
 ROADS_ZIP, ROADS_STEM = 'ne_10m_roads.zip', 'ne_10m_roads'
+EURAIL_ZIP, EURAIL_STEM = 'ne_10m_railroads.zip', 'ne_10m_railroads'
 RAIL_NODE_M = 200
 SNAP_KM = 1.5
 SIMPLIFY_DEG = 0.004
@@ -132,7 +138,12 @@ def road_pieces(cache):
         mode = 'interstate' if r['level'] == 'Interstate' else 'highway'
         for part in s:
             if len(part) >= 2: lines.append(([tuple(p) for p in part], dict(mode=mode, year=0, name=road_name(r))))
-    # ---- noding: split points per line (as positions along the segment list)
+    return node_lines(lines, 'h')
+
+
+def node_lines(lines, prefix):
+    """lines: [(coords, props)] -> pieces, split where lines cross and joined
+    where one ends within SNAP_KM of another."""
     CELL = 0.25
     grid = defaultdict(list)             # cell -> [(line, seg index)]
     for li, (c, _) in enumerate(lines):
@@ -178,8 +189,8 @@ def road_pieces(cache):
                         if d < SNAP_KM and (best is None or d < best[0]): best = (d, lj, sj, t, p)
             if best and best[0] > 0.01:
                 _, lj, sj, t, p = best
-                splits[lj].add((sj, t)); joins.append((end, p))
-    key = lambda p: 'h%d_%d' % (round(p[0] * 1e4), round(p[1] * 1e4))
+                splits[lj].add((sj, t)); joins.append((end, p, lines[li][1]))
+    key = lambda p: prefix + '%d_%d' % (round(p[0] * 1e4), round(p[1] * 1e4))
     pieces = []
     for li, (c, props) in enumerate(lines):
         pts = defaultdict(list)
@@ -194,9 +205,31 @@ def road_pieces(cache):
                 cur = [p]
             if c[si + 1] != cur[-1]: cur.append(c[si + 1])
         if len(cur) >= 2: pieces.append((key(cur[0]), key(cur[-1]), cur, props))
-    for a, b in joins:
-        pieces.append((key(a), key(b), [a, b], dict(mode='highway', year=0, name='Highway')))
+    for a, b, props in joins:
+        pieces.append((key(a), key(b), [a, b], props))
     return pieces
+
+
+def europe_rail_year(lon, lat):
+    """Rough year a European line could carry an emigrant: the trunk lines
+    opened in the 1840s in Britain, the 1850s on the Continent and Ireland,
+    the 1860s in Sweden."""
+    if lat > 55.3 and 10.9 < lon < 24.5: return 1862                       # Sweden
+    if -6.5 < lon < 1.8 and 49.9 < lat < 59 and not (lat < 51.1 and lon > 1.4): return 1840   # Great Britain
+    return 1850
+
+
+def europe_rail_pieces(cache):
+    recs, shapes = read_zip(cache / EURAIL_ZIP, EURAIL_STEM)
+    lines = []
+    for r, s in zip(recs, shapes):
+        if r.get('continent') != 'Europe' or r.get('featurecla') != 'Railroad': continue
+        for part in s:
+            if len(part) < 2: continue
+            mid = part[len(part) // 2]
+            lines.append(([tuple(p) for p in part],
+                          dict(mode='rail', year=europe_rail_year(*mid), name='Railway')))
+    return node_lines(lines, 'rE')
 
 
 def finish(pieces, keep=lambda p: True):

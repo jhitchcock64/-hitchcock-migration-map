@@ -156,6 +156,7 @@ python pipeline/project/write_data_js.py data.js   # write CORRIDORS
 `build_network.py` needs, in `pipeline/basemap/cache/`: the Natural Earth
 river files (see build_basemap.py), `RR1826-1911Modified103123.zip` (Jeremy
 Atack's railroad GIS, from https://my.vanderbilt.edu/jeremyatack/data-downloads/,
-16 MB) and `ne_10m_roads.zip` (Natural Earth, 9 MB). Its outputs are
+16 MB), `ne_10m_roads.zip` (Natural Earth, 9 MB) and `ne_10m_railroads.zip`
+(Natural Earth, 15 MB; European railways). A full run takes about 2 minutes. Its outputs are
 committed, so the regular pipeline doesn't need them. The
 router's rules and costs are at the top of `build_corridor_routes.py`.
