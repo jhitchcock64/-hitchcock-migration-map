@@ -26,7 +26,9 @@ runner finds a working Python by itself and sets UTF-8 mode).
 
    It prints each stage, the James+Jennie family record it detected, and a
    summary (routes, places, people). Logs go to `pipeline/logs/`. Outputs go to
-   `pipeline/build2/*.json`.
+   `pipeline/build2/*.json`. The last stage routes moves over the historical
+   network for the "likely routes" view; skim its log
+   (`pipeline/logs/build_corridor_routes.log`) for routes that look wrong.
 
    The James+Jennie family ID changes on every export; the pipeline finds it
    automatically. If detection ever fails, set `JAMES_JENNIE_FAM_ID=@F####@`.
@@ -137,3 +139,19 @@ byte for byte). The same day the data moved out of `index.html` into
 GEDCOM and rarely need rebuilding: `python pipeline/basemap/build_basemap.py`
 (see its docstring for the public-domain inputs in `pipeline/basemap/cache/`).
 The rest of the background map comes from OpenFreeMap at run time.
+
+## The historical travel network (likely routes)
+
+`pipeline/corridors/network.py` is hand-authored: towns and waypoints, and
+the roads, rivers, canals and sea lanes between them, each with the years
+in use. To add or fix a corridor, edit it, then:
+
+```
+python pipeline/corridors/build_network.py         # -> network.json (commit it)
+python pipeline/build2/build_corridor_routes.py    # reroute (no GEDCOM needed)
+python pipeline/project/write_data_js.py data.js   # write CORRIDORS
+```
+
+`build_network.py` needs the Natural Earth river files in
+`pipeline/basemap/cache/` (see build_basemap.py for the downloads). The
+router's rules and costs are at the top of `build_corridor_routes.py`.

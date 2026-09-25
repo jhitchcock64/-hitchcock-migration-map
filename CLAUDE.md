@@ -50,6 +50,7 @@ legacy.html                the pre-rebuild page, frozen at the 2026-09 cutover, 
 pipeline/project/          GEDCOM -> data stages 1-4, geocoder, write_data_js, diff tool, runner
 pipeline/build2/           stages 5-7: anchors, family tags, final arrays
 pipeline/basemap/          build_basemap.py (public map data -> basemap/); cache/ is git-ignored
+pipeline/corridors/        the historical travel network for "likely routes" (network.py -> network.json)
 pipeline/RUNBOOK.md        how to update the map from a new GEDCOM (read this for data work)
 tools/check_page.py        headless smoke test (key people, errors, counts, routes drawn)
 tools/profile_gestures.py  frame-time profile under real wheel/drag gestures (any page)
@@ -102,7 +103,10 @@ Stages:
    `routes_prepared.json` → ROUTES, `clusters_prepared.json` → CLUSTERS,
    `places_prepared.json` → PLACES, `search_index.json` → SEARCH_INDEX,
    `person_graph.json` → GRAPH, `person_legs.json` → PERSON_LEGS.
-8. `write_data_js.py` writes them into `data.js` (it replaced `graft.py`
+8. `build2/build_corridor_routes.py` routes overland moves over the
+   historical network → `corridors_prepared.json` → CORRIDORS (see "Likely
+   routes"). Its log lists every routed move and the corridors it took.
+9. `write_data_js.py` writes them into `data.js` (it replaced `graft.py`
    when the data moved out of `index.html`), keeping VB byte for byte.
 
 Ocean crossings are computed in the pipeline and shipped as finished
@@ -170,6 +174,33 @@ Routes are drawn with:
   cluster with at least 2 visible members are hidden and the cluster band is
   drawn instead.
 
+Likely routes (added 2026-09-25, James's idea; the "Direct lines / Likely
+routes" buttons in the legend, remembered per browser):
+- Overland moves follow the roads, rivers, canals and sea lanes of their
+  time instead of a direct arc. Hand-authored network in
+  `pipeline/corridors/network.py` (nodes are real towns, fords, gaps;
+  roads are smooth curves through them; rivers are Natural Earth
+  centerlines; each corridor has years in use, and rivers an
+  `upstream_from` year for steamboats). `build_network.py` turns it into
+  the committed `network.json` (needs `pipeline/basemap/cache/` for river
+  lines; rerun only after editing network.py).
+- The router (`build_corridor_routes.py`) is a cheapest-path search with
+  per-mode costs, a boarding cost for boats, and guards (detour limit,
+  share on the network). It skips ocean crossings, moves under 80 km, and
+  places known only as a state ("Virginia"). Rail isn't modelled yet:
+  from 1850 long moves don't use eastern roads, and after 1860 only moves
+  mostly by river are routed; the rest keep direct lines.
+- Drawing: each route keeps its own short links to and from the network
+  (in the `routes` layers) and its arrowhead; the shared network part is
+  one band per edge (`bundles`, over a pale `bundle-casings`): as wide as a
+  cluster band for that many ancestors, split lengthwise into one stripe
+  per route in its colour, oldest first (`bundleFeatures`). Hovering a band
+  lists its routes; clicking opens the route picker. Focused threads use
+  the routed path for their moves (`segVia`, keyed by coordinates + year).
+  Routed moves leave the cluster bands in this view.
+- These are inferences, not evidence, and the page says so. James reviews
+  the routed list in `pipeline/logs/build_corridor_routes.log`.
+
 Relevance: `setTarget(person)` computes `TARGET_ANCESTOR_SET`. A route is
 drawn if any of its `anchor_ids` is in that set. `recomputeClusterVisibility()`
 runs once per target change.
@@ -225,6 +256,11 @@ Data formats (all coordinates in projected units):
 - GRAPH: `{james_id (actually Margaret's id), sibling_ids, people:{id:
   {name, surname, by (birth year), bplace, bx, by_y, fx, fy, fplace?, parents[]}}}`.
 - PERSON_LEGS: `{id: [{from, to, year, x1,y1,x2,y2, cx,cy, ocean?, waypts?}]}`.
+- CORRIDORS: `{edges: [{name, mode, c: [[x, y], ...]}], routes: {route
+  index: {e: [±(edge index + 1)], h: [[x, y]...], t: [[x, y]...]}}, legs:
+  {"x1,y1,x2,y2,year" (coordinates ×100, rounded): same}}`. `e` lists the
+  edges in travel order (negative = walked b → a); `h`/`t` are the links
+  from the documented place to the network and back.
 - VB (the default view box) is also static in `data.js`. BASEMAP and
   REF_CITIES were dropped with the MapLibre page; `legacy.html` keeps its
   inline copies.

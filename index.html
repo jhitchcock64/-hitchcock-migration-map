@@ -116,6 +116,18 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #legend .twin-swatch { width:22px; height:6px; border:none; background:
   linear-gradient(#8a7248,#8a7248) top/100% 2px no-repeat,
   linear-gradient(#8a7248,#8a7248) bottom/100% 2px no-repeat; }
+#legend .lines-toggle { display:flex; gap:3px; margin-bottom:8px; }
+#legend .lines-btn {
+  font-family:var(--font-mono); font-size:9.5px; padding:4px 7px; border-radius:5px; cursor:pointer;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4); color:var(--muted);
+}
+#legend .lines-btn.active { background:var(--border-stroke); color:var(--panel-bg); border-color:var(--border-stroke); }
+#legend .lines-btn:hover:not(.active) { background:rgba(156,122,46,0.15); }
+#legend .likely-only { display:none; }
+#legend.likely .likely-only { display:flex; }
+#legend .likely-note { font-size:10px; color:var(--muted); margin:-3px 0 7px; max-width:230px; line-height:1.35; }
+#legend .stripe-swatch { width:22px; height:9px; border:none; border-radius:1px;
+  background:linear-gradient(to bottom, #0f8a7a 0 25%, #2050d6 25% 50%, #8033d6 50% 75%, #e0359e 75%); }
 #legend .hint { font-family:var(--font-mono); font-size:10px; color:var(--muted); margin-top:8px; border-top:1px solid rgba(156,122,46,0.25); padding-top:6px; }
 #legend .hint.credit { font-size:9px; margin-top:3px; border-top:none; padding-top:0; opacity:0.8; }
 
@@ -338,6 +350,11 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <span id="zoomLevel">1.0&times;</span>
   </div>
   <div id="legend">
+    <div class="lines-toggle" role="group" aria-label="How moves are drawn">
+      <button class="lines-btn active" id="lines-direct" aria-pressed="true" title="Each move as a line from the old home to the new one">Direct lines</button>
+      <button class="lines-btn" id="lines-likely" aria-pressed="false" title="Moves along the roads, rivers and sea lanes of their time">Likely routes</button>
+    </div>
+    <div class="likely-note likely-only">Moves follow the roads, rivers and sea lanes of their time. The route is inferred; the records give only the places and years.</div>
     <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
     <div class="cb-labels" id="cb-labels"></div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.7px;"></span> 1 ancestor on this route</div>
@@ -345,6 +362,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <div class="lw-item"><span class="lw-swatch twin-swatch"></span> confirmed family traveling together</div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:9px;border-color:#8a7248;"></span> many ancestors, same general route (zoom in to split apart)</div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.5px;border-top-style:dashed;"></span> short, repeated back-and-forth (e.g. two nearby towns)</div>
+    <div class="lw-item likely-only"><span class="stripe-swatch"></span> a road or river several ancestors used; one stripe per route, oldest to newest, width by number of ancestors</div>
     <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = detail &middot; search top-left</div>
   </div>
 </div>
@@ -578,6 +596,27 @@ function bearingDeg(a, b) {
 const ROUTE_LL = ROUTES.map(r => curveLL(r.curve));
 const CLUSTER_LL = CLUSTERS.map(c => curveLL(c.curve));
 
+// ---- likely routes: moves along the period roads, rivers and sea lanes ----
+// CORRIDORS (from pipeline/build2/build_corridor_routes.py) holds the network
+// edges and, for each routed move, the edges it takes (negative = walked
+// backwards) plus the short overland links at each end (h, t). Moves without
+// an entry keep their direct line in this view too.
+let likelyRoutes = false;
+try { likelyRoutes = localStorage.getItem("hm-likely-routes") === "1"; } catch (e) {}
+const CORR_EDGE_LL = CORRIDORS.edges.map(e => e.c.map(p => toLL(p[0], p[1])));
+const routeVia = i => likelyRoutes ? CORRIDORS.routes[i] || null : null;
+const legKey = s => [s.x1, s.y1, s.x2, s.y2].map(v => Math.round(v * 100)).join(",") + "," + s.year;
+const segVia = s => likelyRoutes ? CORRIDORS.legs[legKey(s)] || null : null;
+// the whole path of a routed move, as one lon/lat polyline
+function viaLL(v) {
+  const out = [];
+  const add = pts => { for (const p of pts) { const q = out[out.length - 1]; if (!q || q[0] !== p[0] || q[1] !== p[1]) out.push(p); } };
+  if (v.h.length) add(v.h.map(p => toLL(p[0], p[1])));
+  for (const e of v.e) { const c = CORR_EDGE_LL[Math.abs(e) - 1]; add(e > 0 ? c : c.slice().reverse()); }
+  if (v.t.length) add(v.t.map(p => toLL(p[0], p[1])));
+  return out;
+}
+
 // ---- arrowhead and dot images (signed-distance fields, so MapLibre can colour them) ----
 // Arrow: a triangle pointing east with its tip on the right edge; the icon is
 // anchored on its right edge, so the tip sits on the route's end point.
@@ -620,13 +659,20 @@ function routeFeatures() {
   // same selection and order as before: relevant to the target; thickest first (bottom)
   const inVisibleCluster = new Set();
   for (const c of CLUSTERS) if (c._visMembers.length >= MIN_VISIBLE_CLUSTER_SIZE) for (const i of c._visMembers) inVisibleCluster.add(i);
-  const lines = [], arrows = [];
+  const lines = [], arrows = [], edgeRoutes = new Map();
   ROUTES.forEach((r, i) => {
     if (!isRouteRelevant(r)) return;
-    const ll = ROUTE_LL[i], color = colorForYear(r.mean_year), w = lwFor(r.count);
+    const v = routeVia(i);
+    const ll = v ? viaLL(v) : ROUTE_LL[i], color = colorForYear(r.mean_year), w = lwFor(r.count);
     const props = { i, color, w, family: !!r.family_group, osc: !!r.oscillation,
                     clustered: inVisibleCluster.has(i), sort: -r.count };
-    lines.push({ type: "Feature", id: i, properties: props, geometry: { type: "LineString", coordinates: ll } });
+    if (v) {
+      // the network part is drawn as shared bands (bundleFeatures); here only the links at each end
+      for (const part of [v.h, v.t]) if (part.length)
+        lines.push({ type: "Feature", properties: props, geometry: { type: "LineString", coordinates: part.map(p => toLL(p[0], p[1])) } });
+      for (const e of v.e) { const k = Math.abs(e) - 1; if (!edgeRoutes.has(k)) edgeRoutes.set(k, []); edgeRoutes.get(k).push(i); }
+    } else
+      lines.push({ type: "Feature", id: i, properties: props, geometry: { type: "LineString", coordinates: ll } });
     const alen = Math.max(9, w * 1.3);
     const n = ll.length;
     arrows.push({ type: "Feature", properties: { ...props, rot: bearingDeg(ll[n-2], ll[n-1]), size: alen / ARROW_LEN },
@@ -635,7 +681,29 @@ function routeFeatures() {
       arrows.push({ type: "Feature", properties: { ...props, rot: bearingDeg(ll[1], ll[0]), size: alen / ARROW_LEN },
                     geometry: { type: "Point", coordinates: ll[0] } });
   });
-  return { lines, arrows };
+  return { lines, arrows, edgeRoutes };
+}
+// A network edge used by several routes is one band, as wide as a cluster
+// band for that many ancestors, split lengthwise into one stripe per route in
+// its route colour, oldest on the left of the edge's direction, each as wide
+// as its share of the ancestors. Stripes keep their order along a corridor,
+// so a road used across two centuries reads as a band of colours.
+function bundleFeatures(edgeRoutes) {
+  const stripes = [], casings = [];
+  for (const [k, idxs] of edgeRoutes) {
+    idxs.sort((a, b) => ROUTES[a].mean_year - ROUTES[b].mean_year || a - b);
+    const P = idxs.reduce((s, i) => s + ROUTES[i].count, 0);
+    const W = Math.min(lwFor(P), aggLwFor(P));
+    const geometry = { type: "LineString", coordinates: CORR_EDGE_LL[k] };
+    let x = -W / 2;
+    for (const i of idxs) {
+      const sw = W * ROUTES[i].count / P;
+      stripes.push({ type: "Feature", properties: { edge: k, i, color: colorForYear(ROUTES[i].mean_year), sw, off: x + sw / 2 }, geometry });
+      x += sw;
+    }
+    casings.push({ type: "Feature", properties: { edge: k, w: W + 2 }, geometry });
+  }
+  return { stripes, casings };
 }
 function clusterFeatures() {
   const lines = [], arrows = [];
@@ -664,7 +732,8 @@ function placeFeatures() {
 function threadFeatures() {
   const lines = [], arrows = [], dots = [];
   (currentFocusSegs || []).forEach((s, i) => {
-    const ll = s.waypts ? s.waypts.map(p => toLL(p[0], p[1]))
+    const v = segVia(s);
+    const ll = v ? viaLL(v) : s.waypts ? s.waypts.map(p => toLL(p[0], p[1]))
       : s.ocean ? straightLL(s.x1, s.y1, s.x2, s.y2)
       : curveLL({ mode: "bow", x1: s.x1, y1: s.y1, cx: s.cx, cy: s.cy, x2: s.x2, y2: s.y2 });
     const hovered = i === hoveredSegIdx, n = ll.length;
@@ -700,7 +769,7 @@ function addMapLayers() {
   map.addLayer({ id: "county-lines", type: "line", source: "counties", minzoom: kToZoom(COUNTY_MIN_K),
     paint: { "line-color": "#a09aa8", "line-width": 0.7, "line-opacity": 0.55 } }, before);
 
-  for (const id of ["routes", "route-arrows", "clusters", "cluster-arrows", "places", "thread", "thread-arrows", "thread-dots", "stationary", "target"])
+  for (const id of ["routes", "route-arrows", "bundles", "bundle-casings", "clusters", "cluster-arrows", "places", "thread", "thread-arrows", "thread-dots", "stationary", "target"])
     map.addSource(id, { type: "geojson", data: fc([]) });
 
   // (which routes a cluster band hides is switched by applyAggregation as the zoom changes)
@@ -720,6 +789,13 @@ function addMapLayers() {
       layout: lineLayout, paint: { "line-color": ["get", "color"], "line-opacity": 0.72,
         "line-width": ["max", ["*", ["get", "w"], 0.42], 1.1],
         "line-offset": ["*", side, ["max", ["*", ["get", "w"], 0.55], 1.6]] } }, before);
+  // likely routes: shared corridor bands (a pale casing, then the stripes)
+  map.addLayer({ id: "bundle-casings", type: "line", source: "bundle-casings", layout: { "line-join": "round", "line-cap": "butt" },
+    paint: { "line-color": "#ffffff", "line-opacity": 0.55, "line-width": ["get", "w"] } }, before);
+  map.addLayer({ id: "bundles", type: "line", source: "bundles", layout: { "line-join": "round", "line-cap": "butt" },
+    paint: { "line-color": ["get", "color"], "line-opacity": 0.9, "line-width": ["get", "sw"], "line-offset": ["get", "off"] } }, before);
+  map.addLayer({ id: "bundles-dim", type: "line", source: "bundle-casings", layout: { "visibility": "none", "line-join": "round" },
+    paint: { "line-color": "#8a7248", "line-opacity": 0.12, "line-width": 1 } }, before);
   map.addLayer({ id: "route-arrows", type: "symbol", source: "route-arrows", filter: notHiddenByCluster,
     layout: { "icon-image": "arrow45", "icon-size": ["get", "size"], "icon-rotate": ["get", "rot"], "icon-anchor": "right",
               "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true },
@@ -841,8 +917,9 @@ function applyAggregation(force) {
   for (const side of [-1, 1]) map.setFilter("routes-family" + side, ["all", ["get", "family"], keep]);
   map.setFilter("route-arrows", keep);
   const normal = focusActive ? "none" : "visible";
-  for (const id of ["routes-plain", "routes-osc", "routes-family-1", "routes-family1", "route-arrows"])
+  for (const id of ["routes-plain", "routes-osc", "routes-family-1", "routes-family1", "route-arrows", "bundles", "bundle-casings"])
     map.setLayoutProperty(id, "visibility", normal);
+  map.setLayoutProperty("bundles-dim", "visibility", focusActive ? "visible" : "none");
   for (const id of ["clusters", "cluster-arrows"]) map.setLayoutProperty(id, "visibility", aggregating ? "visible" : "none");
   map.setLayoutProperty("routes-dim", "visibility", focusActive ? "visible" : "none");
 }
@@ -850,14 +927,19 @@ function applyAggregation(force) {
 // ---- keeping the map in step with the page's state ----
 // redrawAll() is what the rest of the page calls after changing the target,
 // the focus, the hovered move or the view; it pushes only what changed.
-let shownTarget = null, shownThread = null;
+let shownTarget = null, shownThread = null, shownLikely = null, shownEdgeRoutes = new Map();
 function redrawAll() {
   if (!mapReady) return;
-  if (shownTarget !== CURRENT_TARGET) {
+  if (shownTarget !== CURRENT_TARGET || shownLikely !== likelyRoutes) {
     shownTarget = CURRENT_TARGET;
-    const r = routeFeatures(), c = clusterFeatures();
+    if (shownLikely !== likelyRoutes) shownThread = null;
+    shownLikely = likelyRoutes;
+    const r = routeFeatures(), c = clusterFeatures(), b = bundleFeatures(r.edgeRoutes);
+    shownEdgeRoutes = r.edgeRoutes;
     map.getSource("routes").setData(fc(r.lines));
     map.getSource("route-arrows").setData(fc(r.arrows));
+    map.getSource("bundles").setData(fc(b.stripes));
+    map.getSource("bundle-casings").setData(fc(b.casings));
     map.getSource("clusters").setData(fc(c.lines));
     map.getSource("cluster-arrows").setData(fc(c.arrows));
     map.getSource("places").setData(fc(placeFeatures()));
@@ -976,6 +1058,13 @@ function routesNear(point, px) {
   }
   return out;
 }
+// a corridor band near the pointer: its edge and the routes on it, oldest first
+function bundleNear(point, px) {
+  const f = featuresNear(point, px, ["bundles", "bundle-casings"])[0];
+  if (!f) return null;
+  const k = f.properties.edge;
+  return { edge: CORRIDORS.edges[k], routes: (shownEdgeRoutes.get(k) || []).map(i => ROUTES[i]) };
+}
 function clusterNear(point, px) {
   const f = featuresNear(point, px, ["clusters"])[0];
   return f ? CLUSTERS[f.properties.ci] : null;
@@ -1002,7 +1091,9 @@ function doHover(e) {
   if (hitCluster) { showClusterTip(ev, hitCluster); return; }
   const matches = routesNear(pt, 7);
   if (matches.length > 1) { showMultiTip(ev, matches); return; }
-  if (matches.length === 1) showTip(ev, matches[0]); else hideTip();
+  if (matches.length === 1) { showTip(ev, matches[0]); return; }
+  const band = bundleNear(pt, 4);
+  if (band) showCorridorTip(ev, band); else hideTip();
 }
 function handleClick(e) {
   const pt = e.point;
@@ -1014,7 +1105,8 @@ function handleClick(e) {
     applyZoomAt(pt.x, pt.y, (AGGREGATE_ZOOM_THRESHOLD + 1.5) / currentTransform.k);
     return;
   }
-  const matches = routesNear(pt, 8);
+  let matches = routesNear(pt, 8);
+  if (!matches.length) { const band = bundleNear(pt, 5); if (band) matches = band.routes; }
   if (matches.length > 1) { showRoutePicker(matches); return; }
   const best = matches[0];
   if (best && best.anchor) focusThread(best.anchor);
@@ -1093,7 +1185,7 @@ function isRouteRelevant(r) {
 // reflecting the full James-rooted total regardless of target.
 function recomputeClusterVisibility() {
   for (const c of CLUSTERS) {
-    const vis = c.members.filter(idx => isRouteRelevant(ROUTES[idx]));
+    const vis = c.members.filter(idx => isRouteRelevant(ROUTES[idx]) && !routeVia(idx));
     c._visMembers = vis;
     c._visCount = vis.reduce((s,idx) => s + ROUTES[idx].count, 0);
     c._visYears = vis.length ? vis.map(idx => ROUTES[idx].mean_year) : [c.mean_year];
@@ -1605,6 +1697,24 @@ function showMultiTip(event, matches) {
   const rect = mapWrap.getBoundingClientRect();
   tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
 }
+function showCorridorTip(event, band) {
+  const rs = band.routes.slice().sort((a, b) => a.min_year - b.min_year);
+  const people = rs.reduce((s, d) => s + d.count, 0);
+  const CAP = 5;
+  const rows = rs.slice(0, CAP).map(d => {
+    const peopleLine = d.family_group ? d.family_group.join(" & ") : (d.people || []).join(", ");
+    const yearLine = d.min_year === d.max_year ? d.min_year : `${d.min_year}\u2013${d.max_year}`;
+    return `<div class="t-multi-row"><span class="t-multi-dest">${d.from} \u2192 ${d.to}</span> ` +
+           `<span class="t-year">${yearLine}</span><br>${peopleLine}</div>`;
+  }).join("");
+  const more = rs.length > CAP ? `<div class="t-multi-more">+ ${rs.length - CAP} more</div>` : "";
+  const years = rs.length ? `${rs[0].min_year}\u2013${Math.max(...rs.map(d => d.max_year))}` : "";
+  tooltip.classed("t-multi", true);
+  tooltip.html(`<span class="t-name">${band.edge.name}</span>` +
+    `<span class="t-year">${people} ancestor${people !== 1 ? "s" : ""} \u00b7 ${years} \u00b7 likely route, click to choose one</span>` + rows + more);
+  const rect = mapWrap.getBoundingClientRect();
+  tooltip.style("opacity",1).style("left",(event.clientX-rect.left)+"px").style("top",(event.clientY-rect.top-10)+"px");
+}
 function showTip(event, d) {
   tooltip.classed("t-multi", false);
   const peopleLine = d.family_group
@@ -1623,6 +1733,23 @@ function showTip(event, d) {
 function hideTip() { tooltip.style("opacity",0); }
 
 recomputeClusterVisibility();
+
+// Direct lines / Likely routes
+function setLikelyRoutes(on) {
+  likelyRoutes = on;
+  try { localStorage.setItem("hm-likely-routes", on ? "1" : "0"); } catch (e) {}
+  document.getElementById("legend").classList.toggle("likely", on);
+  for (const [id, active] of [["lines-direct", !on], ["lines-likely", on]]) {
+    const b = document.getElementById(id);
+    b.classList.toggle("active", active); b.setAttribute("aria-pressed", active);
+  }
+  recomputeClusterVisibility();
+  hideTip();
+  redrawAll();
+}
+document.getElementById("lines-direct").onclick = () => setLikelyRoutes(false);
+document.getElementById("lines-likely").onclick = () => setLikelyRoutes(true);
+setLikelyRoutes(likelyRoutes);
 </script>
 </body>
 </html>
