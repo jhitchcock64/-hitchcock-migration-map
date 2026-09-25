@@ -235,7 +235,7 @@ class Session:
         t0 = time.perf_counter()
         fn(pg)
         wall = time.perf_counter() - t0
-        # keep recording briefly so a redraw after the gesture ends (v2's
+        # keep recording briefly so a redraw after the gesture ends (index.html's
         # settle) is counted too
         pg.wait_for_timeout(300)
         r = pg.evaluate(STOP)
@@ -340,10 +340,12 @@ def run():
                        first_route_drawn_ms: window.__firstStroke, dom_content_loaded_ms: nav.domContentLoadedEventEnd,
                        load_event_ms: nav.loadEventEnd, transfer_kb: Math.round(nav.transferSize/1024) };
             }""")
-            # cost of just the inline data: compile + evaluate the data lines in isolation
-            html = pg.evaluate('document.documentElement.outerHTML.length')
-            src = pathlib.Path('index.html').read_text(encoding='utf-8') if URL.startswith('http://localhost') \
-                else None
+            # cost of just the data: compile + evaluate the nine data lines in isolation
+            # (they live in data.js; legacy.html still carries them inline)
+            src = None
+            if URL.startswith('http://localhost'):
+                f = 'legacy.html' if URL.endswith('legacy.html') else 'data.js'
+                src = pathlib.Path(f).read_text(encoding='utf-8') if pathlib.Path(f).exists() else None
             if src:
                 data_lines = [l for l in src.splitlines() if re.match(r'const (BASEMAP|ROUTES|CLUSTERS|PLACES|REF_CITIES|VB|SEARCH_INDEX|GRAPH|PERSON_LEGS)\b', l)]
                 body = '\n'.join(data_lines) + '\nreturn ROUTES.length;'
@@ -481,7 +483,7 @@ def report(R):
     p(f"  first paint {L['first_paint_ms']:.0f} ms | first route drawn {L['first_route_drawn_ms']:.0f} ms | "
       f"DOMContentLoaded {L['dom_content_loaded_ms']:.0f} ms | load {L['load_event_ms']:.0f} ms")
     if 'data_parse_ms' in L:
-        p(f"  inline data {L['data_kb']} KB: compile+evaluate {L['data_parse_ms']['first']} ms (best of 5), median {L['data_parse_ms']['median']} ms")
+        p(f"  data {L['data_kb']} KB: compile+evaluate {L['data_parse_ms']['first']} ms (best of 5), median {L['data_parse_ms']['median']} ms")
     p(f"  phases: {L['trace']['phases_ms']}")
     p(f"  top main-thread: {L['trace']['top_main_thread_self_ms'][:6]}")
     p('\nFRAMES              frames  median   p95    max   dropped')

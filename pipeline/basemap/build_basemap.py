@@ -13,7 +13,7 @@ Inputs (downloaded into pipeline/basemap/cache/, which git ignores):
   US Census Bureau gazetteer of places (2023): towns
     https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2023_Gazetteer/2023_Gaz_place_national.zip
 
-Output (v2/basemap/):
+Output (basemap/ at the repo root, next to index.html):
   index.js                 BASEMAP_INDEX: the zoom bands, tile size and which tiles exist
   detail_<band>_<tx>_<ty>.js   one tile: BASEMAP_TILE(band, tx, ty, {layer: [shape, ...]})
                            layers: land, lakes (filled rings); coast, border, seam,
@@ -46,7 +46,7 @@ from collections import defaultdict
 
 HERE = pathlib.Path(__file__).resolve().parent
 CACHE = HERE / 'cache'
-OUT = HERE.parent.parent / 'v2' / 'basemap'
+OUT = HERE.parent.parent / 'basemap'
 
 # Area kept: generous around everything the map shows (the old basemap
 # spans lon -168..63, lat 2..84).

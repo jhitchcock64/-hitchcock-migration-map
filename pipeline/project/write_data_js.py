@@ -1,7 +1,7 @@
 """
-Write the page's data file (data.js) from the pipeline's output.
-Replaces graft.py now that the data lives in its own file instead of inside
-index.html.
+Write the page's data file (data.js) from the pipeline's output. This
+replaced graft.py (retired) when the data moved out of index.html into its
+own file.
 
   python pipeline/project/write_data_js.py data.js
 

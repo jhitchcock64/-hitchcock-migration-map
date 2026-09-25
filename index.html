@@ -2362,7 +2362,7 @@ function updateLabels() {
   townShown.forEach((p, slot) => showLabelDiv(getPooledTownLabel(slot), p));
   for (let i = townShown.length; i < townLabelPool.length; i++) townLabelPool[i].style.display = "none";
 }
-// --- towns: labels from the US Census gazetteer of places (v2/basemap/towns.js,
+// --- towns: labels from the US Census gazetteer of places (basemap/towns.js,
 // built by pipeline/basemap/build_basemap.py), loaded the first time they're needed ---
 const TOWN_MIN_ZOOM = 7, TOWN_MAX_LABELS = 40;
 let TOWN_GRID = null, townsRequested = false;

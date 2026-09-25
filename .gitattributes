@@ -1,0 +1,5 @@
+# Keep LF line endings in the working copy on every platform: bash scripts
+# break with CRLF, and data.js is compared byte for byte against pipeline output.
+* text=auto eol=lf
+*.png binary
+*.zip binary

@@ -1,5 +1,10 @@
 # Task: make the migration map fast
 
+**Status (2026-09-24):** phases 0–5 done on the `rebuild` branch (Option A,
+then WebGL routes and a WebGL basemap with added detail, as approved along
+the way). The result is described under "Rendering" in `CLAUDE.md`. Kept for
+the record.
+
 You're picking up the Hitchcock migration map. Read `CLAUDE.md` first (it
 should already be loaded) and `pipeline/RUNBOOK.md` if you touch data.
 

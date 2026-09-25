@@ -1,18 +1,24 @@
 # Pipeline runbook: updating the map from a new GEDCOM export
 
-The six data arrays inside `index.html` (ROUTES, CLUSTERS, PLACES, SEARCH_INDEX,
+The six data arrays in `data.js` (ROUTES, CLUSTERS, PLACES, SEARCH_INDEX,
 GRAPH, PERSON_LEGS) are generated output. Always update them by running this
-pipeline and grafting the result. Never hand-edit or splice them.
+pipeline and writing the result with `write_data_js.py`. Never hand-edit or
+splice them. (`data.js` also carries BASEMAP, REF_CITIES and VB, which the
+pipeline doesn't produce; `write_data_js.py` keeps them byte for byte.)
 
 Needs only Python 3 (standard library). Runs from any directory on any machine.
+On Windows, run the `.sh` step in Git Bash and the Python steps with `python`
+(on James's laptop `python3` is only the Microsoft Store placeholder; the
+runner finds a working Python by itself and sets UTF-8 mode).
 
 ## Steps
 
 1. **Get the export.** James exports the tree from Ancestry as a GEDCOM (a .ged
-   file, usually inside a zip). Keep it OUTSIDE the repo, or anywhere the
-   `.gitignore` covers. It contains living people and must never be committed.
+   file, usually inside a zip; his land in `Downloads` as
+   `Albert Hitchcock Family Tree (N).zip`). Unzip it OUTSIDE the repo. It
+   contains living people and must never be committed.
 
-2. **Run the pipeline.**
+2. **Run the pipeline** (in Git Bash on Windows):
 
    ```
    GEDCOM="/path/to/Albert Hitchcock Family Tree.ged" bash pipeline/project/run_pipeline.sh
@@ -29,7 +35,7 @@ Needs only Python 3 (standard library). Runs from any directory on any machine.
    and add geocoder entries where they matter:
 
    ```
-   cd pipeline/project && python3 -c "
+   cd pipeline/project && python -c "
    import json, geocoder
    ev = json.load(open('events.json'))
    bad = sorted({e['plac'] for r in ev.values() for e in r['events']
@@ -42,30 +48,38 @@ Needs only Python 3 (standard library). Runs from any directory on any machine.
    fallback. (Example: Middlesex County, VA strings once fell back to the
    "Virginia" centroid, about 110 miles off.) Rerun step 2 after any edit.
 
-4. **Diff against the live page** before touching `index.html`:
+4. **Diff against the live data** before touching `data.js`:
 
    ```
-   python3 pipeline/project/diff_shipped.py index.html
+   python pipeline/project/diff_shipped.py data.js
    ```
 
    Every person who matched before should still match. Investigate any drop.
-   New people appearing is expected.
+   New people appearing is expected. Explain every difference (new people,
+   changed legs, changed routes) from the tree's own edits before shipping;
+   comparing the person's GEDCOM record in the old and new export usually
+   shows it.
 
-5. **Graft** the new arrays into the page:
+5. **Write** the new arrays into `data.js`:
 
    ```
-   python3 pipeline/project/graft.py index.html index.html
+   python pipeline/project/write_data_js.py data.js
    ```
 
 6. **Check the page in a browser:**
 
    ```
-   python tools/check_page.py index.html --shot /tmp/map.png
+   python tools/check_page.py index.html --shot map.png
    ```
 
-   Then open it yourself and look at a few people you know changed.
+   Then open it yourself (serve the repo: `python -m http.server 8000`, then
+   http://localhost:8000/) and look at a few people you know changed.
 
-7. **Commit and push** to `main`. GitHub Pages rebuilds in about a minute.
+7. **Commit and push** to `main`, with James's OK. GitHub Pages rebuilds in
+   about a minute.
+
+`legacy.html` (the pre-rebuild page, data inline) is frozen and isn't
+updated by these steps.
 
 ## How the geocoder decides (pipeline/project/geocoder.py)
 
@@ -112,4 +126,13 @@ the live map. The pipeline was recovered by replaying every recorded edit from
 the session transcripts, then verified against the live map: 586/590 people
 had identical legs and all 1,265 birthplaces matched. It was committed so this
 can't recur. On 2026-09-24 it was made portable (no hardcoded sandbox paths)
-and verified byte-identical on all six arrays.
+and verified byte-identical on all six arrays, then made to run on Windows
+and verified again there (the 2026-09-23 export reproduces the live data
+byte for byte). The same day the data moved out of `index.html` into
+`data.js`, and `write_data_js.py` replaced `graft.py`.
+
+## The basemap
+
+The detailed basemap (`basemap/`) doesn't depend on the GEDCOM and rarely
+needs rebuilding: `python pipeline/basemap/build_basemap.py` (see its
+docstring for the public-domain inputs in `pipeline/basemap/cache/`).
