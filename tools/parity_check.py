@@ -2,7 +2,7 @@
 Feature-parity check: perform the same searches and mode switches on two
 versions of the map and compare what each shows at every step.
 
-Usage:  python tools/parity_check.py OLD_URL NEW_URL [OUT_DIR]
+Usage:  python tools/parity_check.py OLD_URL NEW_URL [OUT_DIR] [--content-only]
 
 At each step it records the page's visible state -- search results, page
 title, focus panel (title, summary, every row of the moves dropdown), path
@@ -14,8 +14,14 @@ Exit code 0 = no differences.
 import sys, json, pathlib
 from playwright.sync_api import sync_playwright
 
-OLD, NEW = sys.argv[1], sys.argv[2]
-OUT = pathlib.Path(sys.argv[3]) if len(sys.argv) > 3 else None
+pos = [a for a in sys.argv[1:] if not a.startswith('--')]
+OLD, NEW = pos[0], pos[1]
+OUT = pathlib.Path(pos[2]) if len(pos) > 2 else None
+# --content-only: compare what the page says (results, panels, counts), not
+# where the view is -- for comparing versions whose map projections differ
+# (the MapLibre page is Web Mercator); also skips the interaction steps,
+# which drive the pre-MapLibre renderer's internals
+CONTENT_ONLY = '--content-only' in sys.argv
 if OUT: OUT.mkdir(parents=True, exist_ok=True)
 
 STATE = """() => {
@@ -36,7 +42,8 @@ STATE = """() => {
     yearFrom: document.getElementById('year-from').value, yearTo: document.getElementById('year-to').value,
     chip: getComputedStyle(document.getElementById('era-person-chip')).display !== 'none' ? txt('#era-person-chip-name') : null,
     placeholder: document.getElementById('search-input').placeholder,
-    zoom: +currentTransform.k.toFixed(3), tx: +currentTransform.x.toFixed(3), ty: +currentTransform.y.toFixed(3),
+    zoom: +currentTransform.k.toFixed(3), tx: currentTransform.x === undefined ? null : +currentTransform.x.toFixed(3),
+    ty: currentTransform.y === undefined ? null : +currentTransform.y.toFixed(3),
     clusters: CLUSTERS.map(c => c._visCount),
     target: CURRENT_TARGET,
   };
@@ -49,7 +56,7 @@ def run(url):
         b = p.chromium.launch()
         pg = b.new_page(viewport={'width': 1500, 'height': 900}, device_scale_factor=1)
         pg.on('pageerror', lambda e: errors.append(str(e)[:200]))
-        pg.goto(url); pg.wait_for_function('typeof redrawAll === "function"'); pg.wait_for_timeout(1000)
+        pg.goto(url); pg.wait_for_function("typeof redrawAll === \"function\" && (typeof mapReady === \"undefined\" || mapReady)", timeout=60000); pg.wait_for_timeout(1000)
         tag = 'old' if url == OLD else 'new'
 
         def snap(step):
@@ -103,6 +110,9 @@ def run(url):
         pg.fill('#surname-input', 'Baskett'); pg.press('#surname-input', 'Enter'); snap('41_surname_baskett')
         pg.fill('#surname-input', 'Zzqx'); pg.press('#surname-input', 'Enter'); snap('42_surname_no_match')
         pg.click('#focus-clear'); mode('target')
+        if CONTENT_ONLY:
+            b.close()
+            return states, errors
 
         # --- interaction: zoom buttons, wheel limits, drag, pinch, clicks
         pg.click('#zoomReset'); pg.wait_for_timeout(300)
@@ -185,7 +195,7 @@ old, oerr = run(OLD)
 new, nerr = run(NEW)
 problems = 0
 for a, b in zip(old, new):
-    diffs = {k: (a[k], b[k]) for k in a if a[k] != b[k]}
+    diffs = {k: (a[k], b[k]) for k in a if a[k] != b[k] and not (CONTENT_ONLY and k in ('zoom', 'tx', 'ty'))}
     # playback timing can differ by a tick between two runs
     if a['step'].startswith('35') and 'yearFrom' in diffs:
         if abs(int(a['yearFrom'] or 0) - int(b['yearFrom'] or 0)) <= 6:

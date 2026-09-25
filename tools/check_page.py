@@ -29,20 +29,22 @@ CHECKS = """() => {
   out.thomas_1739_parents = t ? t.parents.map(p => GRAPH.people[p] && GRAPH.people[p].name) : null;
   out.phantom_thomas_sr_1716 = SEARCH_INDEX.some(s => s.name.startsWith('Thomas Baskett') && s.birt === '1716');
   out.year_range = [Math.floor(YEAR_MIN), Math.ceil(YEAR_MAX)];
-  // something was actually drawn: WebGL route instances (index.html), or routes
-  // the Canvas 2D renderer stroked (legacy.html, and the fallback in index.html)
-  // (GL and BM are top-level `let`s: visible by name, not as window.GL)
-  const gl = typeof GL !== 'undefined' && GL, bm = typeof BM !== 'undefined' && BM;
-  out.renderer = gl ? 'webgl' : 'canvas2d';
-  out.routes_drawn = gl ? gl.drawnRoutes.length : ROUTES.filter(r => r._screen).length;
-  out.basemap = bm ? 'webgl' : 'svg-or-bitmap';
+  // something was actually drawn: route features on the MapLibre map
+  // (index.html), or routes the Canvas 2D renderer stroked (legacy.html)
+  const ml = typeof map !== 'undefined' && map && typeof map.getSource === 'function';
+  out.renderer = ml ? 'maplibre' : 'canvas2d';
+  out.routes_drawn = ml ? map.queryRenderedFeatures({ layers: ['routes-plain', 'routes-osc', 'routes-family1', 'clusters'] }).length
+                        : ROUTES.filter(r => r._screen).length;
   return out;
 }"""
 
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page(viewport={'width': 1500, 'height': 900})
     errors = []; pg.on('pageerror', lambda e: errors.append(str(e)[:300]))
-    pg.goto(page_path.as_uri()); pg.wait_for_timeout(2500)
+    pg.goto(page_path.as_uri())
+    # the MapLibre page draws once its style and tiles have loaded (up to ~20 s on a slow link)
+    pg.wait_for_function("typeof mapReady === 'undefined' || (mapReady && map.loaded())", timeout=30000)
+    pg.wait_for_timeout(2500)
     r = pg.evaluate(CHECKS)
     if shot: pg.screenshot(path=shot)
     b.close()
