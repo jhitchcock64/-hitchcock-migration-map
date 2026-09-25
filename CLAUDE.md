@@ -121,6 +121,15 @@ Natural Earth 1:10m countries, lakes, rivers and first-level divisions.
 County lines are modern Census boundaries, not historical ones. (OpenFreeMap's
 tiles only carry counties from about map zoom 10, so we ship our own.)
 
+Military records (added 2026-09-25): stage 2 also reads `_MILT` events.
+Stage 3 keeps one as a stop only if its place resolves to a town or county
+(most say just "Virginia, USA") and it's at least 60 km from the stops on
+either side (an enlistment or pension at home adds no journey), and never
+collapses it as a side trip. The move to it is flagged (`military` on
+ROUTES: the people; `mil` on PERSON_LEGS) and its tooltip says "from a
+military record": these records include pensions and registrations, not
+only service.
+
 ## Coordinates
 
 The data is in projected units: `x = lon + 35` (wrapped to [-180,180)),

@@ -1648,7 +1648,7 @@ function showSegTip(event, s) {
   tooltip.classed("t-multi", false);
   tooltip.html(
     `<span class="t-name">${s.from} &rarr; ${s.to}</span>${s.person}<br>` +
-    `<span class="t-year">arrived ${s.year}</span>` +
+    `<span class="t-year">${s.mil ? "military record, " : "arrived "}${s.year}</span>` +
     (segVia(s) && segVia(s).n ? `<br><span class="t-note">${segVia(s).n}</span>` : "")
   );
   placeTip(event);
@@ -1723,7 +1723,8 @@ function showTip(event, d) {
   const v = routeVia(d._i);
   const approx = (v && v.n ? `<br><span class="t-note">${v.n}</span>` : "") +
     (v && v.a ? `<br><span class="t-year">route approximate: a place is recorded only as a state or country</span>` : "");
-  tooltip.html(nameLine + `<span class="t-year">${countLine}</span>` + approx);
+  const mil = d.military ? `<br><span class="t-note">from a military record: ${d.military.join(", ")}</span>` : "";
+  tooltip.html(nameLine + `<span class="t-year">${countLine}</span>` + mil + approx);
   placeTip(event);
 }
 // Above the pointer if it fits, otherwise below it; never past the map's edges.

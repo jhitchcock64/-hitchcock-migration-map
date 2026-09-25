@@ -119,7 +119,7 @@ def person_stops(pid):
     evs = []
     seen_types = set()
     for e in r["events"]:
-        if e["type"] not in ("BIRT", "RESI", "DEAT"):
+        if e["type"] not in ("BIRT", "RESI", "DEAT", "MILT"):
             continue
         if e["type"] in ("BIRT", "DEAT") and e["type"] in seen_types:
             continue  # keep only first birth/death record (dedupe source variants)
@@ -127,6 +127,8 @@ def person_stops(pid):
         if not g:
             continue
         label, lat, lon, tier = g
+        if e["type"] == "MILT" and tier not in ("town", "county"):
+            continue  # "Virginia, USA" says where he enlisted or served, not a place he went
         yr = parse_year(e["date"], birth_year)
         if yr and birth_year and not (birth_year - 5 <= yr <= birth_year + 100):
             continue  # discard implausible/garbled date ranges
@@ -137,6 +139,7 @@ def person_stops(pid):
         if e["type"] in ("BIRT", "DEAT"):
             seen_types.add(e["type"])
     evs = strip_generic_singletons(evs)
+    evs = drop_home_military(evs)
     evs.sort(key=lambda e: (e["year"], 0 if e["type"] == "BIRT" else (2 if e["type"] == "DEAT" else 1)))
     stops = []
     for e in evs:
@@ -144,6 +147,26 @@ def person_stops(pid):
             continue
         stops.append(e)
     return collapse_side_trips(stops)
+
+MILT_AWAY_KM = 60
+
+
+def drop_home_military(evs):
+    """A military record at (or near) where the person was living anyway --
+    enlisting at home, a pension filed at home -- adds no journey, only a
+    spurious hop. Keep a military stop only if it's at least MILT_AWAY_KM from
+    the person's stops on either side of it in time."""
+    order = sorted(evs, key=lambda e: (e["year"], 0 if e["type"] == "BIRT" else (2 if e["type"] == "DEAT" else 1)))
+    out = []
+    for i, e in enumerate(order):
+        if e["type"] == "MILT":
+            near = [o for o in (order[i - 1] if i > 0 else None, order[i + 1] if i + 1 < len(order) else None)
+                    if o is not None and o["type"] != "MILT"]
+            if any(haversine_km(o["lat"], o["lon"], e["lat"], e["lon"]) < MILT_AWAY_KM for o in near):
+                continue
+        out.append(e)
+    return out
+
 
 def collapse_side_trips(stops, max_gap_years=5):
     """Trim BRIEF out-and-back detours: A -> B -> A where the whole round trip
@@ -155,7 +178,7 @@ def collapse_side_trips(stops, max_gap_years=5):
     out = []
     i = 0
     while i < len(stops):
-        if (i + 2 < len(stops) and
+        if (i + 2 < len(stops) and stops[i+1]["type"] != "MILT" and   # a campaign away and back is the point
                 haversine_km(stops[i]["lat"], stops[i]["lon"], stops[i+2]["lat"], stops[i+2]["lon"]) < SAME_PLACE_KM and
                 (stops[i+2]["year"] - stops[i]["year"]) <= max_gap_years):
             merged = dict(stops[i])

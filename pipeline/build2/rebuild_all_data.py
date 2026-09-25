@@ -295,6 +295,8 @@ for i, feat in enumerate(routes_geo["features"]):
     }
     if str(i) in family_tags:
         entry["family_group"] = family_tags[str(i)]
+    if p.get("military"):
+        entry["military"] = p["military"]      # people who went there on military service
     routes_out.append(entry)
 
 # ---- oscillation detection & merge ----
@@ -369,6 +371,9 @@ for key, members in merged_by_key.items():
         "anchor_ids": sorted(set(all_anchor_ids)),
         "oscillation": True,
     }
+    mil = sorted({n for m in members for n in m.get("military", [])})
+    if mil:
+        merged_entry["military"] = mil
     fam_members = [m["family_group"] for m in members if "family_group" in m]
     if fam_members:
         merged_entry["family_group"] = sorted(set(name for fg in fam_members for name in fg))
@@ -463,6 +468,8 @@ for i, l in enumerate(legs):
     ocean = is_ocean_crossing(l["from_lon"], l["to_lon"])
     entry = {"from": l["from_place"], "to": l["to_place"], "year": l["to_year"],
               "x1": x1, "y1": y1, "x2": x2, "y2": y2, "ocean": ocean}
+    if l.get("event_type") == "MILT":
+        entry["mil"] = True                     # this move was military service
     if ocean:
         starts_in_americas = l["from_lon"] < -25
         americas_lonlat = (l["from_lon"], l["from_lat"]) if starts_in_americas else (l["to_lon"], l["to_lat"])

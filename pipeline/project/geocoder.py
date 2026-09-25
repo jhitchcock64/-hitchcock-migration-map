@@ -642,6 +642,11 @@ TOWN_COORDS = {
     "asheville|north carolina": (35.595, -82.551),
     "wilmington|north carolina": (34.226, -77.945),
     "fayetteville|north carolina": (35.053, -78.878),
+    # places named in military records (_MILT), 2026-09-25
+    "cartagena|colombia": (10.391, -75.479),     # Cartagena de Indias (Vernon's expedition, 1741)
+    "west point|new york": (41.391, -73.956),
+    "drogheda|ireland": (53.717, -6.350),
+    "richmond|rhode island": (41.500, -71.670),
     "newport|rhode island": (41.490, -71.313),
     "newport|tennessee": (35.968, -83.187),
     "aberdeen|scotland": (57.149, -2.099),
@@ -973,6 +978,7 @@ COUNTY_COORDS = {
     "jessamine|kentucky": (37.900, -84.570), "fleming|kentucky": (38.417, -83.735),
     "mason|kentucky": (38.643, -83.745), "nicholas|kentucky": (38.323, -83.964),
     "marshall|kentucky": (36.988, -88.316), "fayette|kentucky": (38.041, -84.502),
+    "fayette|pennsylvania": (39.900, -79.716),   # seat Uniontown (else a bare "fayette" fell back to Kentucky)
     "spencer|kentucky": (37.999, -85.347), "clark|kentucky": (37.923, -84.279),
     "anderson|kentucky": (37.980, -84.880), "cumberland|kentucky": (36.789, -85.359),
     "anderson|tennessee": (36.110, -84.200),  # seat Clinton -- distinct from Anderson, KY

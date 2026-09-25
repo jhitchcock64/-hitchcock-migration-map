@@ -57,8 +57,10 @@ with open(GEDCOM_PATH, encoding="utf-8", errors="replace") as f:
                 if not (_has_given(records[cur_id]["name"]) and not _has_given(val)):  # a blank duplicate NAME must not overwrite a real one (v15)
                     records[cur_id]["name"] = val
                 cur_event = None
-            elif tag in ("BIRT", "DEAT", "RESI"):
-                cur_event = {"type": tag, "date": None, "plac": None}
+            elif tag in ("BIRT", "DEAT", "RESI", "_MILT"):
+                # _MILT: Ancestry's military service event (enlistment, a posting,
+                # a campaign). Stage 3 keeps only the ones with a specific place.
+                cur_event = {"type": "MILT" if tag == "_MILT" else tag, "date": None, "plac": None}
                 records[cur_id]["events"].append(cur_event)
             elif tag == "EVEN":
                 cur_event = {"type": "EVEN", "subtype": None, "date": None, "plac": None}

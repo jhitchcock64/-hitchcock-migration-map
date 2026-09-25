@@ -70,6 +70,7 @@ for (frm, to), group_legs in raw_groups.items():
         key = (frm, to) if len(clusters) == 1 else (frm, to, i)
         r = {"count": len(cluster), "years": [l["to_year"] for l in cluster],
              "people": [l["person_name"] for l in cluster],
+             "military": sorted({l["person_name"] for l in cluster if l.get("event_type") == "MILT"}),
              "from_lat": cluster[0]["from_lat"], "from_lon": cluster[0]["from_lon"],
              "to_lat": cluster[0]["to_lat"], "to_lon": cluster[0]["to_lon"]}
         routes[key] = r
@@ -101,6 +102,7 @@ for key, r in routes.items():
             "max_year": max(r["years"]),
             "mean_year": round(mean_year, 1),
             "sample_people": sorted(set(r["people"]))[:5],
+            **({"military": r["military"]} if r["military"] else {}),
         },
     })
 
