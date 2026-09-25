@@ -358,9 +358,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
     <div class="cb-labels" id="cb-labels"></div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.7px;"></span> 1 ancestor on this route</div>
-    <div class="lw-item"><span class="lw-swatch" style="border-top-width:6px;"></span> 4 ancestors on this route</div>
     <div class="lw-item"><span class="lw-swatch twin-swatch"></span> confirmed family traveling together</div>
-    <div class="lw-item"><span class="lw-swatch" style="border-top-width:9px;border-color:#8a7248;"></span> many ancestors, same general route (zoom in to split apart)</div>
     <div class="lw-item likely-only"><span class="stripe-swatch"></span> a road or river several ancestors used; one stripe per route, oldest to newest, width by number of ancestors</div>
     <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = who traveled &middot; click = trace the line to the target &middot; search top-left</div>
   </div>
@@ -1460,7 +1458,7 @@ function applyYearRange() {
   const title = segs.length
     ? `${scopeText}, ${minYear}\u2013${maxYear}`
     : `${personName ? personName + "\u2019s ancestors have " : "There are "}no recorded journeys between ${minYear} and ${maxYear}`;
-  if (segs.length) zoomToFitSegs(segs);
+  // the view stays where the viewer left it (James, 2026-09-25): no fitting to each window
   renderFocusedChain(segs, title, "ancestor");
 }
 function scheduleYearRangeApply() {
