@@ -812,7 +812,7 @@ function addFallbackLayers() {
 function useFallbackMap(reason) {
   if (usingFallback || mapReady) return;
   usingFallback = true;
-  clearTimeout(styleTimer);
+  clearInterval(styleTimer);
   console.warn("OpenFreeMap style unavailable (" + reason + "); using the built-in map.");
   document.getElementById("map").insertAdjacentHTML("beforeend",
     '<div id="fallback-note" style="position:absolute;bottom:36px;right:8px;z-index:3;background:rgba(255,255,255,0.85);' +
@@ -1040,7 +1040,7 @@ map.on("resize", () => { computeZ1(); applyAggregation(true); updateZoomReadout(
 // Once a style is ready (Liberty, or the fallback): our layers, then draw.
 function onStyleReady() {
   if (mapReady) return;
-  clearTimeout(styleTimer);
+  clearInterval(styleTimer);
   computeZ1();
   if (window.innerWidth <= 640) resetView();
   addMapLayers();
@@ -1055,7 +1055,15 @@ map.on("load", () => { if (!usingFallback) onStyleReady(); });
 map.on("error", e => {
   if (!mapReady && !usingFallback && e && !e.sourceId) useFallbackMap(String((e.error && e.error.message) || "error"));
 });
-const styleTimer = setTimeout(() => useFallbackMap("timed out"), STYLE_TIMEOUT_MS);
+// The timeout counts only time the page is visible: a hidden tab doesn't draw,
+// so the style can't finish loading there however healthy OpenFreeMap is.
+let styleWaited = 0, styleLast = performance.now();
+const styleTimer = setInterval(() => {
+  const now = performance.now();
+  if (document.visibilityState === "visible") styleWaited += Math.min(now - styleLast, 1000);
+  styleLast = now;
+  if (styleWaited >= STYLE_TIMEOUT_MS) useFallbackMap("timed out");
+}, 250);
 
 
 let focusedAnchor = null; // person_id currently focused, or null
