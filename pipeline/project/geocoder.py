@@ -645,6 +645,8 @@ TOWN_COORDS = {
     # places named in military records (_MILT), 2026-09-25
     "cartagena|colombia": (10.391, -75.479),
     "greensboro|north carolina": (36.073, -79.792),
+    "saint-mihiel|france": (48.897, 5.543),     # Saint-Mihiel offensive, Sept 1918
+    "waterloo|belgium": (50.715, 4.399),
     "toronto|ontario": (43.653, -79.383),     # Cartagena de Indias (Vernon's expedition, 1741)
     "west point|new york": (41.391, -73.956),
     "drogheda|ireland": (53.717, -6.350),

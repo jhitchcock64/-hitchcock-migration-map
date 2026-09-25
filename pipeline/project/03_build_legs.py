@@ -39,6 +39,24 @@ def parse_year(datestr, birth_year=None):
             return sensible[0]
     return years[0]
 
+MONTHS = {m: i + 1 for i, m in enumerate(
+    ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"])}
+
+
+def month_day(datestr, year):
+    """Month and day of a single dated event in `year` ("4 Jun 1918" -> 6*32+4),
+    for ordering stops within one year; 0 when the date gives only the year
+    or is a range. (Added 2026-09-25: stops used to be ordered by year only,
+    so a sailing in June and a battle in September of the same year could
+    come out in either order.)"""
+    if not datestr or len(re.findall(r"\d{4}", datestr)) != 1:
+        return 0
+    m = re.search(r"(?:(\d{1,2})\s+)?([A-Za-z]{3})[a-z]*\.?\s+" + str(year), datestr)
+    if not m or m.group(2).lower() not in MONTHS:
+        return 0
+    return MONTHS[m.group(2).lower()] * 32 + int(m.group(1) or 0)
+
+
 import math
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -140,12 +158,12 @@ def person_stops(pid):
         if yr is None:
             continue
         evs.append({"label": label, "lat": lat, "lon": lon, "tier": tier,
-                     "year": yr, "type": e["type"]})
+                     "year": yr, "type": e["type"], "md": month_day(e["date"], yr)})
         if e["type"] in ("BIRT", "DEAT"):
             seen_types.add(e["type"])
     evs = strip_generic_singletons(evs)
     evs = drop_home_military(evs)
-    evs.sort(key=lambda e: (e["year"], 0 if e["type"] == "BIRT" else (2 if e["type"] == "DEAT" else 1)))
+    evs.sort(key=lambda e: (e["year"], 0 if e["type"] == "BIRT" else (2 if e["type"] == "DEAT" else 1), e["md"]))
     stops = []
     for e in evs:
         if stops and haversine_km(stops[-1]["lat"], stops[-1]["lon"], e["lat"], e["lon"]) < SAME_PLACE_KM:
@@ -161,7 +179,7 @@ def drop_home_military(evs):
     enlisting at home, a pension filed at home -- adds no journey, only a
     spurious hop. Keep a military stop only if it's at least MILT_AWAY_KM from
     the person's stops on either side of it in time."""
-    order = sorted(evs, key=lambda e: (e["year"], 0 if e["type"] == "BIRT" else (2 if e["type"] == "DEAT" else 1)))
+    order = sorted(evs, key=lambda e: (e["year"], 0 if e["type"] == "BIRT" else (2 if e["type"] == "DEAT" else 1), e["md"]))
     out = []
     for i, e in enumerate(order):
         if e["type"] == "MILT":
