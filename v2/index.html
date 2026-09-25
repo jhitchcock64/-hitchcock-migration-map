@@ -102,7 +102,8 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   border-radius:8px; padding:12px 16px; z-index:10; max-width:300px;
 }
 #legend .cb-gradient { display:block; width:160px; height:10px; border-radius:3px; }
-#legend .cb-labels { display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:9px; color:var(--muted); width:160px; margin-bottom:8px; }
+#legend .cb-labels { position:relative; height:11px; font-family:var(--font-mono); font-size:9px; color:var(--muted); width:160px; margin-bottom:8px; }
+#legend .cb-labels span { position:absolute; top:0; white-space:nowrap; }
 #legend .lw-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:3px; }
 #legend .lw-swatch { width:22px; height:0; border-top-style:solid; border-color:#8a7248; }
 #legend .twin-swatch { width:22px; height:6px; border:none; background:
@@ -284,7 +285,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 </head>
 <body>
 <header>
-  <span class="eyebrow">Direct-ancestor migration &middot; 1545&ndash;2026 &middot; interactive</span>
+  <span class="eyebrow">Direct-ancestor migration &middot; <span id="year-span"></span> &middot; interactive</span>
   <h1 id="page-title">Migration Lines to Margaret Jean Hitchcock</h1>
   <p>Scroll or pinch to zoom, drag to pan, hover any line for who traveled it. Click a line to trace its full generational thread to the current target, or set a new target / isolate a path between two people below.</p>
 </header>
@@ -337,7 +338,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   </div>
   <div id="legend">
     <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
-    <div class="cb-labels"><span>1545</span><span>1841</span><span>2026</span></div>
+    <div class="cb-labels" id="cb-labels"><span></span><span></span><span></span></div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:2.7px;"></span> 1 ancestor on this route</div>
     <div class="lw-item"><span class="lw-swatch" style="border-top-width:6px;"></span> 4 ancestors on this route</div>
     <div class="lw-item"><span class="lw-swatch twin-swatch"></span> confirmed family traveling together</div>
@@ -390,6 +391,21 @@ function colorForYear(y) {
     ctx.fillStyle = _colorScale(rankT(y));
     ctx.fillRect(x, 0, 1, canvas.height);
   }
+})();
+// Legend labels and the header's year range, from the data: earliest,
+// median and latest route year. The gradient runs by year from left to
+// right, so the median goes where its year falls, not simply at the centre.
+(function renderYearLabels() {
+  const lo = Math.floor(YEAR_MIN), hi = Math.ceil(YEAR_MAX);
+  const n = _sortedYears.length;
+  const med = Math.round(n % 2 ? _sortedYears[(n - 1) / 2] : (_sortedYears[n / 2 - 1] + _sortedYears[n / 2]) / 2);
+  const [a, b, c] = document.querySelectorAll("#cb-labels span");
+  a.textContent = lo; a.style.left = "0";
+  c.textContent = hi; c.style.right = "0";
+  b.textContent = med;
+  b.style.left = (100 * (med - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) + "%";
+  b.style.transform = "translateX(-50%)";
+  document.getElementById("year-span").textContent = `${lo}–${hi}`;
 })();
 function lwFor(count) { return 1.6 + count * 1.1; }
 
