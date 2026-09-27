@@ -88,8 +88,7 @@ runner finds a working Python by itself and sets UTF-8 mode).
 7. **Commit and push** to `main`, with James's OK. GitHub Pages rebuilds in
    about a minute.
 
-`legacy.html` (the pre-rebuild page, data inline) is frozen and isn't
-updated by these steps.
+`legacy.html` (the pre-rebuild page) was removed from the site 2026-09-27 (its inline data named living family); recover it with `git show b84343f:legacy.html`.
 
 ## How the geocoder decides (pipeline/project/geocoder.py)
 
