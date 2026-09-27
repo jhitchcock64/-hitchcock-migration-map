@@ -35,6 +35,11 @@ CHECKS = """() => {
     routed: Object.values(MILITARY).flat().filter(e => e.legs.length).length,
     missing_people: Object.keys(MILITARY).filter(id => !GRAPH.people[id]).length,
     worthington_stops: (MILITARY['@I242209901667@'] || [{stops: []}])[0].stops.map(s => s.l.split(' (')[0]) };
+  out.notable = typeof NOTABLE === 'undefined' ? null : {
+    events: NOTABLE.events.length, arrivals: NOTABLE.events.filter(e => e.k === 'arrival').length,
+    missing_people: NOTABLE.events.filter(e => e.p.some(id => !GRAPH.people[id])).length,
+    godspeed: NOTABLE.events.some(e => e.sh === 'Godspeed') };
+  out.title = document.title;
   // something was actually drawn: route features on the MapLibre map
   // (index.html), or routes the Canvas 2D renderer stroked (legacy.html)
   const ml = typeof map !== 'undefined' && map && typeof map.getSource === 'function';
@@ -71,5 +76,12 @@ if r['renderer'] == 'maplibre':
         if m['missing_people']: problems.append(f"{m['missing_people']} military entries point at people missing from GRAPH")
         if m['routed'] < 20: problems.append(f"only {m['routed']} military services have routes")
         if 'Montreal' not in m['worthington_stops']: problems.append("William Worthington's captivity (Montreal) missing from MILITARY")
+    n = r.get('notable')
+    if not n: problems.append('NOTABLE missing from data.js')
+    else:
+        if n['missing_people']: problems.append(f"{n['missing_people']} notable events point at people missing from GRAPH")
+        if n['arrivals'] < 50: problems.append(f"only {n['arrivals']} arrivals in NOTABLE")
+        if not n['godspeed']: problems.append('the Godspeed landing is missing from NOTABLE')
+    if r.get('title') != 'Family History, Visualized': problems.append(f"page title is {r.get('title')!r}")
 print('\nPASS' if not problems else '\nFAIL:\n  ' + '\n  '.join(problems))
 sys.exit(1 if problems else 0)

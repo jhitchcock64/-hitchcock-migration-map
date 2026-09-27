@@ -105,7 +105,8 @@ SERVICE = [
                 S('Winchester, VA', 39.186, -78.163, 'Apr 1754', 'unit'),
                 S('Wills Creek (Cumberland, MD)', 39.652, -78.763, 'May 1754', 'unit'),
                 S('Fort Necessity (Great Meadows)', 39.815, -79.587, '3 July 1754', 'family',
-                  'the fort surrendered to the French'),
+                  'the fort surrendered to the French; family history says his part in the debacle soured his '
+                  'relations with Washington for life'),
                 S('Alexandria, VA', 38.805, -77.047, 'July 1754', 'unit', 'the regiment withdrew')]),
 
     # ---------------------------------------------------------------- Revolution
@@ -119,7 +120,8 @@ SERVICE = [
                 S('Peekskill, NY (Hudson Highlands)', 41.290, -73.920, '1777', 'unit'),
                 S('Redding, CT (winter camp)', 41.303, -73.383, 'winter 1778-79', 'unit'),
                 S('Morristown, NJ (Jockey Hollow)', 40.763, -74.543, 'winter 1779-80', 'unit'),
-                S('West Point, NY', 41.392, -73.956, 'June 1783', 'record', 'discharged')]),
+                S('West Point, NY', 41.392, -73.956, 'June 1783', 'record',
+                  'discharged; family history says he received the Badge of Merit, signed by Washington, for six years\' service')]),
 
     dict(pid='@I242086113939@', name='Henry Burdick', war='Revolution, 1777-83',
          unit='2nd New York (Col. Philip Van Cortlandt), Capt. Jacob Wright\'s company',
@@ -137,8 +139,8 @@ SERVICE = [
          unit='Waterbury\'s regt (1775), Bradley\'s regt (1776), Webb\'s regt, Connecticut line (1777-81)',
          summary='Three enlistments: 1775 under Capt. Ichabod Doolittle (Waterbury\'s, the northern campaign), '
                  '1776 under Capt. Elijah Abel (Bradley\'s), and from January 1777 under Capt. John Mills in '
-                 'Webb\'s regiment until early 1781.',
-         sources=['Pension S.35,596 (NARA 196461238): his 1818 declaration'],
+                 'Webb\'s regiment until early 1781. Family history says he was crippled for life by injuries from his service.',
+         sources=['Pension S.35,596 (NARA 196461238): his 1818 declaration', '"Our American History" (family history, 2026)'],
          stops=[S('New Canaan, CT', 41.147, -73.495, 'spring 1775', 'record'),
                 S('Albany, NY', 42.653, -73.756, 'summer 1775', 'unit', by='water'),
                 S('Ticonderoga', 43.842, -73.387, 'Aug 1775', 'unit', by='water'),
@@ -147,6 +149,8 @@ SERVICE = [
                 S('Bergen, NJ', 40.728, -74.078, 'summer 1776', 'unit', 'Bradley\'s battalion'),
                 S('New Canaan, CT', 41.147, -73.495, 'winter 1776-77', 'unit'),
                 S('Peekskill, NY (Hudson Highlands)', 41.290, -73.920, '1777', 'unit', 'Webb\'s regiment'),
+                S('Valley Forge', 40.097, -75.440, 'winter 1777-78', 'family',
+                  'family history; his own declaration doesn\'t mention Valley Forge'),
                 S('Rhode Island (battle, 29 Aug 1778)', 41.601, -71.260, 'Aug 1778', 'unit'),
                 S('New Canaan, CT', 41.147, -73.495, 'early 1781', 'record', 'discharged')]),
 
@@ -203,7 +207,10 @@ SERVICE = [
          summary='Militia service 5-16 July 1779, probably the call-out against Tryon\'s raid on New Haven, '
                  'Fairfield and Norwalk. (Pension S.36,418 is another David Bostwick.)',
          sources=['Bostock family tree (bostock.net), citing "Forum 387"'],
-         stops=[]),
+         stops=[S('New Milford, CT', 41.577, -73.408, '5 July 1779', 'record', 'enlisted'),
+                S('Fairfield, CT', 41.141, -73.263, '8 July 1779', 'conjecture', 'Tryon burned Fairfield'),
+                S('Norwalk, CT', 41.118, -73.408, '11 July 1779', 'conjecture', 'Tryon burned Norwalk'),
+                S('New Milford, CT', 41.577, -73.408, '16 July 1779', 'record', 'discharged')]),
 
     dict(pid='@I240016443308@', name='Philip Frisbee', war='Revolution, 1776-81',
          unit='17th Albany County militia (Col. William B. Whiting): captain, 3rd company; second major 1778',
@@ -288,7 +295,13 @@ SERVICE = [
          summary='Enlisted 4 April 1776; a wagon master. Died of smallpox in 1779 in an army camp in '
                  'Frederick County, Virginia.',
          sources=['Don W. Hoover, family compilation (binder); DAR application 162711'],
-         stops=[]),
+         stops=[S('Frederick County, VA (Winchester)', 39.186, -78.163, '4 Apr 1776', 'record', 'enlisted'),
+                S('Middlebrook, NJ', 40.568, -74.530, 'June 1777', 'unit'),
+                S('Brandywine', 39.872, -75.591, '11 Sept 1777', 'unit'),
+                S('Germantown', 40.040, -75.180, '4 Oct 1777', 'unit'),
+                S('Valley Forge', 40.097, -75.440, 'winter 1777-78', 'unit'),
+                S('Monmouth', 40.266, -74.320, '28 June 1778', 'unit'),
+                S('Frederick County, VA', 39.186, -78.163, '1779', 'family', 'died of smallpox in an army camp')]),
 
     dict(pid='@I242213416924@', name='John Cardwell Jr.', war='Revolution, 1778-81',
          unit='Capt. Thomas Hill\'s company: 7th Virginia, then 3rd & 7th, 5th, and 5th & 11th Virginia',
@@ -364,14 +377,15 @@ SERVICE = [
                 S('Chancellorsville', 38.310, -77.634, '2-3 May 1863', 'unit'),
                 S('Gettysburg', 39.831, -77.231, '2 July 1863', 'unit'),
                 S('Mine Run', 38.310, -77.830, 'Nov 1863', 'unit'),
-                S('The Wilderness', 38.315, -77.740, '5-6 May 1864', 'family', 'badly wounded (family tradition)'),
+                S('The Wilderness', 38.315, -77.740, '5-6 May 1864', 'family', 'wounded and left for dead (family history)'),
                 S('Trenton', 40.221, -74.760, '21 Sept 1864', 'record', 'mustered out')]),
 
     dict(pid='@I240172307606@', name='Friedrich Graden', war='Civil War, 1863',
          unit='Co. E, 8th Provisional Enrolled Missouri Militia Infantry',
-         summary='His regiment served May to November 1863 on garrison duty in southeast Missouri.',
+         summary='His company, one of five raised in Cape Girardeau County, served from May to November 1863; where '
+                 'it was posted isn\'t documented.',
          sources=['Civil War pension index (filed 10 Mar 1892; wife Apollonia)'],
-         stops=[]),
+         stops=[S('Cape Girardeau County, MO', 37.306, -89.518, 'May-Nov 1863', 'record', 'Co. E was raised here')]),
 
     dict(pid='@I242190138127@', name='William George Gregory', war='Civil War, 1861-65',
          unit='Co. D, 2nd Kentucky Mounted Infantry (Confederate); with Forrest',
@@ -391,9 +405,15 @@ SERVICE = [
          unit='Chaplain, 8th Kentucky Infantry (Confederate)',
          summary='A Methodist (M.E. South) preacher; McLean County\'s delegate to the Russellville secession '
                  'convention, 18-20 November 1861; regimental chaplain of the 8th Kentucky Infantry. His son '
-                 'James Henry died a prisoner at Camp Butler in 1862.',
+                 'James Henry died a prisoner at Camp Butler in 1862. When he served as chaplain isn\'t recorded; '
+                 'the route is the 8th Kentucky\'s from its exchange in 1862.',
          sources=['Don W. Hoover\'s write-up (2010); American Civil War Research Database (enlisted 13 Mar 1862)'],
-         stops=[]),
+         stops=[S('Calhoun (McLean Co.), KY', 37.539, -87.258, 'Mar 1862', 'family', 'home'),
+                S('Vicksburg', 32.353, -90.878, 'Sept 1862', 'unit', 'the regiment exchanged after Donelson'),
+                S('Champion Hill', 32.323, -90.558, '16 May 1863', 'unit'),
+                S('Paducah', 37.083, -88.600, '25 Mar 1864', 'unit', 'mounted, under Forrest'),
+                S("Brice's Crossroads", 34.505, -88.730, '10 June 1864', 'unit'),
+                S('Tupelo', 34.258, -88.703, 'July 1864', 'unit')]),
 
     # ------------------------------------------------------------ World War I
     dict(pid='@I240014575248@', name='Arthur John Mehrle', war='World War I, 1918',
@@ -409,10 +429,222 @@ SERVICE = [
                 S('Le Havre', 49.494, 0.107, 'June 1918', 'unit', by='rail'),
                 S('Reynel (training area)', 48.298, 5.347, 'July 1918', 'unit', by='rail'),
                 S('Toul sector (Lucey)', 48.725, 5.819, 'Aug 1918', 'unit'),
-                S('Saint-Mihiel offensive (near Xammes)', 48.969, 5.850, '12 Sept 1918', 'record'),
+                S('Saint-Mihiel offensive (near Xammes)', 48.969, 5.850, '12 Sept 1918', 'record',
+                  'shot in the head (family history); he survived and lived six more decades'),
                 S('St-Aignan (casual depot)', 47.269, 1.376, 'Dec 1918', 'record', 'casual company 406', gap=True),
                 S('Saint-Nazaire', 47.274, -2.214, '28 Dec 1918', 'record', 'sailed on the Finland', by='rail'),
                 S('New York', 40.713, -74.006, 'Jan 1919', 'record', by='sea',
                   way=[(47.05, -2.6), (47.6, -5.2), (48.6, -6.4)], via=['~scilly_w', 'new_york']),
                 S('Cape Girardeau, MO', 37.306, -89.518, '1919', 'family', by='rail')]),
+]
+
+
+# ======================== Jennie Askew's side (researched 2026-09-27) ========================
+SERVICE += [
+    # ---------------------------------------------------------------- Revolution
+    dict(pid='@I242788703578@', name='Patrick Masterson', war='Revolution, 1780-82',
+         unit='Virginia militia (Capt. William Jennings, Col. James Clark), then the Virginia line under Steuben and Lafayette',
+         summary='Volunteered in Shenandoah County in the spring of 1780 and marched over the Blue Ridge to Albemarle, '
+                 'where he enlisted for the war. Richmond, a winter on the Chickahominy, the battle at Jamestown '
+                 '(Green Spring, July 1781), then with Washington\'s army to the siege of Yorktown; afterwards guarded '
+                 'the British prisoners at Winchester until he was discharged, 19 June 1782.',
+         sources=['Pension file 32,495 / R.7012 (NARA 196226034): his declaration, Morgan Co., KY, 6 June 1842'],
+         stops=[S('Shenandoah County, VA', 38.881, -78.506, 'spring 1780', 'record', 'volunteered under Capt. Jennings'),
+                S('Albemarle (the Barracks)', 38.080, -78.490, 'May 1780', 'record', 'over the Blue Ridge; enlisted for the war'),
+                S('Richmond', 37.541, -77.436, '1780', 'record'),
+                S('The Chickahominy', 37.515, -77.187, 'winter 1780-81', 'record', 'wintered there'),
+                S('Jamestown (Green Spring)', 37.236, -76.795, '6 July 1781', 'record', 'in the battle, under Muhlenberg'),
+                S('Williamsburg', 37.271, -76.708, 'Sept 1781', 'record', 'joined Washington\'s army'),
+                S('Yorktown (siege)', 37.239, -76.510, '19 Oct 1781', 'record', 'the surrender'),
+                S('Winchester', 39.186, -78.163, '19 June 1782', 'record', 'guarded the prisoners; discharged')]),
+
+    dict(pid='@I242788441117@', name='Richard Bonner', war='Revolution, 1777-83',
+         unit='2nd Virginia (Cols. Spotswood and Febiger): private, corporal 1778, sergeant 1779',
+         summary='On the 2nd Virginia\'s rolls from May 1777, a corporal from 15 April 1778 and a sergeant by 1779; '
+                 'received his certificate for the balance of his pay himself, 2 September 1783. The rolls give no '
+                 'places, so the route is his regiment\'s.',
+         sources=['Compiled service record (NARA 142176108, M881)'],
+         stops=[S('Dinwiddie County, VA', 37.077, -77.587, '1777', 'family', 'home'),
+                S('Brandywine', 39.872, -75.591, '11 Sept 1777', 'unit'),
+                S('Germantown', 40.040, -75.180, '4 Oct 1777', 'unit'),
+                S('Valley Forge', 40.097, -75.440, 'winter 1777-78', 'unit', 'present on the January 1778 roll'),
+                S('Monmouth', 40.266, -74.320, '28 June 1778', 'unit'),
+                S('Middlebrook, NJ', 40.568, -74.530, 'winter 1778-79', 'unit', 'a sergeant by February 1779'),
+                S('Sussex County, VA', 36.922, -77.260, '1783', 'family', 'home')]),
+
+    dict(pid='@I242788690618@', name='Nathaniel Maynard', war='Revolution, 1778-79',
+         unit='1st Virginia (Col. Richard Parker), Capt. Cummins\' and Lt. Col. Ball\'s companies',
+         summary='Enlisted 4 February 1778 for one year; on the April 1778 pay roll (Valley Forge) and on the '
+                 'January 1779 muster roll dated at Middlebrook, New Jersey.',
+         sources=['Compiled service record (NARA 141545288, M881)'],
+         stops=[S('Charles City County, VA', 37.343, -77.070, 'Feb 1778', 'family', 'home'),
+                S('Valley Forge', 40.097, -75.440, 'Apr 1778', 'unit', 'on the April pay roll'),
+                S('Monmouth', 40.266, -74.320, '28 June 1778', 'unit'),
+                S('Middlebrook, NJ', 40.568, -74.530, 'Feb 1779', 'record', 'muster roll dated 5 Feb 1779')]),
+
+    dict(pid='@I242612391585@', name='Christopher Osborne', war='Revolution, 1781',
+         unit='North Carolina (pay voucher)',
+         summary='A North Carolina Revolutionary pay voucher of 14 June 1781, from the Salisbury District auditors. '
+                 'It shows he served, not where.',
+         sources=['North Carolina Revolutionary pay vouchers (FamilySearch index)'],
+         stops=[]),
+
+    # ---------------------------------------------------------------- War of 1812
+    dict(pid='@I242612042157@', name='Charles Love', war='War of 1812',
+         unit='Private, Capt. Walker\'s company, North Carolina Militia',
+         summary='Served as a private in Capt. Walker\'s company of North Carolina militia.',
+         sources=['War of 1812 service records index (NARA M602, roll 128)'],
+         stops=[]),
+
+    dict(pid='@I242611471046@', name='William Calmes Buck', war='War of 1812',
+         unit='1st Lieutenant, 2nd Regiment Virginia Militia',
+         summary='A first lieutenant in the 2nd Virginia Militia; licensed to preach in August 1812, he is said to '
+                 'have preached his first sermon in uniform. In his seventies he was a travelling chaplain to '
+                 'Confederate camps and hospitals.',
+         sources=['War of 1812 service records index (NARA M602, roll 28); Wikipedia, "William Calmes Buck"'],
+         stops=[]),
+
+    # ---------------------------------------------------------------- Civil War
+    dict(pid='@I242611466570@', name='Thomas J. Askew', war='Civil War, 1861-65',
+         unit='Co. H, 31st Georgia Infantry (Lawton\'s, later Gordon\'s brigade)',
+         summary='Enlisted at Hamilton, Harris County, 13 November 1861. Wounded at Gaines\' Mill, 27 June 1862: a '
+                 'minié ball broke his right forearm and left the arm useless. Home on wounded furlough that winter; '
+                 'back with the army and paroled at Appomattox, 9 April 1865. Where he was in between isn\'t recorded.',
+         sources=['Compiled service record (NARA 76366097, M266); Georgia Confederate pension, Harris Co., 1887-89 '
+                  '(Georgia Archives Virtual Vault)'],
+         stops=[S('Hamilton, Harris Co., GA', 32.757, -84.875, '13 Nov 1861', 'record', 'enlisted'),
+                S('Richmond', 37.541, -77.436, 'June 1862', 'record', 'paid at Richmond, July 1862', by='rail'),
+                S('Gaines\' Mill', 37.566, -77.293, '27 June 1862', 'record', 'wounded in the right arm'),
+                S('Hamilton, Harris Co., GA', 32.757, -84.875, 'Nov-Dec 1862', 'record', 'absent on wounded furlough', by='rail'),
+                S('Appomattox Court House', 37.377, -78.797, '9 Apr 1865', 'record', 'paroled', gap=True)]),
+
+    dict(pid='@I242611467606@', name='Augustine "Gustus" Snow', war='Civil War, 1861-65',
+         unit='Greene Rough and Readys; Co. D, 4th Virginia Heavy Artillery; Co. D, 34th Virginia Infantry (Wise\'s brigade)',
+         summary='Enrolled at Stanardsville in May 1861 and mustered in at Culpeper Court House; re-enlisted for the '
+                 'war in 1862. Home on furlough in February 1863. Deserted to the Union lines at Petersburg, 21 February '
+                 '1865; took the oath at Washington and was given transport to Cincinnati.',
+         sources=['Compiled service record (NARA 97345344, M324)'],
+         stops=[S('Stanardsville, VA', 38.297, -78.440, 'May 1861', 'record', 'enrolled'),
+                S('Culpeper Court House', 38.473, -77.997, 'June 1861', 'record', 'mustered in'),
+                S('Chaffin\'s Bluff (James River)', 37.400, -77.340, '1862-63', 'unit', '4th Virginia Heavy Artillery'),
+                S('Petersburg lines', 37.228, -77.402, '21 Feb 1865', 'record', 'deserted to the enemy'),
+                S('City Point', 37.312, -77.286, '21 Feb 1865', 'record'),
+                S('Washington, DC', 38.895, -77.036, '24 Feb 1865', 'record', 'took the oath', by='sea'),
+                S('Cincinnati', 39.103, -84.512, 'Mar 1865', 'record', 'transportation furnished', by='rail')]),
+
+    dict(pid='@I242611467434@', name='Merriwether L. Snow', war='Civil War, 1864',
+         unit='Co. F, 35th Battalion Virginia Cavalry (White\'s "Comanches"); 5th sergeant from 5 May 1864',
+         summary='On the rolls of the 35th Battalion Virginia Cavalry (Rosser\'s Laurel Brigade) from April to August 1864; '
+                 'made fifth sergeant 5 May 1864, the first day of the Wilderness. The route is his battalion\'s to the '
+                 'last roll that shows him.',
+         sources=['NPS Soldiers and Sailors (M382, roll 52); Virginia Regimental Histories series'],
+         stops=[S('Greene County, VA', 38.297, -78.440, 'spring 1864', 'family', 'home'),
+                S('The Wilderness', 38.315, -77.740, '5-6 May 1864', 'unit', 'made 5th sergeant 5 May 1864'),
+                S('Spotsylvania', 38.201, -77.590, 'May 1864', 'unit'),
+                S('Trevilian Station', 38.047, -78.070, '11-12 June 1864', 'unit'),
+                S('Petersburg (Reams Station)', 37.138, -77.431, 'Aug 1864', 'unit', 'on the rolls 31 Aug 1864')]),
+
+    dict(pid='@I242611467540@', name='Albert Michie Shifflett', war='Civil War, 1861-62',
+         unit='Uncertain: 58th Virginia Militia, Co. A, or the White Hall Guards (Co. H, 56th Virginia)',
+         summary='Two Albert Shiffletts appear: one in the 58th Virginia Militia, enlisted at Harrisonburg 12 November '
+                 '1861 and on the rolls at Winchester to March 1862; one in Capt. J. Augustus Michie\'s White Hall '
+                 'Guards of Albemarle, later listed as a deserter. Which is him isn\'t known.',
+         sources=['Compiled service records (NARA 98452752, 98396887, M324)'],
+         stops=[S('Harrisonburg, VA', 38.449, -78.869, '12 Nov 1861', 'conjecture', 'enlisted (if this is him)'),
+                S('Winchester', 39.186, -78.163, 'Dec 1861', 'conjecture', 'roll dated 10 Dec 1861'),
+                S('Harrisonburg, VA', 38.449, -78.869, 'Mar 1862', 'conjecture', 'the militia disbanded')]),
+
+    dict(pid='@I242611467559@', name='Reuben Lamb', war='Civil War, 1861-62',
+         unit='Co. B, 58th Virginia Militia (4th Regiment, 7th Brigade)',
+         summary='Enlisted at Winchester 23 November 1861, when the 58th Militia was called out for six months; '
+                 'the regiment was disbanded in March 1862.',
+         sources=['Compiled service record (NARA 98451180, M324)'],
+         stops=[S('Greene County, VA', 38.297, -78.440, 'Nov 1861', 'family', 'home'),
+                S('Winchester', 39.186, -78.163, '23 Nov 1861', 'record', 'enlisted; roll dated 10 Dec 1861'),
+                S('Greene County, VA', 38.297, -78.440, 'Mar 1862', 'unit', 'the regiment disbanded')]),
+
+    dict(pid='@I242611467681@', name='Hiram "Harm" Banks Shifflett', war='Civil War, 1861',
+         unit='Unknown (possibly the "H. B. Shifflett" of the 88th Virginia Militia)',
+         summary='Family tradition, told by his granddaughter-in-law: he deserted after seeing Bull Run run red, fled '
+                 'west and settled in Hopkins Gap. The author found in the census that he actually left Greene County '
+                 'between 1880 and 1890.',
+         sources=['"The Red Flannel Rag" (family memoir), pp. 42-43; NARA index card, H. B. Shifflett, 88th Va. Militia'],
+         stops=[]),
+
+    dict(pid='@I242611467616@', name='William Suel Morris', war='Civil War',
+         unit='Possibly Co. C, 14th Virginia Infantry',
+         summary='A William S. Morris served as a private in Co. C, 14th Virginia Infantry. The 14th was raised mostly '
+                 'in Southside counties, so this may be another man.',
+         sources=['NPS Soldiers and Sailors (M382, roll 39)'],
+         stops=[]),
+
+    dict(pid='@I242611468681@', name='Charles Willis Buck Sr.', war='Civil War, 1864',
+         unit='Chaplain, 42nd Alabama Infantry',
+         summary='Appointed chaplain of the 42nd Alabama 8 January 1864 (rank from 23 October 1863), delivered through '
+                 'Gen. Johnston at Dalton; paid as chaplain for May 1864, as the Atlanta campaign opened. A Mobile paper '
+                 'in November 1864 had him moved from the Levert officers\' hospital to Uniontown.',
+         sources=['Confederate officers\' service record (NARA 51159807, M331); Army Argus and Crisis, Mobile, 12 Nov 1864; '
+                  'NPS Soldiers and Sailors (M374)'],
+         stops=[S('Marion, AL', 32.632, -87.319, '1863', 'family', 'home'),
+                S('Dalton, GA', 34.770, -84.970, 'Jan 1864', 'record', 'appointment delivered through Gen. Johnston', by='rail'),
+                S('Resaca', 34.580, -84.940, 'May 1864', 'unit'),
+                S('Kennesaw Mountain', 33.983, -84.578, 'June 1864', 'unit'),
+                S('Atlanta', 33.749, -84.388, 'July 1864', 'unit'),
+                S('Mobile (Levert hospital)', 30.694, -88.043, '1864', 'record', by='rail'),
+                S('Uniontown, AL', 32.449, -87.514, 'Nov 1864', 'record', 'moved from the hospital', by='rail')]),
+
+    dict(pid='@I242611471538@', name='Thomas Jefferson Dismukes', war='Civil War, 1862-65',
+         unit='Probably Co. K, 39th Alabama Infantry',
+         summary='"Jefferson Y. Dismukes", aged 33, enlisted in Barbour County, Alabama, on the 15 May 1862 muster roll '
+                 'of Co. K, 39th Alabama: very likely him. The route is the 39th Alabama\'s, through the Army of Tennessee.',
+         sources=['Alabama Civil War service database (ADAH SG025049), per James; NPS index lists a T. J. Dismukes '
+                  'in the 61st Alabama'],
+         stops=[S('Barbour County, AL (Clayton)', 31.878, -85.450, 'May 1862', 'family', 'enlisted (if this is him)'),
+                S('Murfreesboro', 35.846, -86.392, 'Dec 1862', 'unit', by='rail'),
+                S('Chickamauga', 34.920, -85.260, 'Sept 1863', 'unit'),
+                S('Missionary Ridge', 35.020, -85.260, 'Nov 1863', 'unit'),
+                S('Atlanta', 33.749, -84.388, 'July 1864', 'unit'),
+                S('Franklin, TN', 35.925, -86.869, '30 Nov 1864', 'unit'),
+                S('Nashville', 36.162, -86.781, 'Dec 1864', 'unit'),
+                S('Bentonville, NC', 35.300, -78.320, 'Mar 1865', 'unit', by='rail')]),
+
+    dict(pid='@I242611471478@', name='Thomas T. Wyche', war='Civil War, 1862',
+         unit='Georgia (unit not known)',
+         summary='An index lists a Thomas Wyche enlisting in Georgia on 10 April 1862, with no unit. He would have been 51; '
+                 'it may be another man.',
+         sources=['American Civil War Research Database (Historical Data Systems)'],
+         stops=[]),
+
+    dict(pid='@I242611467268@', name='William Warren Hardin Sr.', war='Civil War, 1862',
+         unit='Georgia militia, Tattnall County (unit not known)',
+         summary='On a Tattnall County, Georgia, muster roll of 4 March 1862. Identity uncertain.',
+         sources=['Georgia Civil War muster rolls, 1860-1864 (index)'],
+         stops=[]),
+]
+
+# ======================== from "Our American History" (James's family history) ========================
+SERVICE += [
+    dict(pid='@I240016590578@', name='John Speer Jr.', war='War of 1812, 1812',
+         unit='A Kentucky company (not named)',
+         summary='After the Pigeon Roost massacre (3 September 1812), his company marched from Kentucky to Vincennes, '
+                 'Indiana, on a retaliatory expedition, and met not a single Indian the whole way.',
+         sources=['"Our American History" (family history, 2026)'],
+         stops=[S('Kentucky (Louisville)', 38.253, -85.759, 'Sept 1812', 'family'),
+                S('Pigeon Roost, IN', 38.600, -85.720, 'Sept 1812', 'family', 'the massacre site'),
+                S('Vincennes, IN', 38.677, -87.528, 'autumn 1812', 'family')]),
+
+    dict(pid='@I240023089394@', name='Frederick "Fritz" Schwab', war='Civil War, 1863',
+         unit='Missouri Home Guard',
+         summary='Registered for the draft 1 July 1863 and soon afterwards enlisted with the Union in the Missouri '
+                 'Home Guard. (The only Home Guard record found, a Friedrich Schwab of the Gasconade County regiment, '
+                 'is probably another man.)',
+         sources=['"Our American History" (family history, 2026)', 'Civil War draft registrations (Cape Girardeau)'],
+         stops=[]),
+
+    dict(pid='@I242261004267@', name='Thomas Robertson', war='Revolution, about 1776',
+         unit='Not known',
+         summary='Family history says he came from Aberdeen to the colonies about 1776 for the express purpose of '
+                 'joining the war against the British.',
+         sources=['"Our American History" (family history, 2026)'],
+         stops=[]),
 ]

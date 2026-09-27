@@ -5,8 +5,8 @@ own file.
 
   python pipeline/project/write_data_js.py data.js
 
-The eight generated arrays (ROUTES, CLUSTERS, PLACES, SEARCH_INDEX, GRAPH,
-PERSON_LEGS, CORRIDORS, MILITARY) come from pipeline/build2/*.json, serialised exactly as
+The nine generated arrays (ROUTES, CLUSTERS, PLACES, SEARCH_INDEX, GRAPH,
+PERSON_LEGS, CORRIDORS, MILITARY, NOTABLE) come from pipeline/build2/*.json, serialised exactly as
 graft.py did. VB (the default view), which the pipeline doesn't produce, is
 copied byte for byte from the existing data.js. (BASEMAP and REF_CITIES,
 used only by the pre-MapLibre page, were dropped from data.js; legacy.html
@@ -24,10 +24,11 @@ if len(sys.argv) != 2:
     raise SystemExit('usage: python pipeline/project/write_data_js.py <path/to/data.js>')
 path = _os.path.join(_ORIG_CWD, sys.argv[1])
 
-ORDER = ['ROUTES', 'CLUSTERS', 'PLACES', 'VB', 'SEARCH_INDEX', 'GRAPH', 'PERSON_LEGS', 'CORRIDORS', 'MILITARY']
+ORDER = ['ROUTES', 'CLUSTERS', 'PLACES', 'VB', 'SEARCH_INDEX', 'GRAPH', 'PERSON_LEGS', 'CORRIDORS', 'MILITARY', 'NOTABLE']
 GENERATED = {'ROUTES': 'routes_prepared.json', 'CLUSTERS': 'clusters_prepared.json', 'PLACES': 'places_prepared.json',
              'SEARCH_INDEX': 'search_index.json', 'GRAPH': 'person_graph.json', 'PERSON_LEGS': 'person_legs.json',
-             'CORRIDORS': 'corridors_prepared.json', 'MILITARY': 'military_prepared.json'}
+             'CORRIDORS': 'corridors_prepared.json', 'MILITARY': 'military_prepared.json',
+             'NOTABLE': 'notable_prepared.json'}
 
 old = open(path, encoding='utf-8').read().split('\n')
 header, lines = [], {}

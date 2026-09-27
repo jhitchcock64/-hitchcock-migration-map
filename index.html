@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Migration Lines to Margaret Jean Hitchcock -- Interactive</title>
+<title>Family History, Visualized</title>
 <link rel="stylesheet" href="vendor/maplibre-gl-4.7.1/maplibre-gl.css">
 <style>
 :root {
@@ -114,35 +114,33 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #legend .cb-labels span::before { content:""; position:absolute; left:50%; top:-5px; height:4px; border-left:1px solid var(--muted); }
 #legend .lw-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:3px; }
 #legend .lw-swatch { width:22px; height:0; border-top-style:solid; border-color:#8a7248; }
-#legend .lines-toggle { display:flex; gap:3px; margin-bottom:8px; }
-#legend .lines-btn {
-  font-family:var(--font-mono); font-size:9.5px; padding:4px 7px; border-radius:5px; cursor:pointer;
-  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4); color:var(--muted);
-}
-#legend .lines-btn.active { background:var(--border-stroke); color:var(--panel-bg); border-color:var(--border-stroke); }
-#legend .lines-btn:hover:not(.active) { background:rgba(156,122,46,0.15); }
 #legend .likely-only { display:none; }
 #legend.likely .likely-only { display:flex; }
 #legend .likely-note { font-size:10px; color:var(--muted); margin:-3px 0 7px; max-width:230px; line-height:1.35; }
 #legend .stripe-swatch { width:22px; height:9px; border:none; border-radius:1px;
   background:linear-gradient(to bottom, #0f8a7a 0 25%, #2050d6 25% 50%, #8033d6 50% 75%, #e0359e 75%); }
 /* military service: a toggle and, while any service is on the map, its key */
-#legend .mil-toggle { display:flex; align-items:center; gap:7px; margin-top:8px; font-size:11px; color:var(--muted);
+#legend .layers { display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
+#legend .layer-toggle { display:flex; align-items:center; gap:7px; margin-top:0; font-size:11px; color:var(--muted);
   cursor:pointer; background:none; border:none; padding:0; font-family:inherit; }
-#legend .mil-toggle .box { width:12px; height:12px; border:1px solid rgba(156,122,46,0.6); border-radius:3px;
+#legend .layer-toggle .box { width:12px; height:12px; border:1px solid rgba(156,122,46,0.6); border-radius:3px;
   display:inline-flex; align-items:center; justify-content:center; font-size:10px; line-height:1; color:#fff; }
-#legend .mil-toggle[aria-pressed="true"] { color:var(--ink); }
-#legend .mil-toggle[aria-pressed="true"] .box { background:#2f3d12; border-color:#2f3d12; }
-#legend .mil-toggle[aria-pressed="true"] .box::after { content:"\2713"; }
-#legend .mil-toggle:focus-visible { outline:2px solid var(--border-stroke); outline-offset:2px; }
-#legend .mil-key { display:none; flex-direction:column; gap:2px; margin:4px 0 0 19px; font-size:10px; color:var(--muted); }
+#legend .layer-toggle[aria-pressed="true"] { color:var(--ink); }
+#legend .layer-toggle[aria-pressed="true"] .box { background:#2f3d12; border-color:#2f3d12; }
+#legend .layer-toggle[aria-pressed="true"] .box::after { content:"\2713"; }
+#legend .layer-toggle:focus-visible { outline:2px solid var(--border-stroke); outline-offset:2px; }
+#legend .notable-key { display:none; gap:10px; margin:0 0 6px; font-size:10px; color:var(--muted); flex-wrap:wrap; }
+#legend.notable .notable-key { display:flex; }
+#legend .notable-key span { display:flex; align-items:center; gap:4px; }
+#legend .nb-dot { width:9px; height:9px; border-radius:50%; border:1.5px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,0.25); }
+#legend .mil-key { display:none; flex-direction:column; gap:2px; margin:0 0 6px 19px; font-size:10px; color:var(--muted); }
 #legend.mil .mil-key { display:flex; }
 #legend .mil-key span { display:flex; align-items:center; gap:6px; }
 #legend .mil-sw { width:20px; height:0; border-top:3px solid; }
 #legend .hint { font-family:var(--font-mono); font-size:10px; color:var(--muted); margin-top:8px; border-top:1px solid rgba(156,122,46,0.25); padding-top:6px; }
 #legend .hint.credit { font-size:9px; margin-top:3px; border-top:none; padding-top:0; opacity:0.8; }
 
-#search-box { position:absolute; top:14px; left:14px; z-index:10; max-width:220px; }
+#search-box { position:absolute; top:14px; left:14px; z-index:10; max-width:240px; }
 #search-modes { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:5px; }
 .mode-btn {
   font-family:var(--font-mono); font-size:9.5px; padding:4px 7px; border-radius:5px; cursor:pointer;
@@ -157,10 +155,10 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #path-status.active { display:block; }
 #path-status .clear-path { color:var(--muted); cursor:pointer; text-decoration:underline; margin-left:6px; }
 #search-input {
-  font-family:var(--font-mono); font-size:12px; padding:7px 10px; width:150px;
+  font-family:var(--font-mono); font-size:12px; padding:7px 10px; width:190px;
   border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
 }
-#search-input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; width:200px; }
+#search-input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; width:210px; }
 #surname-input {
   font-family:var(--font-mono); font-size:12px; padding:7px 10px; width:150px;
   border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
@@ -316,8 +314,8 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 </head>
 <body>
 <header>
-  <h1 id="page-title">Migration Lines to Margaret Jean Hitchcock</h1>
-  <span class="eyebrow">Direct-ancestor migration &middot; <span id="year-span"></span></span>
+  <h1 id="page-title">Family History, Visualized</h1>
+  <span class="eyebrow">Direct ancestors: migration, service and history &middot; <span id="year-span"></span></span>
 </header>
 <div id="map-wrap">
   <div id="map" role="application" aria-label="Interactive migration map. Use the search box to find an ancestor, or the zoom buttons to navigate."></div>
@@ -330,7 +328,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
       <button class="mode-btn" data-mode="surname" title="Highlight every journey by anyone with a matching surname">Surname</button>
     </div>
     <div id="path-status"></div>
-    <input id="search-input" type="text" placeholder="Find an ancestor..." aria-label="Search for an ancestor by name" autocomplete="off">
+    <input id="search-input" type="text" placeholder="Show family history of..." aria-label="Search for an ancestor by name" autocomplete="off">
     <input id="surname-input" type="text" placeholder="e.g. Speer" aria-label="Filter by surname" autocomplete="off" style="display:none;">
     <div id="year-range-box" style="display:none;">
       <input id="year-from" type="number" placeholder="From" aria-label="Start year" inputmode="numeric">
@@ -360,20 +358,26 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <span id="zoomLevel">1.0&times;</span>
   </div>
   <div id="legend">
-    <div class="lines-toggle" role="group" aria-label="How moves are drawn">
-      <button class="lines-btn active" id="lines-likely" aria-pressed="true" title="Moves along the roads, rivers, railroads and highways of their time">Likely routes</button>
-      <button class="lines-btn" id="lines-direct" aria-pressed="false" title="Each move as a line from the old home to the new one">Direct lines</button>
+    <div class="layers" role="group" aria-label="Layers">
+      <button class="layer-toggle" id="layer-likely" aria-pressed="true" title="Moves along the roads, rivers, railroads and highways of their time"><span class="box"></span>Likely routes</button>
+      <button class="layer-toggle" id="layer-known" aria-pressed="false" title="Each documented move as a line from the old home to the new one"><span class="box"></span>Known movements</button>
+      <button class="layer-toggle" id="mil-toggle" aria-pressed="false" title="Where ancestors served: campaigns, battles, camps and captivity, from pension files, service records and family histories"><span class="box"></span>Military service</button>
+      <button class="layer-toggle" id="layer-notable" aria-pressed="false" title="Arrivals in America and other moments from the family's history"><span class="box"></span>Notable events</button>
     </div>
     <div class="likely-note likely-only">Moves follow the roads, rivers, railroads and highways of their time. The route is inferred; the records give only the places and years.</div>
     <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
     <div class="cb-labels" id="cb-labels"></div>
     <div class="lw-item likely-only"><span class="stripe-swatch"></span> a road or river several ancestors used; one stripe per route, oldest to newest, width by number of ancestors</div>
-    <button class="mil-toggle" id="mil-toggle" aria-pressed="false" title="Where ancestors served: campaigns, battles, camps and captivity, from pension files, service records and family histories"><span class="box"></span>Military service</button>
     <div class="mil-key">
       <span><i class="mil-sw" style="border-color:#2f3d12"></i>documented for him</span>
       <span><i class="mil-sw" style="border-color:#7a8a3c"></i>his regiment's movements</span>
       <span><i class="mil-sw" style="border-color:#8c6a34"></i>family account or history</span>
       <span><i class="mil-sw" style="border-color:#7a8a3c; border-top-style:dashed"></i>a guess</span>
+    </div>
+    <div class="notable-key">
+      <span><i class="nb-dot" style="background:#b5462f"></i>event</span>
+      <span><i class="nb-dot" style="background:#fff; border-color:#b5462f"></i>family story</span>
+      <span><i class="nb-dot" style="background:#1f5f8b"></i>arrival in America</span>
     </div>
     <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = who traveled &middot; click = trace the line to the target &middot; search top-left</div>
   </div>
@@ -835,6 +839,10 @@ function addMapLayers() {
              "circle-stroke-width": 2.5, "circle-stroke-opacity": 0.85 } });
   map.addLayer({ id: "stationary-dot", type: "circle", source: "stationary",
     paint: { "circle-radius": 3, "circle-color": "#9c3c2e", "circle-opacity": 0.85 } });
+  // known movements drawn faintly under the likely routes, when both layers are on
+  map.addSource("routes-ghost", { type: "geojson", data: fc([]) });
+  map.addLayer({ id: "routes-ghost", type: "line", source: "routes-ghost", layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": ["get", "color"], "line-opacity": 0.45, "line-width": 1.3, "line-dasharray": [2, 2] } }, "routes-plain");
   // military service (drawn over the focused thread, so a life journey shows both)
   for (const id of ["mil", "mil-arrows", "mil-stops"]) map.addSource(id, { type: "geojson", data: fc([]) });
   const isRecord = ["==", ["get", "c"], "record"];
@@ -851,6 +859,13 @@ function addMapLayers() {
     paint: { "icon-color": ["get", "color"], "icon-opacity": 0.95 } });
   map.addLayer({ id: "mil-stops", type: "circle", source: "mil-stops",
     paint: { "circle-radius": 4, "circle-color": "#ffffff", "circle-stroke-color": ["get", "color"], "circle-stroke-width": 2 } });
+  // notable events: a pin for each (arrivals smaller)
+  map.addSource("notable", { type: "geojson", data: fc([]) });
+  map.addLayer({ id: "notable", type: "circle", source: "notable",
+    paint: { "circle-radius": ["case", ["==", ["get", "k"], "arrival"], 4.2, 5.6],
+             "circle-color": ["match", ["get", "k"], "arrival", "#1f5f8b", "story", "#ffffff", "#b5462f"],
+             "circle-stroke-color": ["match", ["get", "k"], "story", "#b5462f", "#ffffff"],
+             "circle-stroke-width": ["match", ["get", "k"], "story", 2.2, 1.6] } });
   // family places (placed before the style's own labels, so they win
   // collisions). Text needs the style's fonts, so the fallback map shows dots only.
   map.addLayer({ id: "places", type: "symbol", source: "places",
@@ -931,24 +946,26 @@ let aggregationShown = null;
 function applyAggregation(force) {
   if (!mapReady) return;
   const aggregating = !focusActive && currentTransform.k < AGGREGATE_ZOOM_THRESHOLD;
-  const key = aggregating + "|" + focusActive;
+  const key = aggregating + "|" + focusActive + "|" + showLikely + "|" + showKnown;
   if (!force && key === aggregationShown) return;
   aggregationShown = key;
   const keep = aggregating ? ["!", ["get", "clustered"]] : true;
   map.setFilter("routes-plain", keep);
   map.setFilter("route-arrows", keep);
-  const normal = focusActive ? "none" : "visible";
+  const moves = showLikely || showKnown;
+  const normal = focusActive || !moves ? "none" : "visible";
   for (const id of ["routes-plain", "route-arrows", "bundles", "bundle-casings"])
     map.setLayoutProperty(id, "visibility", normal);
-  map.setLayoutProperty("bundles-dim", "visibility", focusActive ? "visible" : "none");
-  for (const id of ["clusters", "cluster-arrows"]) map.setLayoutProperty(id, "visibility", aggregating ? "visible" : "none");
-  map.setLayoutProperty("routes-dim", "visibility", focusActive ? "visible" : "none");
+  map.setLayoutProperty("routes-ghost", "visibility", normal === "visible" && showLikely && showKnown ? "visible" : "none");
+  map.setLayoutProperty("bundles-dim", "visibility", focusActive && moves ? "visible" : "none");
+  for (const id of ["clusters", "cluster-arrows"]) map.setLayoutProperty(id, "visibility", aggregating && moves ? "visible" : "none");
+  map.setLayoutProperty("routes-dim", "visibility", focusActive && moves ? "visible" : "none");
 }
 
 // ---- keeping the map in step with the page's state ----
 // redrawAll() is what the rest of the page calls after changing the target,
 // the focus, the hovered move or the view; it pushes only what changed.
-let shownTarget = null, shownThread = null, shownLikely = null, shownEdgeRoutes = new Map(), shownMil = null;
+let shownTarget = null, shownThread = null, shownLikely = null, shownEdgeRoutes = new Map(), shownMil = null, shownGhost = null, shownNotable = null;
 function redrawAll() {
   if (!mapReady) return;
   if (shownTarget !== CURRENT_TARGET || shownLikely !== likelyRoutes) {
@@ -978,6 +995,21 @@ function redrawAll() {
     const sp = focusActive && focusedStationaryPoint;
     map.getSource("stationary").setData(fc(sp ? [{ type: "Feature", properties: {},
       geometry: { type: "Point", coordinates: toLL(sp.x, sp.y) } }] : []));
+  }
+  const ghostKey = showLikely && showKnown ? CURRENT_TARGET : null;
+  if (ghostKey !== shownGhost) {
+    shownGhost = ghostKey;
+    const g = [];
+    if (ghostKey) ROUTES.forEach((r, i) => { if (isRouteRelevant(r) && routeVia(i)) g.push({ type: "Feature",
+      properties: { color: colorForYear(routeView(i).mean) }, geometry: { type: "LineString", coordinates: ROUTE_LL[i] } }); });
+    map.getSource("routes-ghost").setData(fc(g));
+  }
+  const nbKey = [lifePerson, showNotable, CURRENT_TARGET].join("|");
+  if (nbKey !== shownNotable) {
+    shownNotable = nbKey;
+    const f = notableFeatures();
+    map.getSource("notable").setData(fc(f));
+    document.getElementById("legend").classList.toggle("notable", f.length > 0);
   }
   const milKey = [lifePerson, showMilitary, CURRENT_TARGET].join("|");
   if (milKey !== shownMil) {
@@ -1028,8 +1060,6 @@ function setTarget(pid) {
   TARGET_ANCESTOR_SET = ancestorSetOf(pid); // includes pid itself
   recomputeClusterVisibility();
   const name = GRAPH.people[pid].name;
-  document.title = `Migration Lines to ${name}`;
-  document.getElementById("page-title").textContent = `Migration Lines to ${name}`;
   clearFocus();
   redrawAll();
 }
@@ -1110,6 +1140,8 @@ function threadSegsNear(point, px) {
 const MIL_LAYERS = ["mil-stops", "mil-lines", "mil-guess"];
 function doHover(e) {
   const pt = e.point, ev = e.originalEvent;
+  const nb = featuresNear(pt, 6, ["notable"]);
+  if (nb.length) { showNotableTip(ev, nb.map(f => f.properties.n)); return; }
   const mil = featuresNear(pt, 7, MIL_LAYERS)[0];
   if (mil) { showMilTip(ev, mil.properties, mil.layer.id === "mil-stops"); return; }
   if (focusActive) {
@@ -1131,7 +1163,7 @@ function doHover(e) {
 function handleClick(e) {
   const pt = e.point;
   closeRoutePicker();
-  if (featuresNear(pt, 7, MIL_LAYERS).length) return;   // military service: the tooltip says it all
+  if (featuresNear(pt, 7, MIL_LAYERS).length || featuresNear(pt, 6, ["notable"]).length) return;   // the tooltip says it all
   const hitCluster = clusterNear(pt, 9);
   if (hitCluster) {
     // zoom in just past the aggregation threshold, centred where you clicked,
@@ -1419,7 +1451,8 @@ function selectSearchResult(i) {
     focusedStationaryPoint = (!hasOwnMoves && person.fx != null) ? { x: person.fx, y: person.fy, label: p.name } : null;
     lifePerson = p.id;
     const service = MIL_DATA[p.id];
-    const serviceSegs = service ? service.flatMap(e => e.stops.map(s => ({ x1: s.x, y1: s.y, x2: s.x, y2: s.y }))) : [];
+    const serviceSegs = (service ? service.flatMap(e => e.stops.map(s => ({ x1: s.x, y1: s.y, x2: s.x, y2: s.y }))) : [])
+      .concat(NB_EVENTS.filter(e => e.p.includes(p.id)).map(e => ({ x1: e.x, y1: e.y2, x2: e.x, y2: e.y2 })));
     if (hasOwnMoves) {
       zoomToFitSegs(segs.concat(serviceSegs));
       renderFocusedChain(segs, `${p.name}'s life journey${service ? " and military service" : ""}`);
@@ -1477,7 +1510,7 @@ document.querySelectorAll(".mode-btn").forEach(btn => {
       searchResults.classList.remove("active");
       surnameInput.focus();
     } else {
-      searchInput.placeholder = searchMode === "target" ? "Find someone to set as target..."
+      searchInput.placeholder = searchMode === "target" ? "Show family history of..."
         : searchMode === "life" ? "Find someone to see their life journey..." : "Find the first person...";
       searchInput.focus();
     }
@@ -1823,21 +1856,33 @@ function hideTip() { tooltip.style("opacity",0); }
 recomputeClusterVisibility();
 
 // Direct lines / Likely routes
-function setLikelyRoutes(on) {
-  likelyRoutes = on;
-  try { localStorage.setItem("hm-likely-routes", on ? "1" : "0"); } catch (e) {}
-  document.getElementById("legend").classList.toggle("likely", on);
-  for (const [id, active] of [["lines-direct", !on], ["lines-likely", on]]) {
-    const b = document.getElementById(id);
-    b.classList.toggle("active", active); b.setAttribute("aria-pressed", active);
-  }
+// ---- the four layers (legend checkboxes; each remembered per browser; URL overrides) ----
+// Likely routes and Known movements are the same moves drawn two ways: with
+// both on, the likely routes draw as usual and the known lines faintly under
+// them; with both off, no moves are drawn (the other layers still are).
+let showLikely = likelyRoutes, showKnown = !likelyRoutes, showNotable = false;
+try { const v = localStorage.getItem("hm-known"); if (v !== null) showKnown = v === "1"; } catch (e) {}
+try { showNotable = localStorage.getItem("hm-notable") === "1"; } catch (e) {}
+{ const q = new URLSearchParams(location.search);
+  if (q.get("lines")) { showLikely = q.get("lines") !== "direct"; showKnown = q.get("lines") !== "likely"; }
+  if (q.get("known")) showKnown = q.get("known") === "1";
+  if (q.get("notable")) showNotable = q.get("notable") === "1"; }
+function setMoveLayers(likely, known) {
+  showLikely = likely; showKnown = known;
+  likelyRoutes = likely;                 // what the route data is built from (direct lines when off)
+  try { localStorage.setItem("hm-likely-routes", likely ? "1" : "0"); localStorage.setItem("hm-known", known ? "1" : "0"); } catch (e) {}
+  document.getElementById("legend").classList.toggle("likely", likely);
+  document.getElementById("layer-likely").setAttribute("aria-pressed", likely);
+  document.getElementById("layer-known").setAttribute("aria-pressed", known);
   recomputeClusterVisibility();
   hideTip();
+  applyAggregation(true);
   redrawAll();
 }
-document.getElementById("lines-direct").onclick = () => setLikelyRoutes(false);
-document.getElementById("lines-likely").onclick = () => setLikelyRoutes(true);
-setLikelyRoutes(likelyRoutes);
+document.getElementById("layer-likely").onclick = () => setMoveLayers(!showLikely, showKnown);
+document.getElementById("layer-known").onclick = () => setMoveLayers(showLikely, !showKnown);
+setMoveLayers(showLikely, showKnown);
+const setLikelyRoutes = on => setMoveLayers(on, !on);   // kept for older tools
 
 // ---- military service (MILITARY in data.js, from pipeline/military/itineraries.py) ----
 // Off by default; the legend's toggle shows the service of the target's
@@ -1890,6 +1935,66 @@ function setMilitary(on) {
 }
 document.getElementById("mil-toggle").onclick = () => setMilitary(!showMilitary);
 setMilitary(showMilitary);
+
+// ---- notable events (NOTABLE in data.js, from pipeline/notable/events.py + every ocean arrival) ----
+const NB = typeof NOTABLE !== "undefined" ? NOTABLE : { sex: {}, events: [] };   // tolerate a stale cached data.js
+const NB_EVENTS = NB.events;
+function notableFeatures() {
+  const out = [];
+  NB_EVENTS.forEach((e, n) => {
+    const mine = lifePerson && e.p.includes(lifePerson);
+    if (!mine && !(showNotable && e.p.some(id => TARGET_ANCESTOR_SET.has(id)))) return;
+    out.push({ type: "Feature", properties: { n, k: e.k }, geometry: { type: "Point", coordinates: toLL(e.x, e.y2) } });
+  });
+  return out;
+}
+// how someone is related to the current target: "11th great-grandfather"
+let genCache = null, genTarget = null;
+function generationOf(pid) {
+  if (genTarget !== CURRENT_TARGET) {
+    genTarget = CURRENT_TARGET; genCache = new Map([[CURRENT_TARGET, 0]]);
+    let frontier = [CURRENT_TARGET];
+    for (let g = 1; frontier.length; g++) {
+      const next = [];
+      for (const id of frontier) for (const q of ((GRAPH.people[id] || {}).parents || []))
+        if (!genCache.has(q)) { genCache.set(q, g); next.push(q); }
+      frontier = next;
+    }
+  }
+  return genCache.get(pid);
+}
+const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+function relationOf(pid) {
+  const g = generationOf(pid);
+  if (g == null || g === 0) return "";
+  const s = NB.sex[pid], base = s === "M" ? ["father", "grandfather"] : s === "F" ? ["mother", "grandmother"] : ["parent", "grandparent"];
+  const rel = g === 1 ? base[0] : g === 2 ? base[1] : g === 3 ? "great-" + base[1] : ordinal(g - 2) + " great-" + base[1];
+  const t = (GRAPH.people[CURRENT_TARGET] || {}).name || "";
+  return `${t.split(" ")[0]}'s ${rel}`;
+}
+function showNotableTip(event, ns) {
+  const list = [...new Set(ns)].map(n => NB_EVENTS[n]).sort((a, b) => a.y - b.y).slice(0, 4);
+  const one = e => {
+    const who = e.p.filter(id => generationOf(id) != null).map(id => {
+      const r = relationOf(id); return `${(GRAPH.people[id] || {}).name || ""}${r ? ` (${r})` : ""}`; }).join("; ");
+    const kind = e.k === "arrival" ? "arrival" : e.k === "story" ? "family story" : "";
+    return `<span class="t-name">${e.d} &middot; ${e.l}</span>${e.t}` +
+      (e.sh ? `<br><span class="t-year">ship: ${e.sh}</span>` : "") +
+      (who ? `<br><span class="t-note">${who}</span>` : "") +
+      `<br><span class="t-year">${kind ? kind + " &middot; " : ""}source: ${e.s}</span>`;
+  };
+  tooltip.classed("t-multi", list.length > 1);
+  tooltip.html(list.map(one).join('<div class="t-multi-row"></div>'));
+  placeTip(event);
+}
+function setNotable(on) {
+  showNotable = on;
+  try { localStorage.setItem("hm-notable", on ? "1" : "0"); } catch (e) {}
+  document.getElementById("layer-notable").setAttribute("aria-pressed", on);
+  redrawAll();
+}
+document.getElementById("layer-notable").onclick = () => setNotable(!showNotable);
+setNotable(showNotable);
 </script>
 </body>
 </html>

@@ -25,8 +25,9 @@ def _service_windows():
     out = {}
     for s in SERVICE:
         years = [int(y) for st in s["stops"] for y in re.findall(r"1[5-9]\d\d", st["date"])]
+        out.setdefault(s["pid"], [])          # a note-only service still claims the man's military records
         if years:
-            out.setdefault(s["pid"], []).append((min(years), max(years), [(st["lat"], st["lon"]) for st in s["stops"]]))
+            out[s["pid"]].append((min(years), max(years), [(st["lat"], st["lon"]) for st in s["stops"]]))
     return out
 SERVICE_WINDOWS = _service_windows()
 

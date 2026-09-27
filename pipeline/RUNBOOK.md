@@ -181,3 +181,20 @@ python tools/check_page.py index.html
 
 People are keyed by GEDCOM individual ID, which is stable across exports;
 check_page.py fails if an entry points at someone no longer in the tree.
+
+## Notable events
+
+`pipeline/notable/events.py` holds the hand-written events (James's "Our
+American History" document and later research), each with the people, date,
+place and source. Stage 10, `pipeline/build2/build_notable.py`, adds an
+arrival pin for every ocean crossing into the Americas in the migrations and
+writes `notable_prepared.json` -> NOTABLE. To add or fix an event:
+
+```
+python pipeline/build2/build_notable.py
+python pipeline/project/write_data_js.py data.js
+python tools/check_page.py index.html
+```
+
+Write event text without "your": the page adds each person's relationship to
+whoever is the target.
