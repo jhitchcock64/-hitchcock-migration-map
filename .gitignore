@@ -12,3 +12,6 @@ __pycache__/
 
 # raw public map data downloaded by pipeline/basemap/build_basemap.py (large; not committed)
 pipeline/basemap/cache/
+
+# living people's portraits: published only encrypted (private_photos.js)
+photos_private/

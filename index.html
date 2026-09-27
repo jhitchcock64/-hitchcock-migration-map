@@ -2299,6 +2299,18 @@ function descentChain(pid) {       // pid -> ... -> the current target, through 
   }
   return chain;
 }
+// living people's portraits (private_photos.js, encrypted), once the family password is given
+let PRIVATE_SHOTS = null;
+async function privatePhoto(pid) {
+  if (!familyKM) return null;
+  if (!PRIVATE_SHOTS) PRIVATE_SHOTS = new Promise(ok => {
+    const s = document.createElement("script"); s.src = "private_photos.js";
+    s.onload = () => openPrivate(familyKM, typeof PRIVATE_PHOTOS !== "undefined" ? PRIVATE_PHOTOS : null).then(d => ok(d || {})).catch(() => ok({}));
+    s.onerror = () => ok({}); document.head.appendChild(s);
+  });
+  const shots = await PRIVATE_SHOTS;
+  return shots[pid] ? "data:image/jpeg;base64," + shots[pid] : null;
+}
 function profileOf(pid) {
   const pr = PRIVATE_PROFILES[pid] || (typeof PROFILES !== "undefined" && PROFILES.people[pid]);
   if (!pr) return null;
@@ -2349,7 +2361,9 @@ async function openProfile(pid) {
   const yrs = [pr.b[0] && pr.b[0].match(/\d{4}/), pr.d[0] && pr.d[0].match(/\d{4}/)].map(m => m ? m[0] : "");
   const rel = pid === CURRENT_TARGET ? "" : relationOf(pid);
   const H = [];
-  const photo = pr.ph ? `<img src="${esc(pr.ph[0])}" alt="${esc(g.name)}" title="${esc(pr.ph[1])}">` : null;
+  const pv = pr.ph ? null : await privatePhoto(pid);
+  const photo = pr.ph ? `<img src="${esc(pr.ph[0])}" alt="${esc(g.name)}" title="${esc(pr.ph[1])}">`
+    : pv ? `<img src="${pv}" alt="${esc(g.name)}" title="private: shown with the family password">` : null;
   H.push(`<div class="pf-head"><div class="pf-photo${photo ? " has" : ""}">${photo || `<div><svg viewBox="0 0 64 64"><circle cx="32" cy="22" r="12" fill="currentColor"/><path d="M8 60c2-14 12-22 24-22s22 8 24 22z" fill="currentColor"/></svg>No photo yet</div>`}</div>
     <div><h2>${esc(g.name)}</h2><div class="pf-years">${yrs[0] || "?"} &ndash; ${yrs[1] || (g.name === "Private" || familyShown && PRIVATE_PROFILES[pid] ? "" : "?")}</div>
     ${rel ? `<div class="pf-rel">${esc(rel.charAt(0).toUpperCase() + rel.slice(1))}</div>` : ""}</div></div>`);
@@ -2428,12 +2442,14 @@ async function keyMaterial(pw) {
   const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
   return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: b64d(PRIV.salt), iterations: PRIV.iter }, base, 512));
 }
-async function openPrivate(km) {
+let familyKM = null;
+async function openPrivate(km, blob) {
+  const B = blob || PRIV;
   const ek = await crypto.subtle.importKey("raw", km.slice(0, 32), "AES-CTR", false, ["decrypt"]);
   const mk = await crypto.subtle.importKey("raw", km.slice(32), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-  const iv = b64d(PRIV.iv), ct = b64d(PRIV.ct), signed = new Uint8Array(iv.length + ct.length);
+  const iv = b64d(B.iv), ct = b64d(B.ct), signed = new Uint8Array(iv.length + ct.length);
   signed.set(iv); signed.set(ct, iv.length);
-  if (!await crypto.subtle.verify("HMAC", mk, b64d(PRIV.mac), signed)) return null;
+  if (!await crypto.subtle.verify("HMAC", mk, b64d(B.mac), signed)) return null;
   return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-CTR", counter: iv, length: 64 }, ek, ct)));
 }
 function showFamily(d) {
@@ -2472,6 +2488,7 @@ else {
     msg.textContent = "Checking\u2026";
     const km = await keyMaterial(pw), d = await openPrivate(km);
     if (!d) { msg.textContent = "That isn't the family password."; return; }
+    familyKM = km;
     try { localStorage.setItem("hm-family-key", b64e(km)); } catch (e) {}
     document.getElementById("lock-pw").value = "";
     showFamily(d);
@@ -2479,7 +2496,7 @@ else {
   };
   let saved = null;
   try { saved = localStorage.getItem("hm-family-key"); } catch (e) {}
-  if (saved) openPrivate(b64d(saved)).then(d => d ? showFamily(d) : null).catch(() => {});
+  if (saved) { const km = b64d(saved); openPrivate(km).then(d => { if (d) { familyKM = km; showFamily(d); } }).catch(() => {}); }
   lockUI();
 }
 </script>

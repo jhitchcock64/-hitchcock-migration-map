@@ -201,8 +201,12 @@ Jennie's side the Ancestry profile photo (`_PRIM Y` in the Ancestry GEDCOM)
 matched by file size or pixel size to the file Family Tree Maker downloaded
 for the same person. Converted with Windows' own imaging (HEIC included).
 The originals stay outside the repo. Nicknames: summaries use a quoted
-nickname ("Jean", not Mary; James). Living people's photos: to come,
-encrypted like their text.
+nickname ("Jean", not Mary; James). Living people's portraits: web JPEGs in
+`photos_private/<id>.jpg` (git-ignored; keep them, they are the only copy
+besides the originals), encrypted by write_data_js.py with the family
+password into `private_photos.js`, which the page loads and decrypts only
+after unlocking (`privatePhoto`). write_data_js.py refuses a file there for
+anyone not living (those go in photos/).
 
 Living people (2026-09-27, James's design): everyone born within 100
 years with no death record (or, with no birth year, within four
