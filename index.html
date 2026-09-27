@@ -33,6 +33,11 @@ header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0
 #profile .pf-photo { flex:none; width:92px; height:112px; border-radius:6px; background:linear-gradient(160deg,#e9dfc8,#d9ccad);
   display:grid; place-items:center; color:#8a7a5c; font-size:10px; text-align:center; }
 #profile .pf-photo svg { width:44px; opacity:.45; display:block; margin:0 auto 3px; }
+#profile .pf-photo.has { background:#2c2417; overflow:hidden; cursor:zoom-in; }
+#profile .pf-photo img { width:100%; height:100%; object-fit:cover; object-position:50% 25%; display:block; }
+#profile .pf-photo.big { position:fixed; inset:8% 10%; width:auto; height:auto; z-index:60; background:rgba(20,16,10,0.92); cursor:zoom-out;
+  border-radius:8px; }
+#profile .pf-photo.big img { object-fit:contain; }
 #profile h2 { font-family:var(--font-display); font-weight:normal; font-size:23px; line-height:1.15; margin:2px 0 3px; }
 #profile .pf-years { font-family:var(--font-mono); font-size:12px; color:var(--muted, #6b5a3e); }
 #profile .pf-rel { margin-top:7px; font-size:12.5px; background:#f1e7d2; border-radius:5px; padding:4px 8px; display:inline-block; }
@@ -2301,7 +2306,8 @@ function profileOf(pid) {
 }
 // the summary for anyone without a written story, from the facts
 function autoSummary(pid, pr) {
-  const g = GRAPH.people[pid] || {}, first = (g.name || "").replace(/^(Dr|Rev|Capt|Col)\.? /, "").split(" ")[0];
+  const g = GRAPH.people[pid] || {}, nick = (g.name || "").match(/"([^"]+)"/);
+  const first = nick ? nick[1] : (g.name || "").replace(/^(Dr|Rev|Capt|Col)\.? /, "").split(" ")[0];   // "Jean", not Mary (James)
   const sex = NB.sex[pid], He = sex === "F" ? "She" : sex === "M" ? "He" : first, his = sex === "F" ? "her" : "his";
   const out = [];
   const par = (g.parents || []).map(id => (GRAPH.people[id] || {}).name).filter(n => n && n !== "Private");
@@ -2343,7 +2349,8 @@ async function openProfile(pid) {
   const yrs = [pr.b[0] && pr.b[0].match(/\d{4}/), pr.d[0] && pr.d[0].match(/\d{4}/)].map(m => m ? m[0] : "");
   const rel = pid === CURRENT_TARGET ? "" : relationOf(pid);
   const H = [];
-  H.push(`<div class="pf-head"><div class="pf-photo"><div><svg viewBox="0 0 64 64"><circle cx="32" cy="22" r="12" fill="currentColor"/><path d="M8 60c2-14 12-22 24-22s22 8 24 22z" fill="currentColor"/></svg>No photo yet</div></div>
+  const photo = pr.ph ? `<img src="${esc(pr.ph[0])}" alt="${esc(g.name)}" title="${esc(pr.ph[1])}">` : null;
+  H.push(`<div class="pf-head"><div class="pf-photo${photo ? " has" : ""}">${photo || `<div><svg viewBox="0 0 64 64"><circle cx="32" cy="22" r="12" fill="currentColor"/><path d="M8 60c2-14 12-22 24-22s22 8 24 22z" fill="currentColor"/></svg>No photo yet</div>`}</div>
     <div><h2>${esc(g.name)}</h2><div class="pf-years">${yrs[0] || "?"} &ndash; ${yrs[1] || (g.name === "Private" || familyShown && PRIVATE_PROFILES[pid] ? "" : "?")}</div>
     ${rel ? `<div class="pf-rel">${esc(rel.charAt(0).toUpperCase() + rel.slice(1))}</div>` : ""}</div></div>`);
   H.push(`<div class="pf-btns"><button class="solid" data-act="life">Life journey on the map</button><button data-act="family">${his.charAt(0).toUpperCase() + his.slice(1)} family history</button></div>`);
@@ -2395,6 +2402,8 @@ async function openProfile(pid) {
   if (pr.r.length) H.push(`<div class="pf-sec"><details><summary>${pr.r.length} record${pr.r.length === 1 ? "" : "s"} attached in the tree</summary><ul class="pf-recs">` +
     pr.r.map(i => `<li>${esc(PROFILES.sources[i])}</li>`).join("") + `</ul></details></div>`);
   box.innerHTML = H.join("");
+  const ph = box.querySelector(".pf-photo.has");
+  if (ph) ph.onclick = () => ph.classList.toggle("big");      // click the portrait to see it whole
   box.querySelector('[data-act="life"]').onclick = () => { document.querySelector('.mode-btn[data-mode="life"]').click(); searchResults.classList.remove("active"); showLifeJourney(pid); };
   box.querySelector('[data-act="family"]').onclick = () => { document.querySelector('.mode-btn[data-mode="target"]').click(); searchResults.classList.remove("active"); setTarget(pid); openProfile(pid); };
   profileEl.scrollTop = 0;

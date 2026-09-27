@@ -189,9 +189,20 @@ titles. Data: `profiles.js` (`const PROFILES`, ~1.1 MB), written by
 write_data_js.py and loaded only when a profile first opens. Ways in: the i
 button on search results, choosing someone in Life journey, clicking a
 military line or stop, names in battle and event popups, links inside
-profiles, and `#p=<id>` in the URL. Photos: a placeholder until the photo
-pipeline exists (Family Tree Maker media or James's labeled Google Photos
-album).
+profiles, and `#p=<id>` in the URL.
+
+Portraits (2026-09-27): one per person, web-sized JPEGs (max 480 px) in
+`photos/<id>.jpg`, listed in `pipeline/profiles/photos.json` (pid -> file,
+source, original filename); build_profiles.py adds them (`ph`) and never for
+the living. Sources: James's Google Photos album via Takeout (labels are his
+people tags, relationships from his perspective, e.g. "Great-Grandfather X"
+= 3 generations above him; the generation settles namesakes), and for
+Jennie's side the Ancestry profile photo (`_PRIM Y` in the Ancestry GEDCOM)
+matched by file size or pixel size to the file Family Tree Maker downloaded
+for the same person. Converted with Windows' own imaging (HEIC included).
+The originals stay outside the repo. Nicknames: summaries use a quoted
+nickname ("Jean", not Mary; James). Living people's photos: to come,
+encrypted like their text.
 
 Living people (2026-09-27, James's design): everyone born within 100
 years with no death record (or, with no birth year, within four

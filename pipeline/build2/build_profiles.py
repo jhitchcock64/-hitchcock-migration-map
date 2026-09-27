@@ -28,6 +28,12 @@ sys.path.insert(0, str(PROJECT)); sys.path.insert(0, str(HERE.parent / 'profiles
 import geocoder
 from privacy import LIVING_BORN_FROM
 from stories import STORIES
+from privacy import living_ids
+
+# portraits: pipeline/profiles/photos.json (pid -> {file in photos/, source, original}); web-sized
+# JPEGs in the repo's photos/ folder. Never for the living (they would be public).
+PHOTOS = json.load(open(HERE.parent / 'profiles' / 'photos.json', encoding='utf-8'))
+PHOTO_DIR = HERE.parent.parent / 'photos'
 
 GED = os.environ.get('GEDCOM') or sys.exit('Set GEDCOM=/path/to/export.ged (run_pipeline.sh does)')
 INDI = json.load(open(PROJECT / 'indi.json', encoding='utf-8'))
@@ -216,17 +222,29 @@ def profile(pid):
         srcs.append(src_index[s])
     pr['r'] = srcs
     if pid in STORIES: pr['st'] = STORIES[pid]
+    if pid in PHOTOS and pid not in LIVING:
+        ph = PHOTOS[pid]
+        if not (PHOTO_DIR / ph['file']).exists(): raise SystemExit(f"photos.json names a missing file: {ph['file']}")
+        pr['ph'] = ['photos/' + ph['file'], ph['source']]
     return pr
+
+
+LIVING = living_ids(GRAPH, INDI)
 
 
 def main():
     people = {pid: profile(pid) for pid in sorted(P)}
+    held = [PHOTOS[p]['name'] for p in PHOTOS if p in LIVING]
+    if held: print(f'{len(held)} photos of living people held back (not published)')
+    missing = [p for p in PHOTOS if p not in P]
+    if missing: raise SystemExit(f'photos.json names people not on the map: {missing}')
     missing = [pid for pid in STORIES if pid not in P]
     if missing: raise SystemExit(f'stories.py names people not on the map: {missing}')
     OUT.write_text(json.dumps({'sources': src_list, 'people': people}, separators=(',', ':'), ensure_ascii=False), encoding='utf-8')
     n_lv = sum(1 for p in people.values() for f in p['f'] for c in f['k'] + ([f['sp']] if 'sp' in f else []) if c.get('lv'))
     print(f'{len(people)} profiles, {len(src_list)} distinct record titles, {len(STORIES)} written stories, '
-          f'{n_lv} living children/spouses off the map; {OUT.stat().st_size // 1024} KB')
+          f'{n_lv} living children/spouses off the map; {sum(1 for p in people.values() if "ph" in p)} portraits; '
+          f'{OUT.stat().st_size // 1024} KB')
 
 
 if __name__ == '__main__':
