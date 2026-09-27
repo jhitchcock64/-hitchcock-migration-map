@@ -24,6 +24,10 @@ document are noted per event.
 
 DOC = '"Our American History" (family history, 2026)'
 
+# People whose ocean crossing in the migrations should not get an arrival pin
+# (James, 2026-09-27: Margaret Barker's "1600" arrival is not an arrival).
+NO_ARRIVAL = {'@I242789067812@'}
+
 
 def E(pids, date, year, text, place, lat, lon, kind='event', source=DOC, ship=None):
     return dict(pids=pids if isinstance(pids, list) else [pids], date=date, year=year, text=text,

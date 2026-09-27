@@ -17,7 +17,7 @@ from collections import defaultdict
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'notable'))
-from events import EVENTS
+from events import EVENTS, NO_ARRIVAL
 
 LEGS = json.load(open(HERE / 'person_legs.json', encoding='utf-8'))
 GRAPH = json.load(open(HERE / 'person_graph.json', encoding='utf-8'))['people']
@@ -50,7 +50,7 @@ def main():
     claimed = {(pid, y) for e in EVENTS if e['kind'] == 'arrival' for pid in e['pids'] for y in range(e['year'] - 2, e['year'] + 3)}
     groups = defaultdict(list)
     for pid, legs in LEGS.items():
-        if pid not in GRAPH: continue
+        if pid not in GRAPH or pid in NO_ARRIVAL: continue
         for l in legs:
             if not l.get('ocean') or l.get('year') is None: continue
             if not americas(l['x2']) or americas(l['x1']): continue

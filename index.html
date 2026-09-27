@@ -360,7 +360,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   <div id="legend">
     <div class="layers" role="group" aria-label="Layers">
       <button class="layer-toggle" id="layer-likely" aria-pressed="true" title="Moves along the roads, rivers, railroads and highways of their time"><span class="box"></span>Likely routes</button>
-      <button class="layer-toggle" id="layer-known" aria-pressed="false" title="Each documented move as a line from the old home to the new one"><span class="box"></span>Known movements</button>
+      <button class="layer-toggle" id="layer-known" aria-pressed="false" title="Each documented move as a line from the old home to the new one"><span class="box"></span>Known movements only</button>
       <button class="layer-toggle" id="mil-toggle" aria-pressed="false" title="Where ancestors served: campaigns, battles, camps and captivity, from pension files, service records and family histories"><span class="box"></span>Military service</button>
       <button class="layer-toggle" id="layer-notable" aria-pressed="false" title="Arrivals in America and other moments from the family's history"><span class="box"></span>Notable events</button>
     </div>
@@ -1228,7 +1228,7 @@ let focusedAnchor = null; // person_id currently focused, or null
 
 let focusActive = false;
 let lifePerson = null;    // the person shown in Life journey: their military service is drawn
-let showMilitary = false; // the legend's Military service toggle (set up near the end)
+let showMilitary = true;  // the legend's Military service toggle, on by default (James); set up near the end
 
 const AGGREGATE_ZOOM_THRESHOLD = 4.5;
 const MIN_VISIBLE_CLUSTER_SIZE = 2; // matches server-side MIN_CLUSTER_SIZE
@@ -1860,9 +1860,9 @@ recomputeClusterVisibility();
 // Likely routes and Known movements are the same moves drawn two ways: with
 // both on, the likely routes draw as usual and the known lines faintly under
 // them; with both off, no moves are drawn (the other layers still are).
-let showLikely = likelyRoutes, showKnown = !likelyRoutes, showNotable = false;
+let showLikely = likelyRoutes, showKnown = !likelyRoutes, showNotable = true;   // notable events on by default (James)
 try { const v = localStorage.getItem("hm-known"); if (v !== null) showKnown = v === "1"; } catch (e) {}
-try { showNotable = localStorage.getItem("hm-notable") === "1"; } catch (e) {}
+try { const v = localStorage.getItem("hm-notable"); if (v !== null) showNotable = v === "1"; } catch (e) {}
 { const q = new URLSearchParams(location.search);
   if (q.get("lines")) { showLikely = q.get("lines") !== "direct"; showKnown = q.get("lines") !== "likely"; }
   if (q.get("known")) showKnown = q.get("known") === "1";
@@ -1925,7 +1925,7 @@ function showMilTip(event, f, isStop) {
     `<br><span class="t-year">source: ${e.sources.join("; ")}</span>`);
   placeTip(event);
 }
-try { showMilitary = localStorage.getItem("hm-military") === "1"; } catch (e) {}
+try { const v = localStorage.getItem("hm-military"); if (v !== null) showMilitary = v === "1"; } catch (e) {}
 { const q = new URLSearchParams(location.search).get("military"); if (q) showMilitary = q === "1"; }   // ?military=1|0
 function setMilitary(on) {
   showMilitary = on;

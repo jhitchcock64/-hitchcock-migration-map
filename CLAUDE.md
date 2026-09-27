@@ -292,8 +292,9 @@ Likely routes (added 2026-09-25, James's idea; the default view; the
   Toledo remain.
 
 Layers (since 2026-09-27; James's design): the legend has four checkboxes,
-each remembered per browser: Likely routes (on by default), Known movements
-(the old "Direct lines"), Military service, Notable events. Likely and Known
+each remembered per browser: Likely routes, Known movements only (the old
+"Direct lines"), Military service, Notable events. All but Known movements
+only are on by default (James, 2026-09-27). Likely and Known
 are the same moves drawn two ways: both on draws the likely routes with the
 known lines faint and dashed underneath (`routes-ghost`); both off draws no
 moves. URL: `?lines=likely|direct`, `?known=1`, `?military=1`, `?notable=1`.
@@ -309,7 +310,7 @@ great-grandfather"; James's document counts from James, one generation less)
 and the source. Hand-written arrivals replace the automatic one for the same
 people within two years. The events are still drawn as movements too.
 
-Military service on the page: off by default; the legend's "Military
+Military service on the page: on by default; the legend's "Military
 service" checkbox (remembered per browser; `?military=1|0` overrides) shows
 the service of every ancestor of the current target. Life journey always
 shows the chosen person's own service (`lifePerson`) and fits the view to
