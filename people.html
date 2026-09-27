@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>People in the Family</title>
+<link rel="stylesheet" href="site.css">
+<style>
+main { max-width: 1100px; margin: 0 auto; padding: 18px 16px 60px; }
+h1 { font-family: var(--font-display); font-weight: normal; font-size: 28px; margin: 4px 0 4px; }
+.lede { color: var(--muted); margin: 0 0 14px; font-size: 14px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 12px; position: sticky; top: 45px; z-index: 10; font-size: 13px; }
+.filters input[type=search] { font: inherit; padding: 6px 9px; border: 1px solid rgba(156,122,46,0.5); border-radius: 5px; width: 260px; max-width: 100%; background: #fff; }
+.filters select { font: inherit; padding: 5px 6px; border: 1px solid rgba(156,122,46,0.5); border-radius: 5px; background: #fff; }
+.filters label { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); cursor: pointer; }
+.count { margin-left: auto; color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+.list { margin-top: 12px; display: grid; gap: 6px; }
+.row { display: grid; grid-template-columns: 40px minmax(180px, 1.4fr) 110px minmax(150px, 1.3fr) minmax(150px, 1fr) 76px; gap: 12px; align-items: center;
+  background: var(--card); border: 1px solid var(--line); border-left: 4px solid #9c7a2e; border-radius: 6px; padding: 6px 10px 6px 6px;
+  text-decoration: none; color: inherit; font-size: 13px; }
+.row:hover { border-color: rgba(156,60,46,0.5); background: #fffaf1; }
+.row.f { border-left-color: #0f8a7a; } .row.m { border-left-color: #e0359e; }
+.row .nm { font-weight: 600; }
+.row .yr { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.row .pl, .row .rel { color: var(--muted); font-size: 12.5px; }
+.row .marks { display: flex; gap: 5px; justify-content: flex-end; font-size: 14px; }
+.row .marks span { opacity: .85; }
+.head { display: grid; grid-template-columns: 40px minmax(180px, 1.4fr) 110px minmax(150px, 1.3fr) minmax(150px, 1fr) 76px; gap: 12px;
+  padding: 0 10px 0 10px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 14px; }
+.legend { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.empty { padding: 30px; text-align: center; color: var(--muted); }
+@media (max-width: 760px) {
+  .row, .head { grid-template-columns: 40px 1fr 70px; }
+  .row .pl, .row .rel, .row .marks, .head .pl, .head .rel, .head .marks { display: none; }
+  .filters { position: static; }
+}
+</style>
+</head>
+<body>
+<header class="site-head">
+  <a class="brand" href="index.html">Family History, Visualized</a>
+  <nav class="site-nav"><a href="index.html">Map</a><a href="tree.html">Tree</a><a href="people.html" class="on">People</a><a href="about.html">About</a></nav>
+  <span class="spacer"></span><div id="lock-slot"></div>
+</header>
+<main>
+  <div class="eyebrow">Everyone in the family on this site</div>
+  <h1>People</h1>
+  <p class="lede" id="lede"></p>
+  <div class="filters">
+    <input id="q" type="search" placeholder="Name or place&hellip;" aria-label="Search by name or place" autocomplete="off">
+    <select id="side" aria-label="Side of the family"><option value="">Both sides</option><option value="f">Father's side</option><option value="m">Mother's side</option></select>
+    <select id="sort" aria-label="Sort"><option value="gen">By generation</option><option value="name">By surname</option><option value="born">By birth year</option></select>
+    <label><input type="checkbox" id="photo"> with a photo</label>
+    <label><input type="checkbox" id="story"> with a story</label>
+    <label><input type="checkbox" id="served"> served</label>
+    <label><input type="checkbox" id="events"> in history</label>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="head"><span></span><span>Name</span><span>Years</span><span class="pl">Born</span><span class="rel">Relationship</span><span class="marks"></span></div>
+  <div class="list" id="list"></div>
+  <p class="legend">&#x1F4F7; photo &middot; &#x270E; written life story &middot; &#x2694; military service &middot; &#x2605; notable event &middot; colour: father's side (teal) or mother's side (rose)</p>
+</main>
+<script src="data.js"></script>
+<script src="profiles.js"></script>
+<script src="site.js"></script>
+<script>
+const P = GRAPH.people, ROOT = GRAPH.james_id;
+const inEvent = new Set(NOTABLE.events.flatMap(e => e.p));
+let rows = [];
+function prepare() {
+  const gen = Family.generations(ROOT);
+  const par = (P[ROOT].parents || []).filter(q => P[q]);
+  const sideOf = new Map();
+  for (const q of par) { const s = Family.sex(q) === "F" ? "m" : "f"; for (const id of Family.generations(q).keys()) if (!sideOf.has(id)) sideOf.set(id, s); }
+  rows = Object.keys(P).filter(pid => P[pid].name !== "Private").map(pid => {
+    const p = P[pid], pr = PROFILES.people[pid] || { b: ["", ""], d: ["", ""], f: [] }, g = gen.get(pid);
+    // the root's aunts and uncle (not ancestors): their parent's side
+    const side = sideOf.get(pid) || ((p.parents || []).map(q => sideOf.get(q)).find(Boolean)) || "";
+    const surname = (p.surname || p.name.split(" ").pop()).toLowerCase();
+    return { pid, name: p.name, surname, side, g, years: Family.years(pid), by: +Family.yearOf(pr.b[0]) || p.by || 9999,
+             born: pr.b[1] || p.bplace || "", died: pr.d[1] || "",
+             rel: pid === ROOT ? "" : g != null ? Family.relation(g, pid) : "aunt or uncle",
+             photo: !!pr.ph, story: !!pr.st, served: !!MILITARY[pid], events: inEvent.has(pid), ph: pr.ph && pr.ph[0] };
+  });
+  const living = Object.values(P).filter(p => p.name === "Private").length;
+  const who = P[ROOT].name === "Private" ? "the family's" : Family.firstName(ROOT) + "'s";
+  document.getElementById("lede").textContent = `${rows.length.toLocaleString()} people: ${who} direct ancestors across ` +
+    `${Math.max(...rows.map(r => r.g || 0))} generations, and ${P[ROOT].name === "Private" ? "the youngest generation's" : "her"} aunts and uncle.` + (living ? ` ${living} living family members are hidden until the family password is given.` : "");
+}
+function draw() {
+  const q = document.getElementById("q").value.trim().toLowerCase(), side = document.getElementById("side").value, sort = document.getElementById("sort").value;
+  const want = id => document.getElementById(id).checked;
+  let r = rows.filter(x => (!q || x.name.toLowerCase().includes(q) || x.born.toLowerCase().includes(q) || x.died.toLowerCase().includes(q))
+    && (!side || x.side === side) && (!want("photo") || x.photo) && (!want("story") || x.story) && (!want("served") || x.served) && (!want("events") || x.events));
+  const cmp = { gen: (a, b) => (a.g ?? 0.5) - (b.g ?? 0.5) || a.by - b.by, name: (a, b) => a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name),
+                born: (a, b) => a.by - b.by }[sort];
+  r.sort(cmp);
+  document.getElementById("count").textContent = `${r.length.toLocaleString()} shown`;
+  const E = Family.esc, root = P[ROOT].name === "Private" ? "" : Family.firstName(ROOT) + "'s ";
+  document.getElementById("list").innerHTML = r.length ? r.map(x => `<a class="row ${x.side}" href="index.html#p=${encodeURIComponent(x.pid)}" data-pid="${E(x.pid)}">
+    ${x.ph ? `<img class="avatar" loading="lazy" src="${E(x.ph)}" alt="">` : `<span class="avatar none">${E(x.name[0])}</span>`}
+    <span class="nm">${E(x.name)}</span><span class="yr">${E(x.years)}</span><span class="pl">${E(x.born)}</span>
+    <span class="rel">${x.rel ? E((x.g != null ? root : "") + x.rel) : x.pid === ROOT ? "the root of the tree" : ""}</span>
+    <span class="marks">${x.photo ? "<span title='photo'>&#x1F4F7;</span>" : ""}${x.story ? "<span title='life story'>&#x270E;</span>" : ""}${x.served ? "<span title='military service'>&#x2694;</span>" : ""}${x.events ? "<span title='notable event'>&#x2605;</span>" : ""}</span></a>`).join("")
+    : `<div class="empty">No one matches.</div>`;
+  // the living's portraits, once unlocked
+  if (Family.shown) for (const el of document.querySelectorAll(".row .avatar.none")) {
+    const pid = el.parentElement.dataset.pid;
+    Family.photo(pid).then(u => { if (u) { const i = document.createElement("img"); i.className = "avatar"; i.src = u; el.replaceWith(i); } });
+  }
+}
+for (const id of ["q", "side", "sort", "photo", "story", "served", "events"]) document.getElementById(id).addEventListener("input", draw);
+Family.mountLock("lock-slot");
+Family.onChange(() => { prepare(); draw(); });
+Family.ready.then(() => { prepare(); draw(); });
+</script>
+</body>
+</html>

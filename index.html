@@ -77,6 +77,11 @@ header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0
 .battle-popup a.plink, #tooltip a.plink { color:#2c2417; font-weight:600; text-decoration:none; border-bottom:1px solid rgba(156,60,46,.4); cursor:pointer; }
 /* living family: hidden in the public data; the family password shows them */
 #lock { margin-left:auto; position:relative; align-self:center; }
+.site-nav { display:flex; gap:2px; align-self:center; }
+.site-nav a { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; text-decoration:none; color:var(--muted);
+  padding:3px 7px; border-radius:4px; }
+.site-nav a:hover { background:rgba(156,122,46,0.12); color:var(--ink); }
+.site-nav a.on { color:#9c3c2e; background:rgba(156,60,46,0.08); }
 #lock-btn { font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted, #6b5a3e);
   background:none; border:1px solid rgba(156,122,46,0.4); border-radius:4px; padding:3px 8px; cursor:pointer; }
 #lock-btn.open { color:#2f3d12; border-color:#2f3d12; }
@@ -393,6 +398,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 <header>
   <h1 id="page-title">Family History, Visualized</h1>
   <span class="eyebrow">Direct ancestors: migration, service and history &middot; <span id="year-span"></span></span>
+  <nav class="site-nav"><a href="index.html" class="on">Map</a><a href="tree.html">Tree</a><a href="people.html">People</a><a href="about.html">About</a></nav>
   <div id="lock">
     <button id="lock-btn" type="button" aria-expanded="false">&#x1F512; Living family hidden</button>
     <div id="lock-pop" role="dialog" aria-label="Show living family">
@@ -2429,6 +2435,13 @@ function openFromHash() {
 }
 window.addEventListener("hashchange", openFromHash);
 openFromHash();
+{ const q = new URLSearchParams(location.search), t = q.get("target"), l = q.get("life");
+  const go = () => {
+    if (!mapReady) return setTimeout(go, 150);
+    if (t && GRAPH.people[t]) { setTarget(t); openProfile(t); }
+    if (l && GRAPH.people[l]) { document.querySelector('.mode-btn[data-mode="life"]').click(); searchResults.classList.remove("active"); showLifeJourney(l); openProfile(l); }
+  };
+  if (t || l) go(); }
 
 // ---- living family: hidden in the public data, shown with the family password ----
 // PRIVATE (pipeline/project/privacy.py) holds their details, AES-CTR encrypted with

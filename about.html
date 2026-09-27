@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About Family History, Visualized</title>
+<link rel="stylesheet" href="site.css">
+<style>
+main { max-width: 980px; margin: 0 auto; padding: 26px 16px 70px; }
+.hero h1 { font-family: var(--font-display); font-weight: normal; font-size: clamp(30px, 5vw, 44px); line-height: 1.1; margin: 6px 0 12px; }
+.hero p { font-size: 16px; line-height: 1.6; max-width: 700px; margin: 0 0 18px; }
+.hero .acts { display: flex; gap: 10px; flex-wrap: wrap; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 28px 0; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.stat b { display: block; font-family: var(--font-display); font-size: 28px; font-weight: normal; }
+.stat span { color: var(--muted); font-size: 12.5px; }
+h2 { font-family: var(--font-display); font-weight: normal; font-size: 23px; margin: 34px 0 10px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; text-decoration: none; color: inherit; display: block; }
+a.card:hover { border-color: rgba(156,60,46,0.5); background: #fffaf1; }
+.card h3 { font-family: var(--font-display); font-weight: normal; font-size: 18px; margin: 0 0 6px; }
+.card p { margin: 0; font-size: 13.5px; line-height: 1.5; color: #4a3f2c; }
+.card .when { font-family: var(--font-mono); font-size: 11px; color: var(--gold); margin-bottom: 4px; }
+.faces { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 0; }
+.faces a img { width: 54px; height: 66px; border-radius: 5px; object-fit: cover; object-position: 50% 25%; display: block; }
+.prose p, .prose li { font-size: 14.5px; line-height: 1.6; max-width: 760px; }
+.prose ul { padding-left: 20px; }
+footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+</style>
+</head>
+<body>
+<header class="site-head">
+  <a class="brand" href="index.html">Family History, Visualized</a>
+  <nav class="site-nav"><a href="index.html">Map</a><a href="tree.html">Tree</a><a href="people.html">People</a><a href="about.html" class="on">About</a></nav>
+  <span class="spacer"></span><div id="lock-slot"></div>
+</header>
+<main>
+  <section class="hero">
+    <div class="eyebrow">A family history of the Hitchcocks, the Askews and everyone who came before</div>
+    <h1>Where the family came from, and how they got here</h1>
+    <p>Nearly five centuries of one family&rsquo;s direct ancestors, traced from England, Ireland, Scotland, Germany,
+      Switzerland and Sweden through colonial New England and Virginia to the South and Midwest: every documented move
+      drawn on a map, the wars they served in, the moments of history they lived through, and a profile for each person.</p>
+    <div class="acts"><a class="btn solid" href="index.html">Open the map</a><a class="btn" href="tree.html">Browse the tree</a><a class="btn" href="people.html">Find a person</a></div>
+    <div class="faces" id="faces"></div>
+  </section>
+  <div class="stats" id="stats"></div>
+
+  <h2>A few of their stories</h2>
+  <div class="cards" id="stories"></div>
+
+  <h2>How to use the site</h2>
+  <div class="cards">
+    <a class="card" href="index.html"><h3>The map</h3><p>Every move the records show, coloured by year. Choose anyone to see the journeys of their ancestors
+      converge on them; turn on military service (dotted lines, crossed swords for battles) and notable events (stars and anchors).
+      Time period and Surname filter everything.</p></a>
+    <a class="card" href="tree.html"><h3>The tree</h3><p>A pedigree you can start from anyone: open generations one at a time, drag and zoom,
+      and click a person for their profile or their journey on the map.</p></a>
+    <a class="card" href="people.html"><h3>People</h3><p>Everyone on the site in one list, searchable by name or place, with photos,
+      life stories, military service and notable events marked.</p></a>
+    <div class="card"><h3>Profiles</h3><p>Each person&rsquo;s life in brief: a portrait where one survives, dates and places, a timeline,
+      service and moments in history, parents, spouses and children, and the line of descent.</p></div>
+  </div>
+
+  <h2>What&rsquo;s documented, and what&rsquo;s inferred</h2>
+  <div class="prose">
+    <p>The people, dates and places come from the family tree kept on Ancestry, built from censuses, vital, church, land, probate,
+      military and pension records, newspapers and family papers. The routes between places are not in the records:
+      the &ldquo;likely routes&rdquo; follow the roads, rivers, canals, sea lanes, railroads and highways of each move&rsquo;s year, and
+      they are inferences. Military itineraries mark each stop as documented for that man, his regiment&rsquo;s movements, a family
+      account, or a guess.</p>
+    <ul>
+      <li>Railroads: Jeremy Atack, <i>Historical Geographic Information Systems (GIS) database of U.S. Railroads</i>; roads, rivers and borders: Natural Earth; counties: U.S. Census Bureau.</li>
+      <li>Background map: OpenFreeMap and OpenStreetMap contributors; terrain: Mapzen / AWS Open Data.</li>
+      <li>Military service: pension files and compiled service records (National Archives), state rosters, and family histories.</li>
+    </ul>
+    <p>Living family members are private: their names, dates and photos are published only in encrypted form, and appear
+      once the family password is entered (the lock at the top right).</p>
+  </div>
+  <footer>Family History, Visualized</footer>
+</main>
+<script src="data.js"></script>
+<script src="profiles.js"></script>
+<script src="site.js"></script>
+<script>
+function draw() {
+  const P = GRAPH.people, E = Family.esc;
+  const people = Object.values(P).filter(p => p.name !== "Private").length;
+  const gens = Math.max(...Family.generations(GRAPH.james_id).values());
+  const years = ROUTES.map(r => r.min_year).filter(Boolean);
+  const moves = Object.values(PERSON_LEGS).reduce((a, l) => a + l.length, 0);
+  const services = Object.values(MILITARY).flat().length;
+  const battles = new Set(Object.values(MILITARY).flat().flatMap(e => e.stops.filter(s => s.b).map(s => s.b))).size;
+  const portraits = Object.values(PROFILES.people).filter(p => p.ph).length;
+  const arrivals = NOTABLE.events.filter(e => e.k === "arrival").length;
+  document.getElementById("stats").innerHTML = [
+    [people.toLocaleString(), "people"], [gens, "generations"], [`${Math.min(...years)}&ndash;2026`, "years of moves"],
+    [moves.toLocaleString(), "documented moves"], [arrivals, "arrivals in America"], [services, "military services"],
+    [battles, "battles"], [portraits, "portraits"]].map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join("");
+  // faces: a strip of portraits, oldest first
+  const faces = Object.entries(PROFILES.people).filter(([id, p]) => p.ph && P[id]).sort((a, b) => (+Family.yearOf(a[1].b[0]) || 3000) - (+Family.yearOf(b[1].b[0]) || 3000));
+  document.getElementById("faces").innerHTML = faces.filter((_, i) => i % Math.max(1, Math.floor(faces.length / 14)) === 0).slice(0, 14)
+    .map(([id, p]) => `<a href="index.html#p=${encodeURIComponent(id)}" title="${E(P[id].name)}"><img src="${E(p.ph[0])}" alt="${E(P[id].name)}" loading="lazy"></a>`).join("");
+  // stories: the hand-written notable events with the most to say, across the centuries
+  const pick = [/Sea Venture/, /Mayflower/, /Fundamental Agreement/, /Pagan Point/, /Selma/, /Manhattan Project/];
+  const evs = pick.map(re => NOTABLE.events.find(e => re.test(e.t) || re.test(e.sh || ""))).filter(Boolean);
+  const w = PROFILES.people["@I242209901667@"];
+  const cards = evs.map(e => `<a class="card" href="index.html#p=${encodeURIComponent(e.p[0])}"><div class="when">${E(e.d)} &middot; ${E(e.l)}</div><p>${E(e.t)}</p></a>`);
+  if (w && w.st) cards.splice(2, 0, `<a class="card" href="index.html#p=${encodeURIComponent("@I242209901667@")}"><div class="when">1761&ndash;1848</div><h3>${E(w.st.title)}</h3><p>${E(w.st.text[0])}</p></a>`);
+  document.getElementById("stories").innerHTML = cards.join("");
+}
+Family.mountLock("lock-slot");
+Family.onChange(draw);
+Family.ready.then(draw);
+</script>
+</body>
+</html>
