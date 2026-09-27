@@ -1,5 +1,11 @@
 {
  "@I240014481745@": {
+  "crop": [
+   0.3,
+   0.0,
+   0.8,
+   0.4
+  ],
   "file": "I240014481745.jpg",
   "name": "Albert Carl Hitchcock",
   "original": "IMG_0413.HEIC",
@@ -12,12 +18,24 @@
   "source": "Google Photos album"
  },
  "@I240014571694@": {
+  "crop": [
+   0.28,
+   0.28,
+   0.78,
+   0.72
+  ],
   "file": "I240014571694.jpg",
   "name": "Albert Demetrius Hitchcock",
   "original": "14f4dcff-b03f-411e-b7af-d213387cae9c (1).png",
   "source": "Google Photos album"
  },
  "@I240014571697@": {
+  "crop": [
+   0.25,
+   0.0,
+   0.75,
+   0.4
+  ],
   "file": "I240014571697.jpg",
   "name": "Mary Jane Raymond",
   "original": "IMG_1163~3.jpg",
@@ -29,7 +47,19 @@
   "original": "Hildegarde Aurelia Swenson Hitchcock.JPG",
   "source": "Google Photos album"
  },
+ "@I240014571792@": {
+  "file": "I240014571792.jpg",
+  "name": "Doris Lillian Sherwood",
+  "original": "sent in chat, 2026-09-27",
+  "source": "photo from James"
+ },
  "@I240014571802@": {
+  "crop": [
+   0.15,
+   0.15,
+   0.8,
+   0.7
+  ],
   "file": "I240014571802.jpg",
   "name": "James Thomas Sherwood",
   "original": "PXL_20200816_044120761.jpg",
@@ -42,12 +72,25 @@
   "source": "Google Photos album"
  },
  "@I240014571879@": {
+  "crop": [
+   0.3,
+   0.2,
+   0.85,
+   0.72
+  ],
   "file": "I240014571879.jpg",
   "name": "Clara Bella Monsees",
   "original": "PXL_20210213_184322068.jpg",
+  "rotate": 180,
   "source": "Google Photos album"
  },
  "@I240014571936@": {
+  "crop": [
+   0.28,
+   0.16,
+   0.6,
+   0.42
+  ],
   "file": "I240014571936.jpg",
   "name": "Elizabeth Loughead",
   "original": "Scan.jpg",
@@ -60,21 +103,40 @@
   "source": "Google Photos album"
  },
  "@I240014572068@": {
+  "crop": [
+   0.2,
+   0.2,
+   0.68,
+   0.62
+  ],
   "file": "I240014572068.jpg",
   "name": "Susan Maria Sweet",
   "original": "Susan Maria Sweet.jpg",
   "source": "Google Photos album"
  },
  "@I240014572374@": {
+  "crop": [
+   0.22,
+   0.3,
+   0.78,
+   0.85
+  ],
   "file": "I240014572374.jpg",
   "name": "Maria L. Hopkins",
   "original": "image000000.jpg",
   "source": "Google Photos album"
  },
  "@I240014573857@": {
+  "crop": [
+   0.3,
+   0.25,
+   0.82,
+   0.7
+  ],
   "file": "I240014573857.jpg",
   "name": "Mary Louise Watts",
   "original": "IMG_5642.HEIC",
+  "rotate": 270,
   "source": "Google Photos album"
  },
  "@I240014574980@": {
@@ -84,48 +146,98 @@
   "source": "Google Photos album"
  },
  "@I240014574981@": {
+  "crop": [
+   0.18,
+   0.15,
+   0.85,
+   0.9
+  ],
   "file": "I240014574981.jpg",
   "name": "Mary Gene \"Jean\" Baskett",
   "original": "PXL_20210212_184320578.MP.jpg",
+  "rotate": 90,
   "source": "Google Photos album"
  },
  "@I240014575248@": {
+  "crop": [
+   0.28,
+   0.02,
+   0.7,
+   0.38
+  ],
   "file": "I240014575248.jpg",
   "name": "Arthur John Mehrle",
   "original": "Scan_0164.jpg",
   "source": "Google Photos album"
  },
  "@I240015597669@": {
+  "crop": [
+   0.2,
+   0.2,
+   0.72,
+   0.7
+  ],
   "file": "I240015597669.jpg",
   "name": "Eliza Jane Bostwick",
   "original": "a56f06c8-b54b-49e8-9786-9c659b036489.jpg",
   "source": "Google Photos album"
  },
  "@I240015597693@": {
+  "crop": [
+   0.2,
+   0.0,
+   0.8,
+   0.55
+  ],
   "file": "I240015597693.jpg",
   "name": "Lewis Raymond Sr.",
   "original": "image(7).png",
   "source": "Google Photos album"
  },
  "@I240015673788@": {
+  "crop": [
+   0.2,
+   0.2,
+   0.8,
+   0.8
+  ],
   "file": "I240015673788.jpg",
   "name": "Robert Walker Baskett Sr.",
   "original": "PXL_20210507_005014958.MP.jpg",
   "source": "Google Photos album"
  },
  "@I240015673789@": {
+  "crop": [
+   0.55,
+   0.0,
+   0.97,
+   0.43
+  ],
   "file": "I240015673789.jpg",
   "name": "Marietta Speer",
   "original": "Scan_0012.jpg",
+  "rotate": 180,
   "source": "Google Photos album"
  },
  "@I240015675115@": {
+  "crop": [
+   0.22,
+   0.0,
+   0.8,
+   0.5
+  ],
   "file": "I240015675115.jpg",
   "name": "Walker Mathers Baskett",
   "original": "PXL_20200816_215047206 (1).png",
   "source": "Google Photos album"
  },
  "@I240015881285@": {
+  "crop": [
+   0.18,
+   0.02,
+   0.8,
+   0.55
+  ],
   "file": "I240015881285.jpg",
   "name": "Susan Ann Robertson",
   "original": "image(4).png",
@@ -150,12 +262,24 @@
   "source": "Google Photos album"
  },
  "@I240016245475@": {
+  "crop": [
+   0.2,
+   0.0,
+   0.68,
+   0.35
+  ],
   "file": "I240016245475.jpg",
   "name": "Mary Parks",
   "original": "AllenMary2.jpg",
   "source": "Google Photos album"
  },
  "@I240016442984@": {
+  "crop": [
+   0.2,
+   0.0,
+   0.75,
+   0.5
+  ],
   "file": "I240016442984.jpg",
   "name": "Freelove Frisbee",
   "original": "image(3).png",
@@ -168,6 +292,12 @@
   "source": "Google Photos album"
  },
  "@I240016443118@": {
+  "crop": [
+   0.28,
+   0.22,
+   0.72,
+   0.62
+  ],
   "file": "I240016443118.jpg",
   "name": "Currence Hard",
   "original": "Currence Hard enlarged.jpg",
@@ -192,6 +322,12 @@
   "source": "Google Photos album"
  },
  "@I240020560743@": {
+  "crop": [
+   0.3,
+   0.03,
+   0.78,
+   0.38
+  ],
   "file": "I240020560743.jpg",
   "name": "Catharine Wilhelmine Grube",
   "original": "image(10).png",
@@ -204,27 +340,52 @@
   "source": "Google Photos album"
  },
  "@I240022524185@": {
+  "crop": [
+   0.28,
+   0.3,
+   0.7,
+   0.72
+  ],
   "file": "I240022524185.jpg",
   "name": "Malinda T. Floyd",
   "original": "LF 4 TEX-50 Dallas Texas_0001_a.jpg",
   "source": "Google Photos album"
  },
  "@I240023089324@": {
+  "crop": [
+   0.52,
+   0.05,
+   0.97,
+   0.95
+  ],
   "file": "I240023089324.jpg",
   "name": "John Frederick Schwab",
   "original": "image(11).png",
   "source": "Google Photos album"
  },
  "@I240024525859@": {
+  "crop": [
+   0.18,
+   0.05,
+   0.8,
+   0.6
+  ],
   "file": "I240024525859.jpg",
   "name": "Robert Jesse Baskett",
   "original": "PXL_20210820_044626852.jpg",
   "source": "Google Photos album"
  },
  "@I240024525980@": {
+  "crop": [
+   0.58,
+   0.02,
+   0.96,
+   0.4
+  ],
   "file": "I240024525980.jpg",
   "name": "Frances \"Fannie\" Reese Williams",
   "original": "Scan_0002 (2).jpg",
+  "rotate": 180,
   "source": "Google Photos album"
  },
  "@I240180929342@": {
@@ -240,30 +401,62 @@
   "source": "Google Photos album"
  },
  "@I242087821909@": {
+  "crop": [
+   0.22,
+   0.0,
+   0.8,
+   0.5
+  ],
   "file": "I242087821909.jpg",
   "name": "Samuel Eells",
   "original": "65ec615b-5ee6-4c05-b015-0a3c4760d991.jpg",
   "source": "Google Photos album"
  },
  "@I242144605966@": {
+  "crop": [
+   0.2,
+   0.12,
+   0.75,
+   0.65
+  ],
   "file": "I242144605966.jpg",
   "name": "Clarissa Margaret Berry",
   "original": "PXL_20210507_010825470.MP.jpg",
+  "rotate": 90,
   "source": "Google Photos album"
  },
  "@I242144605997@": {
+  "crop": [
+   0.2,
+   0.12,
+   0.78,
+   0.7
+  ],
   "file": "I242144605997.jpg",
   "name": "James Williams Clay",
   "original": "PXL_20210507_010819440.MP.jpg",
+  "rotate": 90,
   "source": "Google Photos album"
  },
  "@I242178845880@": {
+  "crop": [
+   0.33,
+   0.08,
+   0.88,
+   0.6
+  ],
   "file": "I242178845880.jpg",
   "name": "Andrew Warner Sr.",
   "original": "Capture.PNG",
   "source": "Google Photos album"
  },
  "@I242190138084@": {
+  "crop": [
+   0.28,
+   0.18,
+   0.72,
+   0.62
+  ],
   "file": "I242190138084.jpg",
   "name": "Arthusa \"Thusa\" Catherine Howell",
   "original": "PXL_20201204_022220413.jpg",
@@ -276,24 +469,48 @@
   "source": "Google Photos album"
  },
  "@I242209901667@": {
+  "crop": [
+   0.2,
+   0.15,
+   0.75,
+   0.7
+  ],
   "file": "I242209901667.jpg",
   "name": "William Worthington",
   "original": "IMG_8582.HEIC",
   "source": "Google Photos album"
  },
  "@I242209903698@": {
+  "crop": [
+   0.25,
+   0.15,
+   0.75,
+   0.65
+  ],
   "file": "I242209903698.jpg",
   "name": "Mary Meason",
   "original": "IMG_0057.JPG",
   "source": "Google Photos album"
  },
  "@I242212051036@": {
+  "crop": [
+   0.15,
+   0.22,
+   0.55,
+   0.65
+  ],
   "file": "I242212051036.jpg",
   "name": "Monroe Leland Williams",
   "original": "image(6).png",
   "source": "Google Photos album"
  },
  "@I242212051042@": {
+  "crop": [
+   0.2,
+   0.15,
+   0.75,
+   0.65
+  ],
   "file": "I242212051042.jpg",
   "name": "Nancy Hargrove Black",
   "original": "signal-2022-08-31-183736_002.jpeg",
@@ -312,6 +529,12 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466111@": {
+  "crop": [
+   0.18,
+   0.02,
+   0.62,
+   0.62
+  ],
   "file": "I242611466111.jpg",
   "name": "Louie Elford Askew",
   "original": "Louie Elford Askew 1916.jpg",
@@ -324,6 +547,12 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466135@": {
+  "crop": [
+   0.0,
+   0.0,
+   0.6,
+   0.45
+  ],
   "file": "I242611466135.jpg",
   "name": "Alridge Fleming Shiflet",
   "original": "Alridge Fleming Shiflet 1915.jpg",
@@ -336,12 +565,24 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466175@": {
+  "crop": [
+   0.1,
+   0.05,
+   0.62,
+   0.6
+  ],
   "file": "I242611466175.jpg",
   "name": "Harvey Howard Masterson",
   "original": "Harvey Howard Masterson 1890.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466181@": {
+  "crop": [
+   0.25,
+   0.0,
+   0.7,
+   0.35
+  ],
   "file": "I242611466181.jpg",
   "name": "Helen Dooley Buck",
   "original": "Helen Dooley Buck 1891.jpg",
@@ -366,18 +607,36 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466297@": {
+  "crop": [
+   0.28,
+   0.05,
+   0.6,
+   0.5
+  ],
   "file": "I242611466297.jpg",
   "name": "Benjamin David Lawson",
   "original": "Benjamin David Lawson 1886.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466310@": {
+  "crop": [
+   0.55,
+   0.12,
+   0.92,
+   0.55
+  ],
   "file": "I242611466310.jpg",
   "name": "Anna Tabitha Pate",
   "original": "Anna Tabitha Pate 1889.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466333@": {
+  "crop": [
+   0.22,
+   0.03,
+   0.78,
+   0.45
+  ],
   "file": "I242611466333.jpg",
   "name": "Bluie J. Shiflet",
   "original": "Bluie J. Shiflet 1878.jpg",
@@ -390,18 +649,36 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466357@": {
+  "crop": [
+   0.52,
+   0.24,
+   0.95,
+   0.6
+  ],
   "file": "I242611466357.jpg",
   "name": "Henry Jackson \"Jack\" Shiflett",
   "original": "Henry Jackson Jack Shiflett 1883.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466380@": {
+  "crop": [
+   0.22,
+   0.2,
+   0.72,
+   0.72
+  ],
   "file": "I242611466380.jpg",
   "name": "Gustavia \"Gussie\" Lamb",
   "original": "Gustavia Gussie Lamb 1884.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466398@": {
+  "crop": [
+   0.25,
+   0.03,
+   0.78,
+   0.45
+  ],
   "file": "I242611466398.jpg",
   "name": "Matthew Andrew Masterson",
   "original": "Matthew Andrew Masterson 1849.jpg",
@@ -414,6 +691,12 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466433@": {
+  "crop": [
+   0.3,
+   0.12,
+   0.78,
+   0.5
+  ],
   "file": "I242611466433.jpg",
   "name": "Martha \"Mattie\" Elizabeth Clardy",
   "original": "Martha Mattie Elizabeth Clardy 1858.jpg",
@@ -426,6 +709,12 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466488@": {
+  "crop": [
+   0.0,
+   0.2,
+   0.55,
+   0.75
+  ],
   "file": "I242611466488.jpg",
   "name": "Dovie Zulia Poston",
   "original": "Dovie Zulia Poston 1865.jpg",
@@ -438,30 +727,60 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611466502@": {
+  "crop": [
+   0.2,
+   0.12,
+   0.75,
+   0.7
+  ],
   "file": "I242611466502.jpg",
   "name": "Annie Alabama Slaton",
   "original": "Annie Alabama Slaton 1853.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611467113@": {
+  "crop": [
+   0.05,
+   0.05,
+   0.48,
+   0.95
+  ],
   "file": "I242611467113.jpg",
   "name": "James Marshall Lawson",
   "original": "James Marshall Lawson 1851.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611467120@": {
+  "crop": [
+   0.52,
+   0.1,
+   0.98,
+   0.95
+  ],
   "file": "I242611467120.jpg",
   "name": "Lucinda B. Johnson",
   "original": "Lucinda B. Johnson 1853.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611467149@": {
+  "crop": [
+   0.08,
+   0.36,
+   0.3,
+   0.68
+  ],
   "file": "I242611467149.jpg",
   "name": "Beulah Posey",
   "original": "Beulah Posey 1865.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611467525@": {
+  "crop": [
+   0.18,
+   0.1,
+   0.72,
+   0.55
+  ],
   "file": "I242611467525.jpg",
   "name": "James Smith Snow",
   "original": "James Smith Snow 1859.jpg",
@@ -480,18 +799,36 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611467606@": {
+  "crop": [
+   0.25,
+   0.05,
+   0.72,
+   0.5
+  ],
   "file": "I242611467606.jpg",
   "name": "Augustine \"Gustus\" Snow",
   "original": "Augustine Gustus Snow 1835.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611467612@": {
+  "crop": [
+   0.22,
+   0.2,
+   0.82,
+   0.75
+  ],
   "file": "I242611467612.jpg",
   "name": "Maria Eliza Jane Lawson",
   "original": "Maria Eliza Jane Lawson 1840.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611467681@": {
+  "crop": [
+   0.38,
+   0.08,
+   0.95,
+   0.55
+  ],
   "file": "I242611467681.jpg",
   "name": "Hiram \"Harm\" Banks Shifflett",
   "original": "Hiram Harm Banks Shifflett 1841.jpg",
@@ -504,18 +841,36 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611468659@": {
+  "crop": [
+   0.08,
+   0.18,
+   0.45,
+   0.55
+  ],
   "file": "I242611468659.jpg",
   "name": "Jonathan Wesley Sandlin",
   "original": "Jonathan Wesley Sandlin 1819.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611468675@": {
+  "crop": [
+   0.55,
+   0.24,
+   0.85,
+   0.58
+  ],
   "file": "I242611468675.jpg",
   "name": "Eunice \"Sinia\" Missinah West",
   "original": "Eunice Sinia Missinah West 1825.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611468681@": {
+  "crop": [
+   0.18,
+   0.02,
+   0.78,
+   0.5
+  ],
   "file": "I242611468681.jpg",
   "name": "Charles Willis Buck Sr.",
   "original": "Charles Willis Buck Sr. 1835.jpg",
@@ -528,6 +883,12 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611468809@": {
+  "crop": [
+   0.15,
+   0.0,
+   0.85,
+   0.55
+  ],
   "file": "I242611468809.jpg",
   "name": "Sarah Wilson",
   "original": "Sarah Wilson 1823.jpg",
@@ -546,6 +907,12 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611471264@": {
+  "crop": [
+   0.12,
+   0.15,
+   0.78,
+   0.75
+  ],
   "file": "I242611471264.jpg",
   "name": "Fred Wyche Stone",
   "original": "Fred Wyche Stone 1933.j2k",
@@ -558,18 +925,36 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611471413@": {
+  "crop": [
+   0.12,
+   0.25,
+   0.6,
+   0.85
+  ],
   "file": "I242611471413.jpg",
   "name": "Margaret Lula Davis",
   "original": "Margaret Lula Davis 1913.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611525597@": {
+  "crop": [
+   0.0,
+   0.18,
+   0.62,
+   0.75
+  ],
   "file": "I242611525597.jpg",
   "name": "Alvis Loree Shiflet",
   "original": "Alvis Loree Shiflet 1922.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611586263@": {
+  "crop": [
+   0.5,
+   0.08,
+   1.0,
+   0.75
+  ],
   "file": "I242611586263.jpg",
   "name": "Vernie Lee Herring",
   "original": "Vernie Lee Herring 1917.jpg",
@@ -582,9 +967,21 @@
   "source": "Ancestry profile photo (via Family Tree Maker)"
  },
  "@I242611820353@": {
+  "crop": [
+   0.18,
+   0.1,
+   0.75,
+   0.58
+  ],
   "file": "I242611820353.jpg",
   "name": "Susan Wells",
   "original": "Susan Wells 1802.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
+ },
+ "@I242780504216@": {
+  "file": "I242780504216.jpg",
+  "name": "Martha Barker",
+  "original": "image.png (tagged Marietta; it is Martha, James)",
+  "source": "Google Photos album"
  }
 }
