@@ -173,6 +173,21 @@ open questions: James's review page, https://claude.ai/artifact/AttZme4rHWZjipWb
 (built from the scratchpad; not in the repo). Corrections go in
 itineraries.py, not in data.js.
 
+Living people (2026-09-27, James's design): everyone born within 100
+years with no death record (or, with no birth year, within four
+generations of the root), 12 people at present including the root, is
+published as "Private": no name, surname or birth year in GRAPH, left out of
+SEARCH_INDEX, "Private" in ROUTES' name lists. Their moves still draw.
+Their details are in PRIVATE, encrypted with the family password
+(`pipeline/project/privacy.py`: PBKDF2-SHA256 600k -> AES-256-CTR + HMAC;
+pure-Python AES checked against FIPS-197). The header's lock button takes
+the password, decrypts in the browser (WebCrypto), puts them back and
+remembers the derived key on that device. write_data_js.py needs
+HM_PASSPHRASE in the environment and fails if a living name would leak;
+diff_shipped.py redacts its side the same way. Never write the password
+into any file. Names from before this change remain in git history and in
+legacy.html.
+
 ## Coordinates
 
 The data is in projected units: `x = lon + 35` (wrapped to [-180,180)),

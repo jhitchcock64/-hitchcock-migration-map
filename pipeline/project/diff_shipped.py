@@ -19,6 +19,9 @@ S = {n: const(n) for n in ['ROUTES','PLACES','GRAPH','SEARCH_INDEX','PERSON_LEGS
 M = {'ROUTES': json.load(open(B+'routes_prepared.json', encoding='utf-8')), 'PLACES': json.load(open(B+'places_prepared.json', encoding='utf-8')),
      'GRAPH': json.load(open(B+'person_graph.json', encoding='utf-8')), 'SEARCH_INDEX': json.load(open(B+'search_index.json', encoding='utf-8')),
      'PERSON_LEGS': json.load(open(B+'person_legs.json', encoding='utf-8')), 'CLUSTERS': json.load(open(B+'clusters_prepared.json', encoding='utf-8'))}
+# the shipped data hides the living (privacy.py); hide them in ours the same way before comparing
+import privacy
+privacy.redact(M, privacy.living_ids(M['GRAPH'], json.load(open(_os.path.join(PROJECT_DIR, 'indi.json'), encoding='utf-8'))))
 for n in S:
     la = len(S[n]['people']) if n=='GRAPH' else len(S[n]); lb = len(M[n]['people']) if n=='GRAPH' else len(M[n])
     print(f'{n}: shipped={la} mine={lb}')

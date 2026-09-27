@@ -509,7 +509,9 @@ with open(_os.path.join(PROJECT_DIR, "ancestors.json")) as f: anc_data = json.lo
 
 james_id = anc_data["james_id"]
 direct_ancestors = set(anc_data["direct_ancestors"])
-SIBLING_IDS = ["@I240014574897@", "@I240014574902@"]
+# the root's aunts and uncle, shown with the family although not ancestors (James's
+# choice); living, so privacy.py hides them in the public data
+SIBLING_IDS = ["@I240014574897@", "@I240014574902@", "@I242611587662@"]
 relevant = direct_ancestors | {james_id} | set(SIBLING_IDS)
 
 def parse_year(date_str):

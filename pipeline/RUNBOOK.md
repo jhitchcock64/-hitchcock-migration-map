@@ -62,11 +62,19 @@ runner finds a working Python by itself and sets UTF-8 mode).
    comparing the person's GEDCOM record in the old and new export usually
    shows it.
 
-5. **Write** the new arrays into `data.js`:
+5. **Write** the new arrays into `data.js`. Living people are hidden in the
+   public data and their details encrypted with the family password
+   (`privacy.py`), so the script needs the password for this session. In
+   PowerShell (the password is typed, not saved anywhere):
 
    ```
+   $env:HM_PASSPHRASE = Read-Host "Family password"
    python pipeline/project/write_data_js.py data.js
    ```
+
+   In Git Bash: `read -s HM_PASSPHRASE && export HM_PASSPHRASE`, then the same
+   command. It refuses to run without it, and fails if any living person's
+   name would still be in the public data.
 
 6. **Check the page in a browser:**
 

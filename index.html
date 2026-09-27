@@ -21,6 +21,19 @@ header { display:flex; align-items:baseline; flex-wrap:wrap; column-gap:14px; pa
   border-bottom:1px solid rgba(156,122,46,0.3); flex-shrink:0; background:var(--panel-bg); }
 header h1 { font-family:var(--font-display); font-weight:600; font-size:18px; margin:0; }
 header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); }
+/* living family: hidden in the public data; the family password shows them */
+#lock { margin-left:auto; position:relative; align-self:center; }
+#lock-btn { font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted, #6b5a3e);
+  background:none; border:1px solid rgba(156,122,46,0.4); border-radius:4px; padding:3px 8px; cursor:pointer; }
+#lock-btn.open { color:#2f3d12; border-color:#2f3d12; }
+#lock-pop { display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:50; width:250px; background:var(--panel-bg);
+  border:1px solid rgba(156,122,46,0.5); border-radius:6px; padding:10px; box-shadow:0 4px 14px rgba(0,0,0,0.15); font-size:12px; }
+#lock-pop.show { display:block; }
+#lock-pop p { margin:0 0 7px; color:var(--muted, #6b5a3e); line-height:1.35; }
+#lock-pop form { display:flex; gap:6px; }
+#lock-pop input { flex:1; min-width:0; font:inherit; padding:4px 6px; border:1px solid rgba(156,122,46,0.5); border-radius:4px; }
+#lock-pop button { font:inherit; padding:4px 8px; border-radius:4px; border:1px solid #2f3d12; background:#2f3d12; color:#fff; cursor:pointer; }
+#lock-msg { color:#9c3c2e; margin-top:6px; min-height:1em; }
 
 #map-wrap { position:relative; flex:1; min-height:0; overflow:hidden; }
 /* MapLibre draws the map (basemap, routes, labels) into #map; the search box,
@@ -326,6 +339,14 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 <header>
   <h1 id="page-title">Family History, Visualized</h1>
   <span class="eyebrow">Direct ancestors: migration, service and history &middot; <span id="year-span"></span></span>
+  <div id="lock">
+    <button id="lock-btn" type="button" aria-expanded="false">&#x1F512; Living family hidden</button>
+    <div id="lock-pop" role="dialog" aria-label="Show living family">
+      <p id="lock-text">Living family members appear as &ldquo;Private&rdquo;. Enter the family password to show them on this device.</p>
+      <form id="lock-form"><input id="lock-pw" type="password" autocomplete="current-password" aria-label="Family password"><button type="submit" id="lock-go">Show</button></form>
+      <div id="lock-msg"></div>
+    </div>
+  </div>
 </header>
 <div id="map-wrap">
   <div id="map" role="application" aria-label="Interactive migration map. Use the search box to find an ancestor, or the zoom buttons to navigate."></div>
@@ -1144,7 +1165,8 @@ function setTarget(pid) {
   TARGET_ANCESTOR_SET = ancestorSetOf(pid); // includes pid itself
   recomputeClusterVisibility();
   // the default view says "Family History, Visualized"; a chosen person's, "Family History of X, Visualized"
-  const title = pid === GRAPH.james_id ? "Family History, Visualized" : `Family History of ${GRAPH.people[pid].name}, Visualized`;
+  const nm = GRAPH.people[pid].name;
+  const title = pid === GRAPH.james_id || nm === "Private" ? "Family History, Visualized" : `Family History of ${nm}, Visualized`;
   document.title = title;
   document.getElementById("page-title").textContent = title;
   clearFocus();
@@ -1156,7 +1178,7 @@ function targetConvPoint() {
 }
 function targetLabel() {
   const p = GRAPH.people[CURRENT_TARGET];
-  if (!p) return "";
+  if (!p || p.name === "Private") return "";
   return `${p.name}${p.by ? ", b. " + p.by : ""}`;
 }
 
@@ -2125,7 +2147,7 @@ function relationOf(pid) {
   const s = NB.sex[pid], base = s === "M" ? ["father", "grandfather"] : s === "F" ? ["mother", "grandmother"] : ["parent", "grandparent"];
   const rel = g === 1 ? base[0] : g === 2 ? base[1] : g === 3 ? "great-" + base[1] : ordinal(g - 2) + " great-" + base[1];
   const t = (GRAPH.people[CURRENT_TARGET] || {}).name || "";
-  return `${t.split(" ")[0]}'s ${rel}`;
+  return t && t !== "Private" ? `${t.split(" ")[0]}'s ${rel}` : rel;
 }
 function showNotableTip(event, ns) {
   const list = [...new Set(ns)].map(n => NB_EVENTS[n]).sort((a, b) => a.y - b.y).slice(0, 4);
@@ -2150,6 +2172,71 @@ function setNotable(on) {
 }
 document.getElementById("layer-notable").onclick = () => setNotable(!showNotable);
 setNotable(showNotable);
+
+// ---- living family: hidden in the public data, shown with the family password ----
+// PRIVATE (pipeline/project/privacy.py) holds their details, AES-CTR encrypted with
+// a key from PBKDF2 of the password, HMAC-checked. Decrypted here, never sent anywhere;
+// the derived key (not the password) is remembered on this device.
+const PRIV = typeof PRIVATE !== "undefined" ? PRIVATE : null;
+const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const b64e = a => btoa(String.fromCharCode(...a));
+let familyShown = false;
+async function keyMaterial(pw) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: b64d(PRIV.salt), iterations: PRIV.iter }, base, 512));
+}
+async function openPrivate(km) {
+  const ek = await crypto.subtle.importKey("raw", km.slice(0, 32), "AES-CTR", false, ["decrypt"]);
+  const mk = await crypto.subtle.importKey("raw", km.slice(32), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+  const iv = b64d(PRIV.iv), ct = b64d(PRIV.ct), signed = new Uint8Array(iv.length + ct.length);
+  signed.set(iv); signed.set(ct, iv.length);
+  if (!await crypto.subtle.verify("HMAC", mk, b64d(PRIV.mac), signed)) return null;
+  return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-CTR", counter: iv, length: 64 }, ek, ct)));
+}
+function showFamily(d) {
+  for (const [pid, p] of Object.entries(d.graph)) GRAPH.people[pid] = p;
+  for (const [i, s] of d.search) { s.nameLower = s.name.toLowerCase(); SEARCH_INDEX.splice(i, 0, s); }
+  for (const [i, r] of Object.entries(d.routes)) Object.assign(ROUTES[+i], r);
+  familyShown = true;
+  routeViewCache = new Map(); genTarget = null;
+  const go = () => { if (mapReady) setTarget(CURRENT_TARGET); else setTimeout(go, 150); };
+  go();
+  lockUI();
+}
+function lockUI() {
+  const btn = document.getElementById("lock-btn");
+  btn.innerHTML = familyShown ? "&#x1F513; Living family shown" : "&#x1F512; Living family hidden";
+  btn.classList.toggle("open", familyShown);
+  document.getElementById("lock-text").innerHTML = familyShown
+    ? "Living family members are shown on this device."
+    : "Living family members appear as &ldquo;Private&rdquo;. Enter the family password to show them on this device.";
+  document.getElementById("lock-form").style.display = familyShown ? "none" : "flex";
+  document.getElementById("lock-msg").innerHTML = familyShown ? '<a href="#" id="lock-forget">Hide them again on this device</a>' : "";
+  const f = document.getElementById("lock-forget");
+  if (f) f.onclick = ev => { ev.preventDefault(); try { localStorage.removeItem("hm-family-key"); } catch (e) {} location.reload(); };
+}
+if (!PRIV) document.getElementById("lock").style.display = "none";
+else {
+  const pop = document.getElementById("lock-pop"), btn = document.getElementById("lock-btn");
+  btn.onclick = () => { const on = !pop.classList.contains("show"); pop.classList.toggle("show", on); btn.setAttribute("aria-expanded", on);
+                        if (on && !familyShown) document.getElementById("lock-pw").focus(); };
+  document.getElementById("lock-form").onsubmit = async ev => {
+    ev.preventDefault();
+    const msg = document.getElementById("lock-msg"), pw = document.getElementById("lock-pw").value;
+    if (!pw) return;
+    msg.textContent = "Checking\u2026";
+    const km = await keyMaterial(pw), d = await openPrivate(km);
+    if (!d) { msg.textContent = "That isn't the family password."; return; }
+    try { localStorage.setItem("hm-family-key", b64e(km)); } catch (e) {}
+    document.getElementById("lock-pw").value = "";
+    showFamily(d);
+    pop.classList.remove("show");
+  };
+  let saved = null;
+  try { saved = localStorage.getItem("hm-family-key"); } catch (e) {}
+  if (saved) openPrivate(b64d(saved)).then(d => d ? showFamily(d) : null).catch(() => {});
+  lockUI();
+}
 </script>
 </body>
 </html>
