@@ -154,7 +154,13 @@ Saint-Mihiel 1918; 24 have routes, 6 are notes (no places recorded). Every
 stop carries its basis: `record` (documented for him), `unit` (his
 regiment's movements), `family` (family account or secondary history),
 `conjecture` (a guess; only Charles Clay's Jamestown). Legs are marches on
-period roads unless the stop says water, sea or rail; `gap` leaves a jump
+period roads unless the stop says water, sea or rail (for marches, roads the
+migrations retire in 1840-80 stay open to 1920, legs from 25 km are routed
+and the detour guard is 3x); `by='arc'` with `way` points draws a smooth
+curve through a documented march (Sullivan's expedition, the 1781 Yorktown
+march, the III Corps to Gettysburg, Shelby's 1813 campaign, Hood's
+Tennessee campaign); anything else unroutable is a gentle arc, never a
+ruled line (James: route where honest, otherwise arcs); `gap` leaves a jump
 undrawn (W. G. Gregory between Donelson and his 1865 parole). This is a
 separate layer from the migrations and never feeds ROUTES or PERSON_LEGS.
 For a man with an itinerary, stage 3 leaves his _MILT records out of his
@@ -301,7 +307,8 @@ moves. URL: `?lines=likely|direct`, `?known=1`, `?military=1`, `?notable=1`.
 The page is titled "Family History, Visualized" (not "Migration Lines to X");
 Family journey's search box reads "Show family history of...".
 
-Notable events: a pin per event (`notable` layer; red = event, hollow =
+Notable events: a star per event (`notable` symbol layer, canvas-drawn
+`starImage`, so they don't read as place dots; red = event, hollow =
 family story, blue = arrival in America), shown for the target's ancestors;
 Life journey always shows the chosen person's. The tooltip gives the date,
 place, text, ship, the people with their relationship to the current target
@@ -336,7 +343,15 @@ Modes (`#search-modes` buttons, `searchMode`):
   `assemblePath`), with status text in `#path-status`.
 - **Time period**: from/to year inputs, a play button that steps a window
   2 years every 200 ms across the data's year range, and an optional person
-  filter (`#era-person-*`).
+  (`#era-person-*`, which sets the target). Since 2026-09-27 it's a filter on
+  everything drawn (`ERA`, `setEra`, `inEra`, `routeInEra`): moves whose
+  target-side years overlap the period, military stops and legs dated in it,
+  notable events in it; the layer checkboxes still apply. (Before, it drew
+  every leg in range as a focused thread of direct arcs.) Leaving the mode
+  clears it.
+- The military and notable layers follow the mode: Life journey shows only
+  the chosen person's service and events; Surname only that surname's
+  (`SURNAME_SET`), and the view fits them too (James, 2026-09-27).
 - **Surname**: filter routes by surname.
 
 Interaction:

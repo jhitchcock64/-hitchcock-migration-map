@@ -132,7 +132,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #legend .notable-key { display:none; gap:10px; margin:0 0 6px; font-size:10px; color:var(--muted); flex-wrap:wrap; }
 #legend.notable .notable-key { display:flex; }
 #legend .notable-key span { display:flex; align-items:center; gap:4px; }
-#legend .nb-dot { width:9px; height:9px; border-radius:50%; border:1.5px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,0.25); }
+#legend .nb-star { display:inline-flex; }
 #legend .mil-key { display:none; flex-direction:column; gap:2px; margin:0 0 6px 19px; font-size:10px; color:var(--muted); }
 #legend.mil .mil-key { display:flex; }
 #legend .mil-key span { display:flex; align-items:center; gap:6px; }
@@ -375,9 +375,9 @@ svg#overlay-svg .interactive { pointer-events:auto; }
       <span><i class="mil-sw" style="border-color:#7a8a3c; border-top-style:dashed"></i>a guess</span>
     </div>
     <div class="notable-key">
-      <span><i class="nb-dot" style="background:#b5462f"></i>event</span>
-      <span><i class="nb-dot" style="background:#fff; border-color:#b5462f"></i>family story</span>
-      <span><i class="nb-dot" style="background:#1f5f8b"></i>arrival in America</span>
+      <span><i class="nb-star"><svg viewBox="0 0 20 20" width="13" height="13"><path d="M10.00,1.60 L12.29,7.44 L18.56,7.82 L13.71,11.81 L15.29,17.88 L10.00,14.50 L4.71,17.88 L6.29,11.81 L1.44,7.82 L7.71,7.44 Z" fill="#b5462f" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></i>event</span>
+      <span><i class="nb-star"><svg viewBox="0 0 20 20" width="13" height="13"><path d="M10.00,1.60 L12.29,7.44 L18.56,7.82 L13.71,11.81 L15.29,17.88 L10.00,14.50 L4.71,17.88 L6.29,11.81 L1.44,7.82 L7.71,7.44 Z" fill="#fff" stroke="#b5462f" stroke-width="1.6" stroke-linejoin="round"/></svg></i>family story</span>
+      <span><i class="nb-star"><svg viewBox="0 0 20 20" width="13" height="13"><path d="M10.00,1.60 L12.29,7.44 L18.56,7.82 L13.71,11.81 L15.29,17.88 L10.00,14.50 L4.71,17.88 L6.29,11.81 L1.44,7.82 L7.71,7.44 Z" fill="#1f5f8b" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></i>arrival in America</span>
     </div>
     <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = who traveled &middot; click = trace the line to the target &middot; search top-left</div>
   </div>
@@ -663,12 +663,30 @@ function triangleDist(size, halfAngle) {
 }
 const ARROW_PX = 64;                       // icon image size; its triangle is ARROW_PX - 8 long
 const ARROW_LEN = ARROW_PX - 8;
+// a five-pointed star, drawn on a canvas at 2x: fill, outline
+function starImage(fill, stroke) {
+  const n = 40, c = document.createElement("canvas"); c.width = c.height = n;
+  const g = c.getContext("2d");
+  g.beginPath();
+  for (let k = 0; k < 10; k++) {
+    const r = k % 2 ? 7.6 : 17.5, a = -Math.PI / 2 + k * Math.PI / 5;
+    g[k ? "lineTo" : "moveTo"](n / 2 + r * Math.cos(a), n / 2 + 1.2 + r * Math.sin(a));
+  }
+  g.closePath();
+  g.lineJoin = "round"; g.lineWidth = 3.2; g.strokeStyle = stroke; g.fillStyle = fill;
+  g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = 2;
+  g.fill(); g.shadowColor = "transparent"; g.stroke();
+  return g.getImageData(0, 0, n, n);
+}
 function addImages() {
   // (the triangle is walked tip -> upper corner -> lower corner: inside = every cross product <= 0)
   map.addImage("arrow45", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.45)), { sdf: true, pixelRatio: 1 });
   map.addImage("arrow40", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.40)), { sdf: true, pixelRatio: 1 });
   map.addImage("arrow35", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.35)), { sdf: true, pixelRatio: 1 });
   map.addImage("dot", sdfImage(24, (x, y) => Math.hypot(x - 12, y - 12) - 5), { sdf: true, pixelRatio: 2 });
+  // notable events are stars, so they don't read as places (which are dots)
+  for (const [name, fill, stroke] of [["nb-event", "#b5462f", "#fff"], ["nb-story", "#fff", "#b5462f"], ["nb-arrival", "#1f5f8b", "#fff"]])
+    map.addImage(name, starImage(fill, stroke), { pixelRatio: 2 });
 }
 
 // ---- data for the map, rebuilt when the target changes ----
@@ -678,7 +696,7 @@ function routeFeatures() {
   for (const c of CLUSTERS) if (c._visMembers.length >= MIN_VISIBLE_CLUSTER_SIZE) for (const i of c._visMembers) inVisibleCluster.add(i);
   const lines = [], arrows = [], edgeRoutes = new Map();
   ROUTES.forEach((r, i) => {
-    if (!isRouteRelevant(r)) return;
+    if (!isRouteRelevant(r) || !routeInEra(i)) return;
     const v = routeVia(i);
     const rv = routeView(i);
     const ll = v ? viaLL(v) : ROUTE_LL[i], color = colorForYear(rv.mean), w = lwFor(rv.count);
@@ -738,7 +756,7 @@ function clusterFeatures() {
 // family places: labelled where a relevant route starts or ends, by tier, then how many routes touch them
 function placeFeatures() {
   const keys = new Set();
-  for (const r of ROUTES) if (isRouteRelevant(r)) {
+  for (const r of ROUTES) if (isRouteRelevant(r) && routeInEra(r._i)) {
     const c = r.curve, ends = c.mode === "path" ? [c.coords[0], c.coords[c.coords.length-1]] : [[c.x1, c.y1], [c.x2, c.y2]];
     for (const [x, y] of ends) keys.add(Math.round(x*10) + "," + Math.round(y*10));
   }
@@ -861,11 +879,11 @@ function addMapLayers() {
     paint: { "circle-radius": 4, "circle-color": "#ffffff", "circle-stroke-color": ["get", "color"], "circle-stroke-width": 2 } });
   // notable events: a pin for each (arrivals smaller)
   map.addSource("notable", { type: "geojson", data: fc([]) });
-  map.addLayer({ id: "notable", type: "circle", source: "notable",
-    paint: { "circle-radius": ["case", ["==", ["get", "k"], "arrival"], 4.2, 5.6],
-             "circle-color": ["match", ["get", "k"], "arrival", "#1f5f8b", "story", "#ffffff", "#b5462f"],
-             "circle-stroke-color": ["match", ["get", "k"], "story", "#b5462f", "#ffffff"],
-             "circle-stroke-width": ["match", ["get", "k"], "story", 2.2, 1.6] } });
+  map.addLayer({ id: "notable", type: "symbol", source: "notable",
+    layout: { "icon-image": ["match", ["get", "k"], "arrival", "nb-arrival", "story", "nb-story", "nb-event"],
+              "icon-size": ["interpolate", ["linear"], ["zoom"], 2, ["case", ["==", ["get", "k"], "arrival"], 0.95, 1.1],
+                                                                 9, ["case", ["==", ["get", "k"], "arrival"], 1.35, 1.6]],
+              "icon-allow-overlap": true, "icon-ignore-placement": true } });
   // family places (placed before the style's own labels, so they win
   // collisions). Text needs the style's fonts, so the fallback map shows dots only.
   map.addLayer({ id: "places", type: "symbol", source: "places",
@@ -968,8 +986,8 @@ function applyAggregation(force) {
 let shownTarget = null, shownThread = null, shownLikely = null, shownEdgeRoutes = new Map(), shownMil = null, shownGhost = null, shownNotable = null;
 function redrawAll() {
   if (!mapReady) return;
-  if (shownTarget !== CURRENT_TARGET || shownLikely !== likelyRoutes) {
-    shownTarget = CURRENT_TARGET;
+  if (shownTarget !== CURRENT_TARGET + "|" + eraKey() || shownLikely !== likelyRoutes) {
+    shownTarget = CURRENT_TARGET + "|" + eraKey();
     if (shownLikely !== likelyRoutes) shownThread = null;
     shownLikely = likelyRoutes;
     const r = routeFeatures(), c = clusterFeatures(), b = bundleFeatures(r.edgeRoutes);
@@ -996,22 +1014,22 @@ function redrawAll() {
     map.getSource("stationary").setData(fc(sp ? [{ type: "Feature", properties: {},
       geometry: { type: "Point", coordinates: toLL(sp.x, sp.y) } }] : []));
   }
-  const ghostKey = showLikely && showKnown ? CURRENT_TARGET : null;
+  const ghostKey = showLikely && showKnown ? CURRENT_TARGET + eraKey() : null;
   if (ghostKey !== shownGhost) {
     shownGhost = ghostKey;
     const g = [];
-    if (ghostKey) ROUTES.forEach((r, i) => { if (isRouteRelevant(r) && routeVia(i)) g.push({ type: "Feature",
+    if (ghostKey) ROUTES.forEach((r, i) => { if (isRouteRelevant(r) && routeVia(i) && routeInEra(i)) g.push({ type: "Feature",
       properties: { color: colorForYear(routeView(i).mean) }, geometry: { type: "LineString", coordinates: ROUTE_LL[i] } }); });
     map.getSource("routes-ghost").setData(fc(g));
   }
-  const nbKey = [lifePerson, showNotable, CURRENT_TARGET].join("|");
+  const nbKey = [lifePerson, showNotable, CURRENT_TARGET, eraKey(), SURNAME_SET && SURNAME_SET.key].join("|");
   if (nbKey !== shownNotable) {
     shownNotable = nbKey;
     const f = notableFeatures();
     map.getSource("notable").setData(fc(f));
     document.getElementById("legend").classList.toggle("notable", f.length > 0);
   }
-  const milKey = [lifePerson, showMilitary, CURRENT_TARGET].join("|");
+  const milKey = [lifePerson, showMilitary, CURRENT_TARGET, eraKey(), SURNAME_SET && SURNAME_SET.key].join("|");
   if (milKey !== shownMil) {
     shownMil = milKey;
     const m = militaryFeatures();
@@ -1230,6 +1248,7 @@ const styleTimer = setInterval(() => {
 let focusedAnchor = null; // person_id currently focused, or null
 
 let focusActive = false;
+let SURNAME_SET = null;  // Surname mode: the people with that surname (military and notable show only theirs)
 let lifePerson = null;    // the person shown in Life journey: their military service is drawn
 let showMilitary = true;  // the legend's Military service toggle, on by default (James); set up near the end
 
@@ -1241,6 +1260,17 @@ function aggLwFor(count) { return 3 + Math.sqrt(count) * 2.1; }
 // story" -- used everywhere routes get filtered, so the ancestor-set check
 // and the per-target culmination check can't drift out of sync across
 // the different places that need them (main render, clusters, labels).
+// ---- Time period: a filter on everything drawn (moves, military service,
+// notable events), not a separate view. ERA = [from, to] or null. ----
+let ERA = null;
+const eraKey = () => ERA ? ERA.join("-") : "";
+const inEra = y => !ERA || (y != null && y >= ERA[0] && y <= ERA[1]);
+// a route is in the period if any of its moves (by the target's ancestors) is
+function routeInEra(i) {
+  if (!ERA) return true;
+  const v = routeView(i);
+  return v.max >= ERA[0] && v.min <= ERA[1];
+}
 function isRouteRelevant(r) {
   if (r.anchor_ids && r.anchor_ids.length) {
     for (const pid of r.anchor_ids) if (TARGET_ANCESTOR_SET.has(pid)) return true;
@@ -1289,7 +1319,7 @@ const viewNames = (d, list) => { const v = routeView(d._i); return v.names ? lis
 function recomputeClusterVisibility() {
   routeViewCache = new Map();
   for (const c of CLUSTERS) {
-    const vis = c.members.filter(idx => isRouteRelevant(ROUTES[idx]) && !routeVia(idx));
+    const vis = c.members.filter(idx => isRouteRelevant(ROUTES[idx]) && !routeVia(idx) && routeInEra(idx));
     c._visMembers = vis;
     c._visCount = vis.reduce((s,idx) => s + routeView(idx).count, 0);
     c._visYears = vis.length ? vis.map(idx => routeView(idx).mean) : [c.mean_year];
@@ -1499,6 +1529,8 @@ document.querySelectorAll(".mode-btn").forEach(btn => {
     searchMode = btn.dataset.mode;
     pathPickA = null;
     if (searchMode !== "life" && lifePerson) { lifePerson = null; redrawAll(); }
+    if (searchMode !== "surname" && SURNAME_SET) { SURNAME_SET = null; if (focusActive) clearFocus(); redrawAll(); }
+    if (searchMode !== "era" && ERA) { if (playInterval) stopPlayback(); setEra(null); }
     updatePathStatus();
     const isEra = searchMode === "era";
     const isSurname = searchMode === "surname";
@@ -1546,37 +1578,22 @@ const yearToInput = document.getElementById("year-to");
 let yearRangeDebounce = null;
 let eraPersonFilterID = null;
 
-function computeYearRangeSegs(minYear, maxYear, ancestorSet) {
-  const segs = [];
-  for (const pid in PERSON_LEGS) {
-    if (ancestorSet && !ancestorSet.has(pid)) continue;
-    const legs = PERSON_LEGS[pid];
-    if (!legs || !legs.length) continue;
-    const name = (GRAPH.people[pid] && GRAPH.people[pid].name) || "?";
-    for (const l of legs) {
-      if (l.year >= minYear && l.year <= maxYear) segs.push(Object.assign({ person: name }, l));
-    }
-  }
-  return segs;
-}
-
 function applyYearRange() {
   const fromVal = yearFromInput.value.trim(), toVal = yearToInput.value.trim();
-  if (!fromVal || !toVal) { return; } // wait for both bounds before rendering anything
+  if (!fromVal || !toVal) { return; } // wait for both bounds before filtering anything
   let a = parseInt(fromVal, 10), b = parseInt(toVal, 10);
   if (isNaN(a) || isNaN(b)) return;
-  const minYear = Math.min(a, b), maxYear = Math.max(a, b); // forgiving of bounds entered backwards
-  focusedAnchor = null;
-  focusedStationaryPoint = null;
-  const ancestorSet = eraPersonFilterID ? ancestorSetOf(eraPersonFilterID) : null;
-  const segs = computeYearRangeSegs(minYear, maxYear, ancestorSet);
-  const personName = eraPersonFilterID ? ((GRAPH.people[eraPersonFilterID]||{}).name || "?") : null;
-  const scopeText = personName ? `${personName}\u2019s ancestors\u2019 journeys` : "Journeys";
-  const title = segs.length
-    ? `${scopeText}, ${minYear}\u2013${maxYear}`
-    : `${personName ? personName + "\u2019s ancestors have " : "There are "}no recorded journeys between ${minYear} and ${maxYear}`;
-  // the view stays where the viewer left it (James, 2026-09-25): no fitting to each window
-  renderFocusedChain(segs, title, "ancestor");
+  setEra([Math.min(a, b), Math.max(a, b)]);   // forgiving of bounds entered backwards
+}
+// the view stays where the viewer left it (James, 2026-09-25): no fitting to each window
+function setEra(range) {
+  ERA = range;
+  if (focusActive) clearFocus();
+  recomputeClusterVisibility();
+  hideTip();
+  const span = document.getElementById("year-span");
+  span.textContent = ERA ? `showing ${ERA[0]}\u2013${ERA[1]}` : `${Math.floor(YEAR_MIN)}\u2013${Math.ceil(YEAR_MAX)}`;
+  redrawAll();
 }
 function scheduleYearRangeApply() {
   if (playInterval) stopPlayback();
@@ -1663,12 +1680,14 @@ function selectEraPerson(i) {
   eraPersonInput.style.display = "none";
   eraPersonChipName.textContent = p.name;
   eraPersonChip.style.display = "flex";
+  setTarget(p.id);
   applyYearRange();
 }
 eraPersonChip.querySelector(".chip-clear").addEventListener("click", () => {
   eraPersonFilterID = null;
   eraPersonChip.style.display = "none";
   eraPersonInput.style.display = "";
+  setTarget(GRAPH.james_id);
   applyYearRange();
 });
 eraPersonInput.addEventListener("input", () => runEraPersonSearch(eraPersonInput.value));
@@ -1713,13 +1732,22 @@ function applySurnameFilter() {
   focusedAnchor = null;
   focusedStationaryPoint = null;
   const segs = computeSurnameSegs(val);
+  SURNAME_SET = new Set(Object.keys(GRAPH.people).filter(id => (GRAPH.people[id].surname || "").toLowerCase() === val.toLowerCase()));
+  SURNAME_SET.key = val.toLowerCase();
   const peopleCount = new Set(segs.map(s => s.person)).size;
   const title = segs.length
     ? `Every ${val}`
     : `No journeys found for "${val}"`;
-  if (segs.length) zoomToFitSegs(segs);
+  // fit the moves plus the surname's military stops and notable events
+  const pts = [];
+  for (const id of SURNAME_SET) {
+    if (showMilitary && MIL_DATA[id]) for (const e of MIL_DATA[id]) for (const s of e.stops) pts.push({ x1: s.x, y1: s.y, x2: s.x, y2: s.y });
+  }
+  if (showNotable) for (const e of NB_EVENTS) if (e.p.some(id => SURNAME_SET.has(id))) pts.push({ x1: e.x, y1: e.y2, x2: e.x, y2: e.y2 });
+  if (segs.length || pts.length) zoomToFitSegs(segs.concat(pts));
   const label = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
   renderFocusedChain(segs, title, label);
+  redrawAll();
 }
 function scheduleSurnameApply() {
   clearTimeout(surnameDebounce);
@@ -1896,21 +1924,30 @@ const MIL_BASIS = { record: "documented for him", unit: "his regiment's movement
                     family: "family account or secondary history", conjecture: "a guess" };
 function militaryPeople() {
   const ids = new Set();
-  if (lifePerson && MIL_DATA[lifePerson]) ids.add(lifePerson);
+  if (lifePerson) { if (MIL_DATA[lifePerson]) ids.add(lifePerson); return [...ids]; }   // Life journey: only theirs
+  if (SURNAME_SET) { if (showMilitary) for (const id in MIL_DATA) if (SURNAME_SET.has(id)) ids.add(id); return [...ids]; }
   if (showMilitary) for (const id in MIL_DATA) if (TARGET_ANCESTOR_SET.has(id)) ids.add(id);
   return [...ids];
+}
+// each stop's year: the first year in its date text, or the stop before's
+function stopYears(e) {
+  if (e._yrs) return e._yrs;
+  let y = null;
+  return e._yrs = e.stops.map(s => { const m = /1[5-9]\d\d/.exec(s.d); if (m) y = +m[0]; return y; });
 }
 function militaryFeatures() {
   const lines = [], arrows = [], stops = [];
   for (const pid of militaryPeople()) MIL_DATA[pid].forEach((e, k) => {
+    const yrs = stopYears(e);
     for (const l of e.legs) {
+      if (!inEra(yrs[l.i])) continue;
       const ll = l.p.map(q => toLL(q[0], q[1])), n = ll.length;
       lines.push({ type: "Feature", properties: { pid, k, i: l.i, c: l.c, color: MIL_COLOR[l.c] },
                    geometry: { type: "LineString", coordinates: ll } });
       if (n > 1) arrows.push({ type: "Feature", properties: { color: MIL_COLOR[l.c], rot: bearingDeg(ll[n-2], ll[n-1]), size: 8 / ARROW_LEN },
                                geometry: { type: "Point", coordinates: ll[n-1] } });
     }
-    e.stops.forEach((s, i) => stops.push({ type: "Feature", properties: { pid, k, i, c: s.c, color: MIL_COLOR[s.c] },
+    e.stops.forEach((s, i) => inEra(yrs[i]) && stops.push({ type: "Feature", properties: { pid, k, i, c: s.c, color: MIL_COLOR[s.c] },
                                            geometry: { type: "Point", coordinates: toLL(s.x, s.y) } }));
   });
   return { lines, arrows, stops };
@@ -1945,8 +1982,9 @@ const NB_EVENTS = NB.events;
 function notableFeatures() {
   const out = [];
   NB_EVENTS.forEach((e, n) => {
-    const mine = lifePerson && e.p.includes(lifePerson);
-    if (!mine && !(showNotable && e.p.some(id => TARGET_ANCESTOR_SET.has(id)))) return;
+    if (!inEra(e.y)) return;
+    if (lifePerson) { if (!e.p.includes(lifePerson)) return; }            // Life journey: only theirs
+    else if (!(showNotable && e.p.some(id => (SURNAME_SET || TARGET_ANCESTOR_SET).has(id)))) return;
     out.push({ type: "Feature", properties: { n, k: e.k }, geometry: { type: "Point", coordinates: toLL(e.x, e.y2) } });
   });
   return out;

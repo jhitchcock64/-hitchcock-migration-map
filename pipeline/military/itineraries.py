@@ -22,8 +22,10 @@ Each entry is one man's service in one war:
            way:  [(lat, lon), ...] fixed points the leg passes first (e.g. out of the Bay of
                  Biscay, where the network has no port), then it joins the network
            by:   how the leg into this stop travelled: 'land' (the default: a march on
-                 period roads, or a straight line), 'water' (rivers, lakes, coastal
-                 lanes and roads), 'sea' (the same), or 'rail' (anything, railroads included)
+                 period roads, or a smooth curve), 'water' (rivers, lakes, coastal
+                 lanes and roads), 'sea' (the same), 'rail' (anything, railroads included),
+                 or 'arc' (not routed: a smooth curve through the way points, for a march
+                 whose route is documented, or a plain arc where any route would be a guess)
   A man with no stops is shown as a note only (no route).
 
 Genealogical facts belong in James's tree, not here: this file records only
@@ -119,9 +121,11 @@ SERVICE = [
          stops=[S('Milford, CT', 41.222, -73.057, '25 Apr 1777', 'record', 'enlisted'),
                 S('Peekskill, NY (Hudson Highlands)', 41.290, -73.920, '1777', 'unit'),
                 S('Redding, CT (winter camp)', 41.303, -73.383, 'winter 1778-79', 'unit'),
-                S('Morristown, NJ (Jockey Hollow)', 40.763, -74.543, 'winter 1779-80', 'unit'),
+                S('Morristown, NJ (Jockey Hollow)', 40.763, -74.543, 'winter 1779-80', 'unit', by='arc',
+                  way=[(41.270, -73.940), (41.115, -74.150), (40.995, -74.285)]),   # King's Ferry, Ramapo pass, Pompton
                 S('West Point, NY', 41.392, -73.956, 'June 1783', 'record',
-                  'discharged; family history says he received the Badge of Merit, signed by Washington, for six years\' service')]),
+                  'discharged; family history says he received the Badge of Merit, signed by Washington, for six years\' service',
+                  by='arc', way=[(40.995, -74.285), (41.115, -74.150), (41.320, -74.120)])]),   # Pompton, Ramapo, Smith's Clove
 
     dict(pid='@I242086113939@', name='Henry Burdick', war='Revolution, 1777-83',
          unit='2nd New York (Col. Philip Van Cortlandt), Capt. Jacob Wright\'s company',
@@ -129,10 +133,17 @@ SERVICE = [
                  'the route is his regiment\'s.',
          sources=['Pension file (NARA 54107986): his 1818 declaration'],
          stops=[S('Saratoga (Bemis Heights)', 42.999, -73.637, 'Sept-Oct 1777', 'unit'),
-                S('Valley Forge', 40.097, -75.440, 'winter 1777-78', 'unit'),
+                S('Valley Forge', 40.097, -75.440, 'winter 1777-78', 'unit', by='arc',
+                  way=[(42.653, -73.756), (41.535, -73.899), (41.270, -73.940), (40.120, -75.220)]),  # Albany, Fishkill, King's Ferry, Whitemarsh
                 S('Monmouth Court House', 40.266, -74.320, '28 June 1778', 'unit'),
-                S('Newtown (Elmira), NY', 42.048, -76.720, '29 Aug 1779', 'unit', 'Sullivan\'s expedition'),
-                S('Yorktown', 37.239, -76.510, 'Oct 1781', 'unit'),
+                S('Newtown (Elmira), NY', 42.048, -76.720, '29 Aug 1779', 'unit',
+                  'Sullivan\'s expedition, with Clinton\'s brigade down the Susquehanna', by='arc',
+                  way=[(41.270, -73.940), (42.653, -73.756), (42.905, -74.572), (42.700, -74.924), (41.980, -76.520)]),
+                  # King's Ferry, Albany, Canajoharie, Otsego Lake, Tioga
+                S('Yorktown', 37.239, -76.510, 'Oct 1781', 'unit', 'by the allied march of 1781', by='arc',
+                  way=[(41.246, -75.881), (40.690, -75.210), (40.349, -74.659), (39.952, -75.165), (39.607, -75.829),
+                       (38.970, -76.450), (37.950, -76.200), (37.000, -76.310), (37.215, -76.700)]),
+                  # Wyoming, Easton, Princeton, Philadelphia, Head of Elk, down the Bay, up the James
                 S('New Windsor cantonment, NY', 41.458, -74.060, '4 June 1783', 'record', 'discharged', by='water')]),
 
     dict(pid='@I240016442918@', name='William Raymond', war='Revolution, 1775-81',
@@ -151,7 +162,8 @@ SERVICE = [
                 S('Peekskill, NY (Hudson Highlands)', 41.290, -73.920, '1777', 'unit', 'Webb\'s regiment'),
                 S('Valley Forge', 40.097, -75.440, 'winter 1777-78', 'family',
                   'family history; his own declaration doesn\'t mention Valley Forge'),
-                S('Rhode Island (battle, 29 Aug 1778)', 41.601, -71.260, 'Aug 1778', 'unit'),
+                S('Rhode Island (battle, 29 Aug 1778)', 41.601, -71.260, 'Aug 1778', 'unit', by='arc',
+                  way=[(41.270, -73.940), (41.763, -72.685), (41.824, -71.413)]),   # King's Ferry, Hartford, Providence
                 S('New Canaan, CT', 41.147, -73.495, 'early 1781', 'record', 'discharged')]),
 
     dict(pid='@I242086358497@', name='Jeremiah Beard Eells', war='Revolution, 1776-80',
@@ -347,14 +359,21 @@ SERVICE = [
          sources=['Kentucky service record, in James\'s tree; Kentucky Soldiers of the War of 1812'],
          stops=[S('Woodford County, KY', 38.053, -84.730, 'Aug 1813', 'family'),
                 S('Newport, KY (rendezvous)', 39.091, -84.496, 'Aug-Sept 1813', 'unit'),
-                S('Urbana, OH', 40.108, -83.752, 'Sept 1813', 'unit'),
-                S('Upper Sandusky', 40.827, -83.281, 'Sept 1813', 'unit'),
-                S('The Portage (Port Clinton)', 41.512, -82.938, 'Sept 1813', 'unit'),
+                S('Urbana, OH', 40.108, -83.752, 'Sept 1813', 'unit', by='arc',
+                  way=[(39.435, -84.203), (39.759, -84.192)]),                       # Lebanon, Dayton
+                S('Upper Sandusky', 40.827, -83.281, 'Sept 1813', 'unit', 'by Hull\'s Trace', by='arc',
+                  way=[(40.647, -83.609)]),                                          # Fort McArthur
+                S('The Portage (Port Clinton)', 41.512, -82.938, 'Sept 1813', 'unit', by='arc',
+                  way=[(41.210, -83.160), (41.350, -83.120)]),                       # Fort Seneca, Fort Stephenson
                 S('Amherstburg (by Perry\'s fleet)', 42.101, -83.108, '27 Sept 1813', 'unit', by='sea'),
                 S('Sandwich (Windsor)', 42.295, -83.072, 'Sept 1813', 'unit'),
-                S('Battle of the Thames (Moraviantown)', 42.570, -81.870, '5 Oct 1813', 'unit'),
-                S('Detroit', 42.331, -83.046, 'Oct 1813', 'unit'),
-                S('Woodford County, KY', 38.053, -84.730, 'Nov 1813', 'unit', 'discharged 12 Nov 1813')]),
+                S('Battle of the Thames (Moraviantown)', 42.570, -81.870, '5 Oct 1813', 'unit', 'up the Thames', by='arc',
+                  way=[(42.330, -82.900), (42.330, -82.450), (42.405, -82.185)]),   # the lake shore, the Thames mouth, Chatham
+                S('Detroit', 42.331, -83.046, 'Oct 1813', 'unit', by='arc',
+                  way=[(42.405, -82.185), (42.330, -82.450), (42.330, -82.900)]),
+                S('Woodford County, KY', 38.053, -84.730, 'Nov 1813', 'unit', 'discharged 12 Nov 1813', by='arc',
+                  way=[(41.512, -82.938), (40.827, -83.281), (40.108, -83.752), (39.091, -84.496)])]),
+                  # home the way they came: the Portage, Upper Sandusky, Urbana, Newport
 
     # ------------------------------------------------------------ Civil War
     dict(pid='@I240016223823@', name='George Palmer Watts', war='Civil War, 1861-64',
@@ -375,8 +394,12 @@ SERVICE = [
                 S('Second Bull Run', 38.813, -77.521, '29-30 Aug 1862', 'unit', 'by steamer up the bay, then marched', by='sea'),
                 S('Fredericksburg', 38.303, -77.460, '13 Dec 1862', 'unit'),
                 S('Chancellorsville', 38.310, -77.634, '2-3 May 1863', 'unit'),
-                S('Gettysburg', 39.831, -77.231, '2 July 1863', 'unit'),
-                S('Mine Run', 38.310, -77.830, 'Nov 1863', 'unit'),
+                S('Gettysburg', 39.831, -77.231, '2 July 1863', 'unit', 'the III Corps\' march', by='arc',
+                  way=[(38.750, -77.475), (39.085, -77.480), (39.414, -77.411), (39.658, -77.174), (39.704, -77.327)]),
+                  # Manassas Junction, Edwards Ferry, Frederick, Taneytown, Emmitsburg
+                S('Mine Run', 38.310, -77.830, 'Nov 1863', 'unit', by='arc',
+                  way=[(39.414, -77.411), (39.325, -77.740), (38.920, -78.080), (38.713, -77.795), (38.500, -77.890), (38.370, -77.800)]),
+                  # Frederick, Harpers Ferry, Manassas Gap (Wapping Heights), Warrenton, Brandy Station, Jacob's Ford
                 S('The Wilderness', 38.315, -77.740, '5-6 May 1864', 'family', 'wounded and left for dead (family history)'),
                 S('Trenton', 40.221, -74.760, '21 Sept 1864', 'record', 'mustered out')]),
 
@@ -409,7 +432,7 @@ SERVICE = [
                  'the route is the 8th Kentucky\'s from its exchange in 1862.',
          sources=['Don W. Hoover\'s write-up (2010); American Civil War Research Database (enlisted 13 Mar 1862)'],
          stops=[S('Calhoun (McLean Co.), KY', 37.539, -87.258, 'Mar 1862', 'family', 'home'),
-                S('Vicksburg', 32.353, -90.878, 'Sept 1862', 'unit', 'the regiment exchanged after Donelson'),
+                S('Vicksburg', 32.353, -90.878, 'Sept 1862', 'unit', 'the regiment exchanged after Donelson', by='arc'),
                 S('Champion Hill', 32.323, -90.558, '16 May 1863', 'unit'),
                 S('Paducah', 37.083, -88.600, '25 Mar 1864', 'unit', 'mounted, under Forrest'),
                 S("Brice's Crossroads", 34.505, -88.730, '10 June 1864', 'unit'),
@@ -601,10 +624,17 @@ SERVICE += [
                   'in the 61st Alabama'],
          stops=[S('Barbour County, AL (Clayton)', 31.878, -85.450, 'May 1862', 'family', 'enlisted (if this is him)'),
                 S('Murfreesboro', 35.846, -86.392, 'Dec 1862', 'unit', by='rail'),
-                S('Chickamauga', 34.920, -85.260, 'Sept 1863', 'unit'),
+                S('Chickamauga', 34.920, -85.260, 'Sept 1863', 'unit', by='arc',
+                  way=[(35.362, -86.209), (35.164, -86.010), (35.046, -85.309), (34.705, -85.282)]),
+                  # Tullahoma, Cowan, Chattanooga, LaFayette
                 S('Missionary Ridge', 35.020, -85.260, 'Nov 1863', 'unit'),
-                S('Atlanta', 33.749, -84.388, 'July 1864', 'unit'),
-                S('Franklin, TN', 35.925, -86.869, '30 Nov 1864', 'unit'),
+                S('Atlanta', 33.749, -84.388, 'July 1864', 'unit', 'the Atlanta campaign', by='arc',
+                  way=[(34.770, -84.970), (34.580, -84.940), (34.240, -84.850), (33.940, -84.790), (33.980, -84.580)]),
+                  # Dalton, Resaca, Cassville, New Hope Church, Kennesaw
+                S('Franklin, TN', 35.925, -86.869, '30 Nov 1864', 'unit', 'Hood\'s Tennessee campaign', by='arc',
+                  way=[(33.520, -84.670), (34.770, -84.970), (34.705, -85.282), (34.014, -86.006), (34.731, -87.702),
+                       (34.800, -87.677), (35.615, -87.035), (35.751, -86.930)]),
+                  # Palmetto, Dalton, LaFayette, Gadsden, Tuscumbia, Florence, Columbia, Spring Hill
                 S('Nashville', 36.162, -86.781, 'Dec 1864', 'unit'),
                 S('Bentonville, NC', 35.300, -78.320, 'Mar 1865', 'unit', by='rail')]),
 
