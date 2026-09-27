@@ -307,9 +307,29 @@ moves. URL: `?lines=likely|direct`, `?known=1`, `?military=1`, `?notable=1`.
 The page is titled "Family History, Visualized" (not "Migration Lines to X");
 Family journey's search box reads "Show family history of...".
 
-Notable events: a star per event (`notable` symbol layer, canvas-drawn
-`starImage`, so they don't read as place dots; red = event, hollow =
-family story, blue = arrival in America), shown for the target's ancestors;
+Legend (James, 2026-09-27): each layer's checkbox has its key directly
+under it, shown only while it's checked (CSS `.layer-toggle[aria-pressed=false]
++ .sub`); the year colour bar is always at the bottom, "colour = year, on
+every layer". Swatches are inline SVG filled with `#yeargrad` (the palette as
+a gradient; rects, not lines: a gradient can't paint a zero-height line box).
+
+Colour = year everywhere: routes, military legs and stops (the year of the
+stop), battles and notable events all use `colorForYear`. Military service
+stays distinct by being barred: a dark edge (`mil-casing`) and dark ticks
+across it (`mil-ticks`, a symbol layer along the line); basis by weight:
+documented wide, his regiment's narrower, family account faded, a guess
+dashed. Battles (`battles` layer): crossed swords (SDF `swordsDist`), one per
+battle, from stops tagged in `pipeline/military/battles.py` (stage 9 adds
+`b`, `bd` to MILITARY stops and fails if an entry matches no stop); hover
+lists who was there, click pins it in a MapLibre popup (`battleHTML`), each
+man with relationship, unit and basis. 48 battles; six ancestors at Monmouth.
+
+Notable events: SDF icons in the year's colour with a white halo (so they
+don't read as place dots): filled star = event, hollow star = family story,
+anchor = arrival in America. An event with `on=(pid, year, fraction)` in
+events.py (Thomas "the Seagull" Green's birth aboard the Speedwell, 1635)
+is pinned partway along that person's route as drawn (`r`, `f` in NOTABLE;
+`pointAlongLL` on the likely or direct path), shown for the target's ancestors;
 Life journey always shows the chosen person's. The tooltip gives the date,
 place, text, ship, the people with their relationship to the current target
 (computed from GRAPH, sex from NOTABLE.sex: "Margaret's 12th
@@ -402,9 +422,11 @@ Data formats (all coordinates in projected units):
 - MILITARY: `{pid: [{war, unit, summary, sources: [...], stops: [{l, x, y,
   d (date text), c (basis), n?}], legs: [{i (index of the stop it ends at),
   c, p: [[x, y], ...], via? (corridors taken)}]}]}`.
-- NOTABLE: `{sex: {pid: 'M'|'F'}, events: [{p: [pids], d: date text, y: year,
-  t: text, l: place, x, y2 (projected), k: 'event'|'arrival'|'story', s:
-  source, sh?: ship}]}`.
+- NOTABLE: `{sex: {pid: 'M'|'F'} (every ancestor), events: [{p: [pids], d:
+  date text, y: year, t: text, l: place, x, y2 (projected), k:
+  'event'|'arrival'|'story', s: source, sh?: ship, r?: route index, f?:
+  fraction along it}]}`.
+- MILITARY stops may carry `b` (battle name) and `bd` (its date).
 - VB (the default view box) is also static in `data.js`. BASEMAP and
   REF_CITIES were dropped with the MapLibre page; `legacy.html` keeps its
   inline copies.
@@ -440,6 +462,13 @@ drawn, not how much it draws.
 7. Performance numbers from one run are noise-prone on his laptop
    (sporadic 33 ms frames at 1× regardless of code). Compare versions with
    alternating repeated runs before concluding anything.
+
+Geocoder guard (2026-09-27): a bare-name fallback never lands on the other
+side of the Atlantic from the country the place names, and "New England" no
+longer reads as the country England. It had put Southampton, Hampshire,
+England on Long Island (Thomas Green's 1635 voyage), Bremen, Germany in
+Kentucky and Westbury-on-Trym, Gloucester, England in Gloucester Co., VA
+(the last gave Margaret Barker a false crossing; she now has no move).
 
 ## Known issues and state (2026-09-25)
 

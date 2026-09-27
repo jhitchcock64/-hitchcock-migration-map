@@ -29,9 +29,12 @@ DOC = '"Our American History" (family history, 2026)'
 NO_ARRIVAL = {'@I242789067812@'}
 
 
-def E(pids, date, year, text, place, lat, lon, kind='event', source=DOC, ship=None):
+def E(pids, date, year, text, place, lat, lon, kind='event', source=DOC, ship=None, on=None):
+    """on=(pid, year, fraction): the event happened partway along that person's move
+    in that year (a birth at sea); the page pins it on the move as drawn, and
+    lat/lon is only a fallback."""
     return dict(pids=pids if isinstance(pids, list) else [pids], date=date, year=year, text=text,
-                place=place, lat=lat, lon=lon, kind=kind, source=source, ship=ship)
+                place=place, lat=lat, lon=lon, kind=kind, source=source, ship=ship, on=on)
 
 
 EVENTS = [
@@ -61,9 +64,11 @@ EVENTS = [
     E('@I240015598370@', 'Spring 1635', 1635,
       'Matthias Hitchcock, a Puritan, presumably, arrives in Massachusetts Bay aboard the Susan and Ellen.',
       'Boston, MA', 42.360, -71.058, 'arrival', ship='Susan and Ellen'),
-    E('@I242216133556@', 'Summer 1635', 1635,
-      'Thomas "the Seagull" Green is born aboard the Speedwell, on the way to Virginia.',
-      'At sea, bound for Virginia', 37.5, -50.0, 'arrival', ship='Speedwell'),
+    E(['@I242216133556@', '@I242649435364@'], 'about June 1635', 1635,
+      'Thomas "the Seagull" Green is born at sea aboard the Speedwell, which sailed from Southampton in May '
+      '1635 with his parents and reached Virginia in July.',
+      'At sea, bound for Virginia', 37.5, -50.0, 'arrival', ship='Speedwell',
+      on=('@I242649435364@', 1635, 0.5)),
 
     # ------------------------------------------------ colonial New England
     E('@I240015598370@', '4 June 1639', 1639,

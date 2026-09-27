@@ -5,7 +5,7 @@ over the same historical network as the likely routes (stage 8), and writes
 military_prepared.json -> MILITARY in data.js:
 
   { pid: [ {war, unit, summary, sources: [...],
-            stops: [{l: label, x, y, d: date, c: conf, n?: note}],
+            stops: [{l: label, x, y, d: date, c: conf, n?: note, b?: battle, bd?: its date}],
             legs:  [{i: index of the stop it ends at, c: conf, p: [[x, y], ...], via?: 'corridor names'}] } ] }
 
 conf is the stop's: 'record', 'unit', 'family' or 'conjecture' (see
@@ -30,6 +30,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE)); sys.path.insert(0, str(HERE.parent / 'military'))
 import build_corridor_routes as bcr
 from itineraries import SERVICE
+from battles import BATTLES
+
+BATTLE_AT = {(lab, yr): (name, date) for name, date, stops in BATTLES for lab, yr in stops}
 
 OLD_ROADS = [e for e in bcr.EDGES if e['mode'] == 'road' and 1840 <= e['years'][1] < 1920]
 for _e in OLD_ROADS: _e['_years'] = (list(_e['years']), [_e['years'][0], 1920])
@@ -117,7 +120,7 @@ def leg_path(a, b, stop):
 
 
 def main():
-    out, log = {}, []
+    out, log, used = {}, [], set()
     for s in SERVICE:
         stops, legs, yr = [], [], None
         for st in s['stops']:                        # an undated stop takes the year of the one before
@@ -127,6 +130,8 @@ def main():
             x, y = bcr.to_xy(st['lon'], st['lat'])
             d = {'l': st['label'], 'x': round(x, 4), 'y': round(y, 4), 'd': st['date'], 'c': st['conf']}
             if st['note']: d['n'] = st['note']
+            if (st['label'], st['_year']) in BATTLE_AT:
+                d['b'], d['bd'] = BATTLE_AT[(st['label'], st['_year'])]; used.add((st['label'], st['_year']))
             stops.append(d)
             if i and not st['gap']:
                 p, via = leg_path(s['stops'][i - 1], st, st)
@@ -137,6 +142,8 @@ def main():
                            f"{st['conf']:10} {via or '(direct)'}")
         out.setdefault(s['pid'], []).append({'war': s['war'], 'unit': s['unit'], 'summary': s['summary'],
                                              'sources': s['sources'], 'stops': stops, 'legs': legs})
+    unused = set(BATTLE_AT) - used
+    if unused: raise SystemExit(f'battles.py names stops that no itinerary has: {sorted(unused)}')
     OUT.write_text(json.dumps(out, separators=(',', ':'), ensure_ascii=False), encoding='utf-8')
     n_routes = sum(1 for v in out.values() for e in v if e['stops'])
     print(f'{len(SERVICE)} entries for {len(out)} people ({n_routes} with routes, '

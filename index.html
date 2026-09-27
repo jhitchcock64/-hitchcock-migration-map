@@ -108,7 +108,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
   border-radius:8px; padding:12px 16px; z-index:10; max-width:300px;
 }
 #legend .cb-gradient { display:block; width:160px; height:10px; border-radius:3px; }
-#legend .cb-labels { position:relative; height:15px; font-family:var(--font-mono); font-size:9px; color:var(--muted); width:160px; margin-bottom:6px; }
+#legend .cb-labels { position:relative; height:15px; font-family:var(--font-mono); font-size:9px; color:var(--muted); width:160px; margin-bottom:0; }
 /* century ticks: a short mark up to the gradient, the year centred under it */
 #legend .cb-labels span { position:absolute; top:4px; white-space:nowrap; transform:translateX(-50%); }
 #legend .cb-labels span::before { content:""; position:absolute; left:50%; top:-5px; height:4px; border-left:1px solid var(--muted); }
@@ -120,7 +120,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #legend .stripe-swatch { width:22px; height:9px; border:none; border-radius:1px;
   background:linear-gradient(to bottom, #0f8a7a 0 25%, #2050d6 25% 50%, #8033d6 50% 75%, #e0359e 75%); }
 /* military service: a toggle and, while any service is on the map, its key */
-#legend .layers { display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
+#legend .layers { display:flex; flex-direction:column; gap:4px; margin-bottom:2px; }
 #legend .layer-toggle { display:flex; align-items:center; gap:7px; margin-top:0; font-size:11px; color:var(--muted);
   cursor:pointer; background:none; border:none; padding:0; font-family:inherit; }
 #legend .layer-toggle .box { width:12px; height:12px; border:1px solid rgba(156,122,46,0.6); border-radius:3px;
@@ -129,15 +129,25 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #legend .layer-toggle[aria-pressed="true"] .box { background:#2f3d12; border-color:#2f3d12; }
 #legend .layer-toggle[aria-pressed="true"] .box::after { content:"\2713"; }
 #legend .layer-toggle:focus-visible { outline:2px solid var(--border-stroke); outline-offset:2px; }
-#legend .notable-key { display:none; gap:10px; margin:0 0 6px; font-size:10px; color:var(--muted); flex-wrap:wrap; }
-#legend.notable .notable-key { display:flex; }
-#legend .notable-key span { display:flex; align-items:center; gap:4px; }
-#legend .nb-star { display:inline-flex; }
-#legend .mil-key { display:none; flex-direction:column; gap:2px; margin:0 0 6px 19px; font-size:10px; color:var(--muted); }
-#legend.mil .mil-key { display:flex; }
-#legend .mil-key span { display:flex; align-items:center; gap:6px; }
-#legend .mil-sw { width:20px; height:0; border-top:3px solid; }
-#legend .hint { font-family:var(--font-mono); font-size:10px; color:var(--muted); margin-top:8px; border-top:1px solid rgba(156,122,46,0.25); padding-top:6px; }
+/* each layer's key sits under its checkbox, shown while it's on */
+#legend .sub { display:flex; flex-direction:column; gap:3px; margin:1px 0 6px 19px; font-size:10px; color:var(--muted);
+  max-width:235px; line-height:1.3; }
+#legend .layer-toggle[aria-pressed="false"] + .sub { display:none; }
+#legend .sub > span { display:flex; align-items:center; gap:6px; }
+#legend .sub .sw { flex:none; }
+#legend .sub-note { margin-bottom:2px; }
+#legend .with-likely { display:none; }
+#legend.likely-known .with-likely { display:inline; }
+#legend .timeline { margin-top:7px; }
+.battle-popup .maplibregl-popup-content { font-family:var(--font-body, Georgia, serif); font-size:12px; color:#2c2417;
+  background:#fbf6ea; border:1px solid rgba(156,122,46,0.5); border-radius:6px; padding:10px 22px 10px 12px; max-height:340px; overflow:auto; }
+.battle-popup .t-name { display:block; font-weight:bold; font-size:13px; }
+.battle-popup .t-year, .battle-popup .t-note { font-size:11px; color:#6b5a3e; }
+.battle-list { margin:6px 0 0; padding-left:16px; }
+.battle-list li { margin-bottom:5px; }
+#tooltip .battle-list { margin:4px 0 0; padding-left:14px; }
+#legend .tl-cap { font-size:10px; color:var(--muted); margin-bottom:3px; }
+#legend .hint { font-family:var(--font-mono); font-size:10px; color:var(--muted); margin-top:4px; border-top:1px solid rgba(156,122,46,0.25); padding-top:6px; }
 #legend .hint.credit { font-size:9px; margin-top:3px; border-top:none; padding-top:0; opacity:0.8; }
 
 #search-box { position:absolute; top:14px; left:14px; z-index:10; max-width:240px; }
@@ -358,28 +368,41 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <span id="zoomLevel">1.0&times;</span>
   </div>
   <div id="legend">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="yeargrad">
+      <stop offset="0" stop-color="#0f8a7a"/><stop offset=".17" stop-color="#2050d6"/><stop offset=".33" stop-color="#8033d6"/>
+      <stop offset=".5" stop-color="#e0359e"/><stop offset=".67" stop-color="#f0453f"/><stop offset=".83" stop-color="#ff8c1a"/>
+      <stop offset="1" stop-color="#e8c020"/></linearGradient></defs></svg>
     <div class="layers" role="group" aria-label="Layers">
       <button class="layer-toggle" id="layer-likely" aria-pressed="true" title="Moves along the roads, rivers, railroads and highways of their time"><span class="box"></span>Likely routes</button>
+      <div class="sub">
+        <div class="sub-note">Moves follow the roads, rivers, railroads and highways of their time. The route is inferred; the records give only the places and years.</div>
+        <span><span class="stripe-swatch"></span>a road or river several ancestors used: one stripe per route, width by number of ancestors</span>
+      </div>
       <button class="layer-toggle" id="layer-known" aria-pressed="false" title="Each documented move as a line from the old home to the new one"><span class="box"></span>Known movements only</button>
+      <div class="sub">
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><path d="M2 8Q13 0 24 8" fill="none" stroke="url(#yeargrad)" stroke-width="2.2"/></svg>each documented move, old home to new<span class="with-likely">&nbsp;(faint and dashed under the likely routes)</span></span>
+      </div>
       <button class="layer-toggle" id="mil-toggle" aria-pressed="false" title="Where ancestors served: campaigns, battles, camps and captivity, from pension files, service records and family histories"><span class="box"></span>Military service</button>
+      <div class="sub">
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><rect x="1" y="2.30" width="24" height="5.4" rx="2.70" fill="#2c2417"/><rect x="2" y="3.30" width="22" height="3.4" rx="1.70" fill="url(#yeargrad)"/><path d="M7 1.5v7M13 1.5v7M19 1.5v7" stroke="#2c2417" stroke-width="1.3"/></svg>documented for him</span>
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><rect x="1" y="2.90" width="24" height="4.2" rx="2.10" fill="#2c2417"/><rect x="2" y="3.90" width="22" height="2.2" rx="1.10" fill="url(#yeargrad)"/><path d="M7 1.5v7M13 1.5v7M19 1.5v7" stroke="#2c2417" stroke-width="1.3"/></svg>his regiment's movements</span>
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10" style="opacity:.55"><rect x="1" y="2.90" width="24" height="4.2" rx="2.10" fill="#2c2417"/><rect x="2" y="3.90" width="22" height="2.2" rx="1.10" fill="url(#yeargrad)"/><path d="M7 1.5v7M13 1.5v7M19 1.5v7" stroke="#2c2417" stroke-width="1.3"/></svg>family account or history</span>
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><rect x="2" y="3.8" width="4" height="2.4" fill="url(#yeargrad)"/><rect x="9" y="3.8" width="4" height="2.4" fill="url(#yeargrad)"/><rect x="16" y="3.8" width="4" height="2.4" fill="url(#yeargrad)"/><rect x="23" y="3.8" width="2" height="2.4" fill="url(#yeargrad)"/></svg>a guess</span>
+        <span><svg class="sw" width="16" height="16" viewBox="0 0 32 32" fill="none" stroke-linecap="round"><g stroke="#2c2417" stroke-width="6"><path d="M7 7L25 25M25 7L7 25M18 25l6-6M8 19l6 6"/></g><g stroke="#e0359e" stroke-width="3"><path d="M7 7L25 25M25 7L7 25M18 25l6-6M8 19l6 6"/></g></svg>a battle: hover or click for who was there</span>
+      </div>
       <button class="layer-toggle" id="layer-notable" aria-pressed="false" title="Arrivals in America and other moments from the family's history"><span class="box"></span>Notable events</button>
-    </div>
-    <div class="likely-note likely-only">Moves follow the roads, rivers, railroads and highways of their time. The route is inferred; the records give only the places and years.</div>
-    <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
-    <div class="cb-labels" id="cb-labels"></div>
-    <div class="lw-item likely-only"><span class="stripe-swatch"></span> a road or river several ancestors used; one stripe per route, oldest to newest, width by number of ancestors</div>
-    <div class="mil-key">
-      <span><i class="mil-sw" style="border-color:#2f3d12"></i>documented for him</span>
-      <span><i class="mil-sw" style="border-color:#7a8a3c"></i>his regiment's movements</span>
-      <span><i class="mil-sw" style="border-color:#8c6a34"></i>family account or history</span>
-      <span><i class="mil-sw" style="border-color:#7a8a3c; border-top-style:dashed"></i>a guess</span>
-    </div>
-    <div class="notable-key">
-      <span><i class="nb-star"><svg viewBox="0 0 20 20" width="13" height="13"><path d="M10.00,1.60 L12.29,7.44 L18.56,7.82 L13.71,11.81 L15.29,17.88 L10.00,14.50 L4.71,17.88 L6.29,11.81 L1.44,7.82 L7.71,7.44 Z" fill="#b5462f" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></i>event</span>
-      <span><i class="nb-star"><svg viewBox="0 0 20 20" width="13" height="13"><path d="M10.00,1.60 L12.29,7.44 L18.56,7.82 L13.71,11.81 L15.29,17.88 L10.00,14.50 L4.71,17.88 L6.29,11.81 L1.44,7.82 L7.71,7.44 Z" fill="#fff" stroke="#b5462f" stroke-width="1.6" stroke-linejoin="round"/></svg></i>family story</span>
-      <span><i class="nb-star"><svg viewBox="0 0 20 20" width="13" height="13"><path d="M10.00,1.60 L12.29,7.44 L18.56,7.82 L13.71,11.81 L15.29,17.88 L10.00,14.50 L4.71,17.88 L6.29,11.81 L1.44,7.82 L7.71,7.44 Z" fill="#1f5f8b" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></i>arrival in America</span>
+      <div class="sub">
+        <span><svg class="sw" width="15" height="15" viewBox="0 0 32 32"><path d="M16 3.5 L19.1 12.3 L28.4 12.5 L21 18.1 L23.7 27 L16 21.7 L8.3 27 L11 18.1 L3.6 12.5 L12.9 12.3 Z" fill="url(#yeargrad)" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/></svg>an event</span>
+        <span><svg class="sw" width="15" height="15" viewBox="0 0 32 32"><path d="M16 3.5 L19.1 12.3 L28.4 12.5 L21 18.1 L23.7 27 L16 21.7 L8.3 27 L11 18.1 L3.6 12.5 L12.9 12.3 Z" fill="none" stroke="url(#yeargrad)" stroke-width="3.6" stroke-linejoin="round"/></svg>a family story</span>
+        <span><svg class="sw" width="15" height="15" viewBox="0 0 32 32" fill="none" stroke="url(#yeargrad)" stroke-width="2.8" stroke-linecap="round"><circle cx="16" cy="6" r="2.6"/><path d="M16 9v18M10 12h12M7 19a9 9 0 0 0 18 0M7 19l-2-3M25 19l2-3"/></svg>arrival in America</span>
+      </div>
     </div>
     <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = who traveled &middot; click = trace the line to the target &middot; search top-left</div>
+    <div class="timeline">
+      <div class="tl-cap">colour = year, on every layer</div>
+      <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
+      <div class="cb-labels" id="cb-labels"></div>
+    </div>
   </div>
 </div>
 
@@ -663,20 +686,51 @@ function triangleDist(size, halfAngle) {
 }
 const ARROW_PX = 64;                       // icon image size; its triangle is ARROW_PX - 8 long
 const ARROW_LEN = ARROW_PX - 8;
-// a five-pointed star, drawn on a canvas at 2x: fill, outline
-function starImage(fill, stroke) {
-  const n = 40, c = document.createElement("canvas"); c.width = c.height = n;
-  const g = c.getContext("2d");
-  g.beginPath();
-  for (let k = 0; k < 10; k++) {
-    const r = k % 2 ? 7.6 : 17.5, a = -Math.PI / 2 + k * Math.PI / 5;
-    g[k ? "lineTo" : "moveTo"](n / 2 + r * Math.cos(a), n / 2 + 1.2 + r * Math.sin(a));
+// ---- signed-distance shapes for the icons (32 px, drawn at 2x) ----
+function segDist(px, py, ax, ay, bx, by) {
+  const ex = bx - ax, ey = by - ay, L = ex * ex + ey * ey;
+  const s = Math.max(0, Math.min(1, ((px - ax) * ex + (py - ay) * ey) / L));
+  return Math.hypot(px - ax - s * ex, py - ay - s * ey);
+}
+function polyDist(P) {           // distance to a polygon, negative inside
+  return (px, py) => {
+    let d = Infinity, inside = false;
+    for (let i = 0, k = P.length - 1; i < P.length; k = i++) {
+      const [ax, ay] = P[k], [bx, by] = P[i];
+      d = Math.min(d, segDist(px, py, ax, ay, bx, by));
+      if ((ay > py) !== (by > py) && px < ax + (bx - ax) * (py - ay) / (by - ay)) inside = !inside;
+    }
+    return inside ? -d : d;
+  };
+}
+const STAR_PTS = Array.from({ length: 10 }, (_, k) => {
+  const r = k % 2 ? 5.6 : 13, a = -Math.PI / 2 + k * Math.PI / 5;
+  return [16 + r * Math.cos(a), 17 + r * Math.sin(a)];
+});
+const starDist = polyDist(STAR_PTS);
+// an anchor: ring, shank, stock, arms and flukes, as strokes
+function anchorDist(px, py) {
+  const w = 1.5;
+  let d = Math.abs(Math.hypot(px - 16, py - 6.5) - 2.6) - 1.1;
+  d = Math.min(d, segDist(px, py, 16, 9, 16, 26.5) - w, segDist(px, py, 10.5, 12.5, 21.5, 12.5) - w);
+  const r = Math.hypot(px - 16, py - 18), a = Math.atan2(py - 18, px - 16);
+  if (a > 0.3 && a < Math.PI - 0.3) d = Math.min(d, Math.abs(r - 9) - w);
+  const e1 = [16 + 9 * Math.cos(0.3), 18 + 9 * Math.sin(0.3)], e2 = [16 - 9 * Math.cos(0.3), e1[1]];
+  d = Math.min(d, segDist(px, py, e1[0], e1[1], e1[0] + 2.4, e1[1] - 3.6) - w, segDist(px, py, e2[0], e2[1], e2[0] - 2.4, e2[1] - 3.6) - w);
+  return d;
+}
+// crossed swords: blades, crossguards, grips and pommels
+function swordsDist(px, py) {
+  let d = Infinity;
+  for (const s of [1, -1]) {
+    const X = x => s > 0 ? x : 32 - x;
+    d = Math.min(d,
+      segDist(px, py, X(6), 6, X(21.5), 21.5) - 1.6,           // blade
+      segDist(px, py, X(17.5), 24.5, X(24.5), 17.5) - 1.3,     // crossguard
+      segDist(px, py, X(21.5), 21.5, X(25.5), 25.5) - 1.9,     // grip
+      Math.hypot(px - X(26.8), py - 26.8) - 2.1);              // pommel
   }
-  g.closePath();
-  g.lineJoin = "round"; g.lineWidth = 3.2; g.strokeStyle = stroke; g.fillStyle = fill;
-  g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = 2;
-  g.fill(); g.shadowColor = "transparent"; g.stroke();
-  return g.getImageData(0, 0, n, n);
+  return d;
 }
 function addImages() {
   // (the triangle is walked tip -> upper corner -> lower corner: inside = every cross product <= 0)
@@ -684,9 +738,13 @@ function addImages() {
   map.addImage("arrow40", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.40)), { sdf: true, pixelRatio: 1 });
   map.addImage("arrow35", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.35)), { sdf: true, pixelRatio: 1 });
   map.addImage("dot", sdfImage(24, (x, y) => Math.hypot(x - 12, y - 12) - 5), { sdf: true, pixelRatio: 2 });
-  // notable events are stars, so they don't read as places (which are dots)
-  for (const [name, fill, stroke] of [["nb-event", "#b5462f", "#fff"], ["nb-story", "#fff", "#b5462f"], ["nb-arrival", "#1f5f8b", "#fff"]])
-    map.addImage(name, starImage(fill, stroke), { pixelRatio: 2 });
+  // notable events (stars, an anchor), battles (swords) and the bars across a
+  // military line: all SDFs, so each takes its year's colour
+  map.addImage("nb-event", sdfImage(32, starDist), { sdf: true, pixelRatio: 2 });
+  map.addImage("nb-story", sdfImage(32, (x, y) => Math.abs(starDist(x, y) + 1.6) - 1.6), { sdf: true, pixelRatio: 2 });
+  map.addImage("nb-arrival", sdfImage(32, anchorDist), { sdf: true, pixelRatio: 2 });
+  map.addImage("swords", sdfImage(32, swordsDist), { sdf: true, pixelRatio: 2 });
+  map.addImage("mil-tick", sdfImage(16, (x, y) => Math.max(Math.abs(x - 8) - 0.9, Math.abs(y - 8) - 6)), { sdf: true, pixelRatio: 2 });
 }
 
 // ---- data for the map, rebuilt when the target changes ----
@@ -864,11 +922,20 @@ function addMapLayers() {
   // military service (drawn over the focused thread, so a life journey shows both)
   for (const id of ["mil", "mil-arrows", "mil-stops"]) map.addSource(id, { type: "geojson", data: fc([]) });
   const isRecord = ["==", ["get", "c"], "record"];
-  map.addLayer({ id: "mil-casing", type: "line", source: "mil", layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": "#ffffff", "line-opacity": 0.75, "line-width": ["case", isRecord, 6.2, 5.2] } });
-  map.addLayer({ id: "mil-lines", type: "line", source: "mil", filter: ["!=", ["get", "c"], "conjecture"],
+  // military service: in the year's colour like everything else, but barred
+  // (a dark edge and ticks across) so it never reads as a migration.
+  // Documented = wide; his regiment's = narrower; family account = faded; a guess = dashed.
+  const notGuess = ["!=", ["get", "c"], "conjecture"], faded = ["==", ["get", "c"], "family"];
+  map.addLayer({ id: "mil-casing", type: "line", source: "mil", filter: notGuess, layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": "#2c2417", "line-opacity": ["case", faded, 0.35, 0.85], "line-width": ["case", isRecord, 5.6, 4.2] } });
+  map.addLayer({ id: "mil-lines", type: "line", source: "mil", filter: notGuess,
     layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": ["get", "color"], "line-opacity": 0.95, "line-width": ["case", isRecord, 3.2, 2.4] } });
+    paint: { "line-color": ["get", "color"], "line-opacity": ["case", faded, 0.5, 1], "line-width": ["case", isRecord, 3.4, 2.2] } });
+  map.addLayer({ id: "mil-ticks", type: "symbol", source: "mil", filter: notGuess,
+    layout: { "symbol-placement": "line", "symbol-spacing": 16, "icon-image": "mil-tick", "icon-rotation-alignment": "map",
+              "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-keep-upright": false,
+              "icon-size": ["case", isRecord, 1, 0.8] },
+    paint: { "icon-color": "#2c2417", "icon-opacity": ["case", faded, 0.4, 0.9] } });
   map.addLayer({ id: "mil-guess", type: "line", source: "mil", filter: ["==", ["get", "c"], "conjecture"],
     layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": 2.4, "line-dasharray": [2, 1.6] } });
   map.addLayer({ id: "mil-arrows", type: "symbol", source: "mil-arrows",
@@ -876,14 +943,20 @@ function addMapLayers() {
               "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true },
     paint: { "icon-color": ["get", "color"], "icon-opacity": 0.95 } });
   map.addLayer({ id: "mil-stops", type: "circle", source: "mil-stops",
-    paint: { "circle-radius": 4, "circle-color": "#ffffff", "circle-stroke-color": ["get", "color"], "circle-stroke-width": 2 } });
+    paint: { "circle-radius": 3.6, "circle-color": "#ffffff", "circle-stroke-color": "#2c2417", "circle-stroke-width": 1.8 } });
+  // battles: crossed swords in the year's colour; hover or click lists who was there
+  map.addSource("battles", { type: "geojson", data: fc([]) });
+  map.addLayer({ id: "battles", type: "symbol", source: "battles",
+    layout: { "icon-image": "swords", "icon-allow-overlap": true, "icon-ignore-placement": true,
+              "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 1.15, 9, 1.8] },
+    paint: { "icon-color": ["get", "color"], "icon-halo-color": "#2c2417", "icon-halo-width": 1.4 } });
   // notable events: a pin for each (arrivals smaller)
   map.addSource("notable", { type: "geojson", data: fc([]) });
   map.addLayer({ id: "notable", type: "symbol", source: "notable",
     layout: { "icon-image": ["match", ["get", "k"], "arrival", "nb-arrival", "story", "nb-story", "nb-event"],
-              "icon-size": ["interpolate", ["linear"], ["zoom"], 2, ["case", ["==", ["get", "k"], "arrival"], 0.95, 1.1],
-                                                                 9, ["case", ["==", ["get", "k"], "arrival"], 1.35, 1.6]],
-              "icon-allow-overlap": true, "icon-ignore-placement": true } });
+              "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.9, 9, 1.3],
+              "icon-allow-overlap": true, "icon-ignore-placement": true },
+    paint: { "icon-color": ["get", "color"], "icon-halo-color": "#ffffff", "icon-halo-width": 1.4 } });
   // family places (placed before the style's own labels, so they win
   // collisions). Text needs the style's fonts, so the fallback map shows dots only.
   map.addLayer({ id: "places", type: "symbol", source: "places",
@@ -1022,7 +1095,7 @@ function redrawAll() {
       properties: { color: colorForYear(routeView(i).mean) }, geometry: { type: "LineString", coordinates: ROUTE_LL[i] } }); });
     map.getSource("routes-ghost").setData(fc(g));
   }
-  const nbKey = [lifePerson, showNotable, CURRENT_TARGET, eraKey(), SURNAME_SET && SURNAME_SET.key].join("|");
+  const nbKey = [lifePerson, showNotable, CURRENT_TARGET, eraKey(), SURNAME_SET && SURNAME_SET.key, likelyRoutes].join("|");
   if (nbKey !== shownNotable) {
     shownNotable = nbKey;
     const f = notableFeatures();
@@ -1036,6 +1109,7 @@ function redrawAll() {
     map.getSource("mil").setData(fc(m.lines));
     map.getSource("mil-arrows").setData(fc(m.arrows));
     map.getSource("mil-stops").setData(fc(m.stops));
+    map.getSource("battles").setData(fc(m.battles));
     document.getElementById("legend").classList.toggle("mil", m.stops.length > 0);
   }
   applyAggregation();
@@ -1159,8 +1233,23 @@ function threadSegsNear(point, px) {
   return out;
 }
 const MIL_LAYERS = ["mil-stops", "mil-lines", "mil-guess"];
+// who was at a battle, and on what evidence
+function battleHTML(name) {
+  const b = BATTLES_SHOWN[name]; if (!b) return "";
+  const rows = b.men.map(m => {
+    const e = MIL_DATA[m.pid][m.k], s = e.stops[m.i], r = relationOf(m.pid);
+    return `<li><b>${(GRAPH.people[m.pid] || {}).name || ""}</b>${r ? ` (${r})` : ""}<br>` +
+      `<span class="t-year">${e.unit} &middot; ${MIL_BASIS[s.c]}</span>${s.n ? `<br><span class="t-note">${s.n}</span>` : ""}</li>`;
+  }).join("");
+  return `<span class="t-name">${b.name}</span><span class="t-year">${b.date} &middot; ${b.men.length} ` +
+    `${b.men.length === 1 ? "ancestor" : "ancestors"} there</span><ul class="battle-list">${rows}</ul>`;
+}
+let battlePopup = null;
 function doHover(e) {
   const pt = e.point, ev = e.originalEvent;
+  const bt = featuresNear(pt, 8, ["battles"])[0];
+  if (bt && battlePopup && battlePopup.isOpen()) { hideTip(); return; }   // its list is already pinned
+  if (bt) { tooltip.classed("t-multi", false); tooltip.html(battleHTML(bt.properties.b)); placeTip(ev); return; }
   const nb = featuresNear(pt, 6, ["notable"]);
   if (nb.length) { showNotableTip(ev, nb.map(f => f.properties.n)); return; }
   const mil = featuresNear(pt, 7, MIL_LAYERS)[0];
@@ -1184,6 +1273,14 @@ function doHover(e) {
 function handleClick(e) {
   const pt = e.point;
   closeRoutePicker();
+  const bt = featuresNear(pt, 8, ["battles"])[0];
+  if (bt) {                              // a battle: pin the list of who was there
+    hideTip();
+    if (battlePopup) battlePopup.remove();
+    battlePopup = new maplibregl.Popup({ maxWidth: "320px", className: "battle-popup", offset: 12 })
+      .setLngLat(bt.geometry.coordinates).setHTML(battleHTML(bt.properties.b)).addTo(map);
+    return;
+  }
   if (featuresNear(pt, 7, MIL_LAYERS).length || featuresNear(pt, 6, ["notable"]).length) return;   // the tooltip says it all
   const hitCluster = clusterNear(pt, 9);
   if (hitCluster) {
@@ -1903,6 +2000,7 @@ function setMoveLayers(likely, known) {
   likelyRoutes = likely;                 // what the route data is built from (direct lines when off)
   try { localStorage.setItem("hm-likely-routes", likely ? "1" : "0"); localStorage.setItem("hm-known", known ? "1" : "0"); } catch (e) {}
   document.getElementById("legend").classList.toggle("likely", likely);
+  document.getElementById("legend").classList.toggle("likely-known", likely && known);
   document.getElementById("layer-likely").setAttribute("aria-pressed", likely);
   document.getElementById("layer-known").setAttribute("aria-pressed", known);
   recomputeClusterVisibility();
@@ -1919,7 +2017,6 @@ const setLikelyRoutes = on => setMoveLayers(on, !on);   // kept for older tools
 // Off by default; the legend's toggle shows the service of the target's
 // ancestors, and Life journey always shows the chosen person's own.
 const MIL_DATA = typeof MILITARY !== "undefined" ? MILITARY : {};   // tolerate a stale cached data.js
-const MIL_COLOR = { record: "#2f3d12", unit: "#7a8a3c", family: "#8c6a34", conjecture: "#7a8a3c" };
 const MIL_BASIS = { record: "documented for him", unit: "his regiment's movements",
                     family: "family account or secondary history", conjecture: "a guess" };
 function militaryPeople() {
@@ -1935,22 +2032,34 @@ function stopYears(e) {
   let y = null;
   return e._yrs = e.stops.map(s => { const m = /1[5-9]\d\d/.exec(s.d); if (m) y = +m[0]; return y; });
 }
+let BATTLES_SHOWN = {};
 function militaryFeatures() {
-  const lines = [], arrows = [], stops = [];
+  const lines = [], arrows = [], stops = [], battles = {};
   for (const pid of militaryPeople()) MIL_DATA[pid].forEach((e, k) => {
     const yrs = stopYears(e);
     for (const l of e.legs) {
       if (!inEra(yrs[l.i])) continue;
       const ll = l.p.map(q => toLL(q[0], q[1])), n = ll.length;
-      lines.push({ type: "Feature", properties: { pid, k, i: l.i, c: l.c, color: MIL_COLOR[l.c] },
+      const color = colorForYear(yrs[l.i] || yrs.find(y => y) || 1800);
+      lines.push({ type: "Feature", properties: { pid, k, i: l.i, c: l.c, color },
                    geometry: { type: "LineString", coordinates: ll } });
-      if (n > 1) arrows.push({ type: "Feature", properties: { color: MIL_COLOR[l.c], rot: bearingDeg(ll[n-2], ll[n-1]), size: 8 / ARROW_LEN },
+      if (n > 1) arrows.push({ type: "Feature", properties: { color, rot: bearingDeg(ll[n-2], ll[n-1]), size: 8 / ARROW_LEN },
                                geometry: { type: "Point", coordinates: ll[n-1] } });
     }
-    e.stops.forEach((s, i) => inEra(yrs[i]) && stops.push({ type: "Feature", properties: { pid, k, i, c: s.c, color: MIL_COLOR[s.c] },
-                                           geometry: { type: "Point", coordinates: toLL(s.x, s.y) } }));
+    e.stops.forEach((s, i) => {
+      if (!inEra(yrs[i])) return;
+      if (s.b) {                               // a battle: one symbol for everyone there
+        const b = battles[s.b] || (battles[s.b] = { name: s.b, date: s.bd, year: yrs[i], x: s.x, y: s.y, men: [] });
+        b.men.push({ pid, k, i });
+        return;
+      }
+      stops.push({ type: "Feature", properties: { pid, k, i, c: s.c }, geometry: { type: "Point", coordinates: toLL(s.x, s.y) } });
+    });
   });
-  return { lines, arrows, stops };
+  BATTLES_SHOWN = battles;
+  const battleFeatures = Object.values(battles).map(b => ({ type: "Feature", properties: { b: b.name, color: colorForYear(b.year) },
+    geometry: { type: "Point", coordinates: toLL(b.x, b.y) } }));
+  return { lines, arrows, stops, battles: battleFeatures };
 }
 function showMilTip(event, f, isStop) {
   const e = MIL_DATA[f.pid][f.k], s = e.stops[f.i], name = (GRAPH.people[f.pid] || {}).name || "";
@@ -1979,13 +2088,26 @@ setMilitary(showMilitary);
 // ---- notable events (NOTABLE in data.js, from pipeline/notable/events.py + every ocean arrival) ----
 const NB = typeof NOTABLE !== "undefined" ? NOTABLE : { sex: {}, events: [] };   // tolerate a stale cached data.js
 const NB_EVENTS = NB.events;
+// the point a fraction f of the way along a lon/lat polyline
+function pointAlongLL(ll, f) {
+  const d = (a, b) => Math.hypot((b[0] - a[0]) * Math.cos((a[1] + b[1]) * Math.PI / 360), b[1] - a[1]);
+  let total = 0; for (let i = 1; i < ll.length; i++) total += d(ll[i - 1], ll[i]);
+  let goal = f * total;
+  for (let i = 1; i < ll.length; i++) {
+    const s = d(ll[i - 1], ll[i]);
+    if (goal <= s) { const u = s ? goal / s : 0; return [ll[i-1][0] + (ll[i][0] - ll[i-1][0]) * u, ll[i-1][1] + (ll[i][1] - ll[i-1][1]) * u]; }
+    goal -= s;
+  }
+  return ll[ll.length - 1];
+}
 function notableFeatures() {
   const out = [];
   NB_EVENTS.forEach((e, n) => {
     if (!inEra(e.y)) return;
     if (lifePerson) { if (!e.p.includes(lifePerson)) return; }            // Life journey: only theirs
     else if (!(showNotable && e.p.some(id => (SURNAME_SET || TARGET_ANCESTOR_SET).has(id)))) return;
-    out.push({ type: "Feature", properties: { n, k: e.k }, geometry: { type: "Point", coordinates: toLL(e.x, e.y2) } });
+    const at = e.r != null ? pointAlongLL(routeVia(e.r) ? viaLL(routeVia(e.r)) : ROUTE_LL[e.r], e.f) : toLL(e.x, e.y2);
+    out.push({ type: "Feature", properties: { n, k: e.k, color: colorForYear(e.y) }, geometry: { type: "Point", coordinates: at } });
   });
   return out;
 }

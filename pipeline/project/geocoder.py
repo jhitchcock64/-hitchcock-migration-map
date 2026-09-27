@@ -582,6 +582,9 @@ TOWN_COORDS = {
     "gt bentley|england": (51.869, 0.921),  # Essex
     "cranfield|bedfordshire": (52.073, -0.615),
     "kidderminster|worcestershire": (52.389, -2.249),
+    "southampton|england": (50.904, -1.404),
+    "westbury-on-trym|england": (51.491, -2.619),  # Bristol -- was falling through to Gloucester Co., VA
+    "bremen|germany": (53.079, 8.802),  # was falling through to Bremen, KY  # Hampshire -- not Southampton, Long Island (Thomas Green sailed from here, 1635)
     "halifax|england": (53.723, -1.863),  # Yorkshire -- distinct from the existing Halifax, VA and Halifax, Nova Scotia entries
     "south ouram parish|england": (53.723, -1.863),  # Halifax, Yorkshire
     "ridgewell hall|england": (52.017, 0.545),  # Essex
@@ -1365,7 +1368,7 @@ def normalize_and_geocode(raw):
         country = "northern ireland"
     elif "ireland" in full_low:
         country = "ireland"
-    elif any(k in full_low for k in ["england", "united kingdom"]):
+    elif any(k in full_low.replace("new england", "") for k in ["england", "united kingdom"]):
         country = "england"
     elif any(k in full_low for k in ["deutschland", "germany"]):
         country = "germany"
@@ -1421,14 +1424,21 @@ def normalize_and_geocode(raw):
     # the actual state.
     AMBIGUOUS_STATE_NAMES = {"washington", "ohio", "california", "delaware", "new york"}
 
+    # A bare name never lands on the other side of the Atlantic from the
+    # country the place names: "Southampton, Hampshire, England" once fell
+    # through to the only Southampton known, on Long Island (2026-09-27).
+    def same_side(lon):
+        if not country: return True
+        return (lon < -25) == (country in ("usa", "canada"))
+
     # --- town-level bare fallback (unambiguous single-name lookup) ---
     for loc in low_nosuffix:
-        if loc in TOWN_COORDS_BARE and loc not in AMBIGUOUS_STATE_NAMES:
+        if loc in TOWN_COORDS_BARE and loc not in AMBIGUOUS_STATE_NAMES and same_side(TOWN_COORDS_BARE[loc][1]):
             lat, lon = TOWN_COORDS_BARE[loc]
             return (_title(loc), lat, lon, "town")
 
     for loc in low_nosuffix:
-        if loc in COUNTY_COORDS_BARE and loc not in AMBIGUOUS_STATE_NAMES:
+        if loc in COUNTY_COORDS_BARE and loc not in AMBIGUOUS_STATE_NAMES and same_side(COUNTY_COORDS_BARE[loc][1]):
             lat, lon = COUNTY_COORDS_BARE[loc]
             return (f"{_title(loc)} Co.", lat, lon, "county")
 
