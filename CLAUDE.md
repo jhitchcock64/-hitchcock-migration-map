@@ -188,7 +188,7 @@ layers inserted below Liberty's labels, from the bottom: `hillshade`,
 `county-lines` (from 5x), `routes-plain`, `route-arrows` (SDF triangle
 icons rotated to the Mercator bearing), `clusters`, `cluster-arrows`,
 `routes-dim` (everything else while a thread is focused), `thread-glow`,
-`thread`, `thread-arrows`, `thread-dots`, `stationary`, `mil-casing`,
+`thread`, `thread-arrows`, `thread-dots`, `stationary`,
 `mil-lines`, `mil-guess`, `mil-arrows`, `mil-stops`, `places`,
 `target-ring`, `target-label`.
 
@@ -315,10 +315,10 @@ a gradient; rects, not lines: a gradient can't paint a zero-height line box).
 
 Colour = year everywhere: routes, military legs and stops (the year of the
 stop), battles and notable events all use `colorForYear`. Military service
-stays distinct by being barred: a dark edge (`mil-casing`) and dark ticks
-across it (`mil-ticks`, a symbol layer along the line); basis by weight:
-documented wide, his regiment's narrower, family account faded, a guess
-dashed. Battles (`battles` layer): crossed swords (SDF `swordsDist`), one per
+stays distinct by being dotted (round caps, `line-dasharray [0, 1.7]`; James
+chose dots over a barred line, a double line and chevrons, 2026-09-27, from a
+side-by-side render); basis: documented larger dots, his regiment's smaller,
+family account faded, a guess dashed. Battles (`battles` layer): crossed swords (SDF `swordsDist`), one per
 battle, from stops tagged in `pipeline/military/battles.py` (stage 9 adds
 `b`, `bd` to MILITARY stops and fails if an entry matches no stop); hover
 lists who was there, click pins it in a MapLibre popup (`battleHTML`), each

@@ -384,9 +384,9 @@ svg#overlay-svg .interactive { pointer-events:auto; }
       </div>
       <button class="layer-toggle" id="mil-toggle" aria-pressed="false" title="Where ancestors served: campaigns, battles, camps and captivity, from pension files, service records and family histories"><span class="box"></span>Military service</button>
       <div class="sub">
-        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><rect x="1" y="2.30" width="24" height="5.4" rx="2.70" fill="#2c2417"/><rect x="2" y="3.30" width="22" height="3.4" rx="1.70" fill="url(#yeargrad)"/><path d="M7 1.5v7M13 1.5v7M19 1.5v7" stroke="#2c2417" stroke-width="1.3"/></svg>documented for him</span>
-        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><rect x="1" y="2.90" width="24" height="4.2" rx="2.10" fill="#2c2417"/><rect x="2" y="3.90" width="22" height="2.2" rx="1.10" fill="url(#yeargrad)"/><path d="M7 1.5v7M13 1.5v7M19 1.5v7" stroke="#2c2417" stroke-width="1.3"/></svg>his regiment's movements</span>
-        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10" style="opacity:.55"><rect x="1" y="2.90" width="24" height="4.2" rx="2.10" fill="#2c2417"/><rect x="2" y="3.90" width="22" height="2.2" rx="1.10" fill="url(#yeargrad)"/><path d="M7 1.5v7M13 1.5v7M19 1.5v7" stroke="#2c2417" stroke-width="1.3"/></svg>family account or history</span>
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><circle cx="4.5" cy="5" r="2.5" fill="url(#yeargrad)"/><circle cx="11.5" cy="5" r="2.5" fill="url(#yeargrad)"/><circle cx="18.5" cy="5" r="2.5" fill="url(#yeargrad)"/></svg>documented for him</span>
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><circle cx="4.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="10.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="16.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="22.0" cy="5" r="2" fill="url(#yeargrad)"/></svg>his regiment's movements</span>
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10" style="opacity:.5"><circle cx="4.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="10.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="16.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="22.0" cy="5" r="2" fill="url(#yeargrad)"/></svg>family account or history</span>
         <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><rect x="2" y="3.8" width="4" height="2.4" fill="url(#yeargrad)"/><rect x="9" y="3.8" width="4" height="2.4" fill="url(#yeargrad)"/><rect x="16" y="3.8" width="4" height="2.4" fill="url(#yeargrad)"/><rect x="23" y="3.8" width="2" height="2.4" fill="url(#yeargrad)"/></svg>a guess</span>
         <span><svg class="sw" width="16" height="16" viewBox="0 0 32 32" fill="none" stroke-linecap="round"><g stroke="#2c2417" stroke-width="6"><path d="M7 7L25 25M25 7L7 25M18 25l6-6M8 19l6 6"/></g><g stroke="#e0359e" stroke-width="3"><path d="M7 7L25 25M25 7L7 25M18 25l6-6M8 19l6 6"/></g></svg>a battle: hover or click for who was there</span>
       </div>
@@ -738,13 +738,11 @@ function addImages() {
   map.addImage("arrow40", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.40)), { sdf: true, pixelRatio: 1 });
   map.addImage("arrow35", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.35)), { sdf: true, pixelRatio: 1 });
   map.addImage("dot", sdfImage(24, (x, y) => Math.hypot(x - 12, y - 12) - 5), { sdf: true, pixelRatio: 2 });
-  // notable events (stars, an anchor), battles (swords) and the bars across a
-  // military line: all SDFs, so each takes its year's colour
+  // notable events (stars, an anchor) and battles (swords): SDFs, so each takes its year's colour
   map.addImage("nb-event", sdfImage(32, starDist), { sdf: true, pixelRatio: 2 });
   map.addImage("nb-story", sdfImage(32, (x, y) => Math.abs(starDist(x, y) + 1.6) - 1.6), { sdf: true, pixelRatio: 2 });
   map.addImage("nb-arrival", sdfImage(32, anchorDist), { sdf: true, pixelRatio: 2 });
   map.addImage("swords", sdfImage(32, swordsDist), { sdf: true, pixelRatio: 2 });
-  map.addImage("mil-tick", sdfImage(16, (x, y) => Math.max(Math.abs(x - 8) - 0.9, Math.abs(y - 8) - 6)), { sdf: true, pixelRatio: 2 });
 }
 
 // ---- data for the map, rebuilt when the target changes ----
@@ -922,20 +920,14 @@ function addMapLayers() {
   // military service (drawn over the focused thread, so a life journey shows both)
   for (const id of ["mil", "mil-arrows", "mil-stops"]) map.addSource(id, { type: "geojson", data: fc([]) });
   const isRecord = ["==", ["get", "c"], "record"];
-  // military service: in the year's colour like everything else, but barred
-  // (a dark edge and ticks across) so it never reads as a migration.
-  // Documented = wide; his regiment's = narrower; family account = faded; a guess = dashed.
+  // military service: in the year's colour like everything else, but dotted,
+  // so it never reads as a migration (James chose dots over bars, 2026-09-27).
+  // Documented = larger dots; his regiment's = smaller; family account = faded; a guess = dashed.
   const notGuess = ["!=", ["get", "c"], "conjecture"], faded = ["==", ["get", "c"], "family"];
-  map.addLayer({ id: "mil-casing", type: "line", source: "mil", filter: notGuess, layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": "#2c2417", "line-opacity": ["case", faded, 0.35, 0.85], "line-width": ["case", isRecord, 5.6, 4.2] } });
   map.addLayer({ id: "mil-lines", type: "line", source: "mil", filter: notGuess,
     layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": ["get", "color"], "line-opacity": ["case", faded, 0.5, 1], "line-width": ["case", isRecord, 3.4, 2.2] } });
-  map.addLayer({ id: "mil-ticks", type: "symbol", source: "mil", filter: notGuess,
-    layout: { "symbol-placement": "line", "symbol-spacing": 16, "icon-image": "mil-tick", "icon-rotation-alignment": "map",
-              "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-keep-upright": false,
-              "icon-size": ["case", isRecord, 1, 0.8] },
-    paint: { "icon-color": "#2c2417", "icon-opacity": ["case", faded, 0.4, 0.9] } });
+    paint: { "line-color": ["get", "color"], "line-opacity": ["case", faded, 0.45, 1],
+             "line-width": ["case", isRecord, 5, 4], "line-dasharray": [0, 1.7] } });
   map.addLayer({ id: "mil-guess", type: "line", source: "mil", filter: ["==", ["get", "c"], "conjecture"],
     layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": 2.4, "line-dasharray": [2, 1.6] } });
   map.addLayer({ id: "mil-arrows", type: "symbol", source: "mil-arrows",
