@@ -150,7 +150,7 @@ def cost_per_km(e, sign, year, private_ok=False):
     if m == 'river':
         if sign == 1: c = 0.35
         elif year >= e.get('upstream_from', 9999): c = 0.5
-        else: return None
+        else: c = 1.3        # before steamboats: keelboats, poled or towed upstream; slower than a road
     elif m in ('sea', 'canal'): c = 0.5
     elif m == 'road': c = 1.0
     elif m == 'rail': c = 0.3 if year <= 1945 else 0.45

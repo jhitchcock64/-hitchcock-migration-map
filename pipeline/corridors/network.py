@@ -327,6 +327,11 @@ NODES = {
     'blairsville':    ('Blairsville, PA', 40.431, -79.261),
     # --- the Kennebec
     'hallowell':      ('Hallowell (Kennebec River), ME', 44.286, -69.790),
+    'brunswick_me':   ('Brunswick, ME', 43.911, -69.965),
+    'portland_me':    ('Portland (Falmouth), ME', 43.661, -70.255),
+    'saco':           ('Saco, ME', 43.501, -70.443),
+    'portsmouth_nh':  ('Portsmouth, NH', 43.071, -70.763),
+    'newburyport':    ('Newburyport, MA', 42.812, -70.877),
     '~kennebec_mouth': ('~', 43.720, -69.780),
     '~cape_ann':      ('~', 42.620, -70.450),
     # ================= Europe, the Atlantic and the Caribbean =================
@@ -559,6 +564,9 @@ CORRIDORS = [
     # the Bay Path / Old Connecticut Path: Hooker's 1636 route to Hartford; the later Upper Post Road
     dict(name='Bay Path (Old Connecticut Path)', mode=ROAD, years=(1636, 1700),
          path=['boston', 'worcester', 'springfield_ma', 'hartford']),
+    # the coast road from the Kennebec to Boston (the King's Highway through Maine)
+    dict(name='Coast road through Maine', mode=ROAD, years=(1760, 1860),
+         path=['hallowell', 'brunswick_me', 'portland_me', 'saco', 'portsmouth_nh', 'newburyport', 'boston']),
     dict(name='Post Road', mode=ROAD, years=(1700, 1850),     # railroads took the long trips in the 1840s
          path=['boston', 'worcester', 'springfield_ma', 'hartford', 'new_haven', 'norwalk', 'new_york',
                'new_brunswick', 'trenton', 'philadelphia', 'wilmington_de', 'elkton', 'baltimore']),
@@ -796,4 +804,16 @@ CORRIDORS = [
 # the path must pass through, in order (the router fills in between, and may
 # use private corridors); omit it to keep the inferred route. note: shown in
 # the move's tooltip.
-FORCED = []   # (Lochry's expedition, 1781-82, moved to the military layer on 2026-09-27)
+FORCED = [   # (Lochry's expedition, 1781-82, moved to the military layer on 2026-09-27)
+    # Abigail Leonard's family, Franklin County, Maine to Henderson, Kentucky, 1810. Franklin
+    # County families caught by "Ohio fever" went west by wagon (Tufts and Knowlton, 1831: 39 days,
+    # by Saco, with fords in New Jersey and Pennsylvania; Sun Journal, 22 Aug 2021), and the usual
+    # way into the Ohio valley was the Pennsylvania road to Pittsburgh and a flatboat downriver.
+    dict(match=('Chesterville, Maine', 'Henderson, Kentucky', 1810),
+         via=['hallowell', 'brunswick_me', 'portland_me', 'saco', 'portsmouth_nh', 'newburyport', 'boston',
+              'hartford', 'new_york', 'new_brunswick', 'trenton', 'philadelphia', 'lancaster_pa', 'harrisburg',
+              'carlisle', 'pittsburgh', 'evansville'],
+         note='Overland by wagon the way Franklin County families went west (by Saco, Boston, New Jersey '
+              'and the Pennsylvania road to Pittsburgh), then down the Ohio by flatboat: the usual route, '
+              'not recorded for her family'),
+]

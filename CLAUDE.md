@@ -302,9 +302,13 @@ Likely routes (added 2026-09-25, James's idea; the default view; the
   Natural Earth centerlines; each corridor has years in use, rivers an
   `upstream_from` year for steamboats; `CLOSED` shuts places in some years,
   e.g. British-occupied New York City 1776-83; `FORCED` pins moves whose
-  route the family's research knows, with a note shown in the tooltip
-  (empty since 2026-09-27: its one use, William Worthington and Lochry's
-  expedition, became military service); corridors marked `private` are used
+  route the family's research knows or the period's usual route is clear,
+  with a note shown in the tooltip (now: Abigail Leonard, Maine to Henderson
+  KY 1810, overland the way Franklin County "Ohio fever" families went, then
+  down the Ohio); before steamboats (`upstream_from`) rivers can be taken
+  upstream at a keelboat's cost, 1.3 (e.g. Joseph McDowell up the Ohio,
+  1781; James, 2026-09-27); the coast road through Maine (Hallowell to
+  Boston) was added then too; corridors marked `private` are used
   only by forced moves and military legs that name them). Railroads and highways:
   `pipeline/corridors/modern.py` (Atack's historical railroad GIS; Natural
   Earth roads, which it nodes itself, since NE doesn't split roads at
