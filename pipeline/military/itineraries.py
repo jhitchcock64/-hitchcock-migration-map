@@ -262,7 +262,8 @@ SERVICE = [
          summary='With Lochry down the Ohio to join George Rogers Clark; captured at the defeat below the '
                  'Great Miami (24 Aug 1781), held at Upper Sandusky, Detroit, an island in the St. Lawrence and '
                  'the Montreal jail; broke jail about 1 Nov 1782 and was home by 20 Dec 1782.',
-         sources=['Pension S.1272: his declaration'],
+         sources=['Pension S.1272: his declaration',
+                  'Manasseh Coyle\'s pension declaration (a fellow Lochry captive; the way home), fishergenes.com source S410'],
          stops=[S('Westmoreland Co., PA', 40.308, -79.499, 'July 1781', 'record'),
                 S('Fort Henry (Wheeling)', 40.064, -80.721, 'Aug 1781', 'record'),
                 S('Laughery Creek (Lochry\'s defeat)', 39.018, -84.866, '24 Aug 1781', 'record', 'captured',
@@ -274,8 +275,14 @@ SERVICE = [
                 S('Island in the St. Lawrence (Coteau-du-Lac)', 45.298, -74.176, '1781-82', 'record',
                   'about 40 miles above Montreal', by='water'),
                 S('Montreal (jail)', 45.504, -73.554, '1 July 1782', 'record'),
-                S('Westmoreland Co., PA', 40.308, -79.499, '20 Dec 1782', 'record',
-                  'broke jail about 1 Nov 1782; the way home isn\'t recorded')]),
+                S('Philadelphia', 39.952, -75.165, 'Dec 1782', 'unit',
+                  'broke jail about 1 Nov 1782. His own declaration doesn\'t give the way home; this is the way '
+                  'his fellow Lochry captive Manasseh Coyle took after breaking out of Montreal in October 1782: '
+                  'some 300 miles of wilderness to the first settlements, then by Philadelphia',
+                  by='arc', way=[(45.307, -73.263), (44.540, -73.330), (43.800, -73.420), (43.270, -73.580),
+                                 (42.653, -73.756), (41.930, -74.000), (40.690, -75.210)]),
+                  # St. Johns, Lake Champlain, Fort Edward, Albany, Kingston, Easton
+                S('Westmoreland Co., PA', 40.308, -79.499, '20 Dec 1782', 'unit', 'home by 20 Dec 1782 (his declaration)')]),
 
     dict(pid='@I240022524222@', name='Henry Helm Floyd', war='Revolution, 1781',
          unit='Virginia militia (Col. Churchill; Capt. Grigsby, Col. Edmonds)',
