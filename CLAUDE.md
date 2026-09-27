@@ -115,6 +115,8 @@ Stages:
 9. `build2/build_military.py` routes each ancestor's military service
    (`pipeline/military/itineraries.py`) over the same network ->
    `military_prepared.json` -> MILITARY (see "Military service").
+10b. `build2/build_profiles.py` (stage 11) writes a profile for everyone in
+   GRAPH -> `profiles_prepared.json` -> `profiles.js` (see "Profiles").
 10. `build2/build_notable.py` writes the notable events
    (`pipeline/notable/events.py`) plus an arrival for every ocean crossing
    into the Americas in PERSON_LEGS -> `notable_prepared.json` -> NOTABLE.
@@ -172,6 +174,24 @@ still work as described above. Research notes and
 open questions: James's review page, https://claude.ai/artifact/AttZme4rHWZjipWbgBy8Jf
 (built from the scratchpad; not in the repo). Corrections go in
 itineraries.py, not in data.js.
+
+Profiles (2026-09-27, James's design; the mockup is mockups/profile_worthington.html,
+untracked): a panel over the map (`#profile`, `openProfile(pid)`) for anyone in
+GRAPH: vitals, relationship to the target, buttons for their life journey and
+family history on the map, a life story (hand-written in
+`pipeline/profiles/stories.py`, else a summary the page writes from the facts,
+`autoSummary`), research notes (the tree's notes on the person), a timeline
+(residences merged by place, the tree's own events with their record links,
+military records), service, notable events, parents, spouses and children
+(only people on the map are links; James: other children listed, not
+clickable), the line of descent to the target, and the attached record
+titles. Data: `profiles.js` (`const PROFILES`, ~1.1 MB), written by
+write_data_js.py and loaded only when a profile first opens. Ways in: the i
+button on search results, choosing someone in Life journey, clicking a
+military line or stop, names in battle and event popups, links inside
+profiles, and `#p=<id>` in the URL. Photos: a placeholder until the photo
+pipeline exists (Family Tree Maker media or James's labeled Google Photos
+album).
 
 Living people (2026-09-27, James's design): everyone born within 100
 years with no death record (or, with no birth year, within four

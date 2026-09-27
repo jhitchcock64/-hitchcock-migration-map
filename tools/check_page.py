@@ -58,6 +58,11 @@ with sync_playwright() as p:
     pg.wait_for_timeout(2500)
     r = pg.evaluate(CHECKS)
     if shot: pg.screenshot(path=shot)
+    # profiles: profiles.js loads and a known ancestor's opens with its sections (MapLibre page only)
+    r['profile'] = pg.evaluate('''typeof openProfile !== 'function' ? null : openProfile('@I242209901667@').then(() => ({
+        name: (document.querySelector('#profile h2') || {}).textContent,
+        sections: [...document.querySelectorAll('#profile .pf-eyebrow')].map(e => e.textContent),
+        people: typeof PROFILES === 'undefined' ? 0 : Object.keys(PROFILES.people).length }))''')
     b.close()
 
 print(json.dumps(r, indent=1))
@@ -83,5 +88,9 @@ if r['renderer'] == 'maplibre':
         if n['arrivals'] < 50: problems.append(f"only {n['arrivals']} arrivals in NOTABLE")
         if not n['godspeed']: problems.append('the Godspeed landing is missing from NOTABLE')
     if r.get('title') != 'Family History, Visualized': problems.append(f"page title is {r.get('title')!r}")
+    pf = r.get('profile')
+    if pf is not None:
+        if pf['name'] != 'William Worthington' or 'Timeline' not in pf['sections']: problems.append(f'profile panel broken: {pf}')
+        if pf['people'] < 1200: problems.append(f"only {pf['people']} profiles in profiles.js")
 print('\nPASS' if not problems else '\nFAIL:\n  ' + '\n  '.join(problems))
 sys.exit(1 if problems else 0)

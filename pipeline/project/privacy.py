@@ -75,6 +75,31 @@ def redact(arrays, living):
     return private
 
 
+def redact_profiles(profiles, living, private):
+    """Profiles (build_profiles.py): the living's go into private['profiles'];
+    a living child or spouse named in someone else's profile (on the map or
+    not, marked lv by build_profiles) is published as {lv: 1} (and i, if
+    on the map), with the full family list in private['pfam']."""
+    people = profiles['people']
+    private['profiles'] = {pid: people.pop(pid) for pid in sorted(living) if pid in people}
+    private['pfam'] = {}
+    for pid, pr in people.items():
+        hit = False
+        for f in pr['f']:
+            for c in f['k'] + ([f['sp']] if 'sp' in f else []):
+                if c.get('lv') or c.get('i') in living: hit = True
+        if hit:
+            private['pfam'][pid] = pr['f']
+            pr['f'] = [dict(f, **({'sp': _blank(f['sp'], living)} if 'sp' in f else {}),
+                            k=[_blank(c, living) for c in f['k']]) for f in pr['f']]
+    return private
+
+
+def _blank(c, living):
+    if not (c.get('lv') or c.get('i') in living): return c
+    return {'lv': 1, **({'i': c['i']} if c.get('i') else {})}
+
+
 # ---------------------------------------------------------------- AES-256 (encryption only; CTR needs no decrypt)
 _SBOX = [0] * 256
 def _init_sbox():
