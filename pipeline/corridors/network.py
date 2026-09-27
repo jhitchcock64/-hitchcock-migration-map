@@ -625,7 +625,8 @@ CORRIDORS = [
          upstream_from=1609,
          path=['montreal', 'st_johns', '~lake_champlain_n', '~lake_champlain_m', 'crown_point', 'ticonderoga',
                'fort_george', 'fort_edward', '~saratoga', 'albany']),
-    # Used only by the FORCED route below (private): after Lochry's defeat the
+    # Private: used only by routes that name it (William Worthington's military
+    # service, pipeline/military/itineraries.py). After Lochry's defeat the
     # prisoners were taken north through the Shawnee and Wyandot towns to the
     # British at Detroit. The exact path isn't known; this follows the usual one.
     dict(name="Captives' trail to Detroit (approximate)", mode=ROAD, years=(1750, 1800), private=True,
@@ -795,15 +796,4 @@ CORRIDORS = [
 # the path must pass through, in order (the router fills in between, and may
 # use private corridors); omit it to keep the inferred route. note: shown in
 # the move's tooltip.
-FORCED = [
-    dict(match=('Westmoreland Co., Pennsylvania', 'Detroit, Michigan', 1781),
-         via=['wheeling', 'laughery_creek', 'detroit'],
-         note="Lochry's expedition: down the Ohio from Fort Henry (Wheeling) to join George Rogers Clark; "
-              "captured at Laughery Creek on 24 Aug 1781 and taken north to the British at Detroit "
-              "(the overland path is approximate)"),
-    dict(match=('Detroit, Michigan', 'Montreal, Quebec', 1781),
-         note='Sent on as a prisoner of war to Montreal, and held on an island in the St. Lawrence'),
-    dict(match=('Montreal, Quebec', 'Westmoreland Co., Pennsylvania', 1782),
-         note='Escaped from an island in the St. Lawrence about 40 miles above Montreal; home in '
-              'Westmoreland County by 20 Dec 1782 (route inferred)'),
-]
+FORCED = []   # (Lochry's expedition, 1781-82, moved to the military layer on 2026-09-27)

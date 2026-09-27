@@ -33,7 +33,7 @@ Cost model (per km; the cheapest path wins):
   years (network.py; railroads from the year each line opened to 1955;
   highways from 1920, Interstates from 1960 -- see build_network.py).
 Moves listed in network.py's FORCED follow the nodes given there (the family's
-own research, e.g. Lochry's expedition) and carry a note (n) for the tooltip.
+own research; none at present) and carry a note (n) for the tooltip.
 A move is routed only if the path beats going direct (2.5/km), is no more
 than MAX_DETOUR x the direct distance (+50 km; river trips wind), and at
 least 40% of it is on the network. Moves under MIN_KM keep their direct

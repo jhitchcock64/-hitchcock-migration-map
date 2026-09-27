@@ -180,22 +180,9 @@ print(f"Events with a PLAC value: {with_place}")
 # across re-extraction) rather than a one-off data edit, since -- unlike
 # externally-sourced additions -- this narrative genuinely lives in the
 # user's own GEDCOM file; it just isn't in a form the parser reads.
-WORTHINGTON_ID = "@I242209901667@"
-if WORTHINGTON_ID in records:
-    # "William Worthington - Biographical Data By Mrs. John Beck" (attached
-    # story, @O4184@): captured 4 Jun 1781 on a George Rogers Clark
-    # expedition, sold to the British at Detroit, held prisoner near
-    # Montreal, escaped from an island in the St Lawrence ~40mi above
-    # Montreal, returned to Westmoreland Co. PA by 20 Dec 1782 (already
-    # present in the structured record as its own RESI event). Detroit added
-    # per explicit user request, completing the sequence the narrative
-    # already describes -- appended BEFORE Montreal so it sorts first among
-    # same-year (1781) events.
-    records[WORTHINGTON_ID]["events"].append(
-        {"type": "RESI", "date": "1781", "plac": "Detroit, Michigan, USA"})
-    records[WORTHINGTON_ID]["events"].append(
-        {"type": "RESI", "date": "1781", "plac": "Montreal, Quebec, Canada"})
-    print("Added William Worthington's Detroit + Montreal captivity (from attached GEDCOM narrative, Detroit ad hoc per user)")
+# (Until 2026-09-27 this added his Detroit and Montreal captivity, 1781, as
+# residences. It is now part of his military service, with its sources, in
+# pipeline/military/itineraries.py, so it is no longer a migration.)
 
 # --- ad hoc addition per explicit user instruction (distinct provenance from
 # the Worthington case above: this is the user's own stated research, not

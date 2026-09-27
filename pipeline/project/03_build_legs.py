@@ -12,6 +12,23 @@ import json
 import re
 import csv
 from geocoder import normalize_and_geocode
+import sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(PROJECT_DIR), "military"))
+from itineraries import SERVICE
+
+# Men whose military service is on the map as its own layer (itineraries.py):
+# for each, the year span and places of every service. Their military records
+# (MILT) and any residence within a service, in both years and place (e.g.
+# Mehrle's "New York, 4 Jun 1918", the day he sailed), are left out of their
+# migrations, so a campaign isn't drawn twice.
+def _service_windows():
+    out = {}
+    for s in SERVICE:
+        years = [int(y) for st in s["stops"] for y in re.findall(r"1[5-9]\d\d", st["date"])]
+        if years:
+            out.setdefault(s["pid"], []).append((min(years), max(years), [(st["lat"], st["lon"]) for st in s["stops"]]))
+    return out
+SERVICE_WINDOWS = _service_windows()
 
 with open("events.json") as f:
     records = json.load(f)
@@ -157,6 +174,11 @@ def person_stops(pid):
             continue  # discard implausible/garbled date ranges
         if yr is None:
             continue
+        if pid in SERVICE_WINDOWS and e["type"] in ("MILT", "RESI"):
+            if e["type"] == "MILT" or any(
+                    y0 <= yr <= y1 and any(haversine_km(a, b, lat, lon) < MILT_AWAY_KM for a, b in pts)
+                    for y0, y1, pts in SERVICE_WINDOWS[pid]):
+                continue    # on the map as military service
         evs.append({"label": label, "lat": lat, "lon": lon, "tier": tier,
                      "year": yr, "type": e["type"], "md": month_day(e["date"], yr)})
         if e["type"] in ("BIRT", "DEAT"):

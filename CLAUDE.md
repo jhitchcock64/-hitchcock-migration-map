@@ -150,8 +150,13 @@ regiment's movements), `family` (family account or secondary history),
 `conjecture` (a guess; only Charles Clay's Jamestown). Legs are marches on
 period roads unless the stop says water, sea or rail; `gap` leaves a jump
 undrawn (W. G. Gregory between Donelson and his 1865 parole). This is a
-separate layer from the migrations and never feeds ROUTES or PERSON_LEGS
-(the GEDCOM's own _MILT stops, above, are unrelated). Research notes and
+separate layer from the migrations and never feeds ROUTES or PERSON_LEGS.
+For a man with an itinerary, stage 3 leaves his _MILT records out of his
+migrations, and any residence inside one of his services in both years and
+place (within 60 km of a stop), so a campaign isn't drawn twice (2026-09-27,
+James: Worthington's captivity, Muse's Cartagena and Fort Necessity,
+Jared Hitchcock's West Point, Mehrle's France). Other men's _MILT stops
+still work as described above. Research notes and
 open questions: James's review page, https://claude.ai/artifact/AttZme4rHWZjipWbgBy8Jf
 (built from the scratchpad; not in the repo). Corrections go in
 itineraries.py, not in data.js.
@@ -240,9 +245,10 @@ browser; `?lines=likely` or `?lines=direct` in the URL overrides):
   Natural Earth centerlines; each corridor has years in use, rivers an
   `upstream_from` year for steamboats; `CLOSED` shuts places in some years,
   e.g. British-occupied New York City 1776-83; `FORCED` pins moves whose
-  route the family's research knows, e.g. William Worthington and Lochry's
-  expedition, 1781, with a note shown in the tooltip; corridors marked
-  `private` are used only by those). Railroads and highways:
+  route the family's research knows, with a note shown in the tooltip
+  (empty since 2026-09-27: its one use, William Worthington and Lochry's
+  expedition, became military service); corridors marked `private` are used
+  only by forced moves and military legs that name them). Railroads and highways:
   `pipeline/corridors/modern.py` (Atack's historical railroad GIS; Natural
   Earth roads, which it nodes itself, since NE doesn't split roads at
   junctions), read with `shapefile.py` (stdlib shapefile/dbf reader and
