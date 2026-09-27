@@ -1059,7 +1059,10 @@ function setTarget(pid) {
   CURRENT_TARGET = pid;
   TARGET_ANCESTOR_SET = ancestorSetOf(pid); // includes pid itself
   recomputeClusterVisibility();
-  const name = GRAPH.people[pid].name;
+  // the default view says "Family History, Visualized"; a chosen person's, "Family History of X, Visualized"
+  const title = pid === GRAPH.james_id ? "Family History, Visualized" : `Family History of ${GRAPH.people[pid].name}, Visualized`;
+  document.title = title;
+  document.getElementById("page-title").textContent = title;
   clearFocus();
   redrawAll();
 }
