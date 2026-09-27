@@ -29,6 +29,12 @@ CHECKS = """() => {
   out.thomas_1739_parents = t ? t.parents.map(p => GRAPH.people[p] && GRAPH.people[p].name) : null;
   out.phantom_thomas_sr_1716 = SEARCH_INDEX.some(s => s.name.startsWith('Thomas Baskett') && s.birt === '1716');
   out.year_range = [Math.floor(YEAR_MIN), Math.ceil(YEAR_MAX)];
+  // military service (MILITARY, from pipeline/military/itineraries.py)
+  out.military = typeof MILITARY === 'undefined' ? null : {
+    people: Object.keys(MILITARY).length,
+    routed: Object.values(MILITARY).flat().filter(e => e.legs.length).length,
+    missing_people: Object.keys(MILITARY).filter(id => !GRAPH.people[id]).length,
+    worthington_stops: (MILITARY['@I242209901667@'] || [{stops: []}])[0].stops.map(s => s.l.split(' (')[0]) };
   // something was actually drawn: route features on the MapLibre map
   // (index.html), or routes the Canvas 2D renderer stroked (legacy.html)
   const ml = typeof map !== 'undefined' && map && typeof map.getSource === 'function';
@@ -58,5 +64,12 @@ if not r['godbey_sr_legs'] or 'Bermuda' not in ' '.join(r['godbey_sr_legs']): pr
 if r['thomas_1739_parents'] != ['Daniel Baskett', 'Mary Godbey']: problems.append(f"Thomas Baskett (1739) parents wrong: {r['thomas_1739_parents']}")
 if r['phantom_thomas_sr_1716']: problems.append('phantom Thomas Baskett Sr. (b.1716) is back in search')
 if not r['routes_drawn']: problems.append('no routes were drawn')
+if r['renderer'] == 'maplibre':
+    m = r.get('military')
+    if not m: problems.append('MILITARY missing from data.js')
+    else:
+        if m['missing_people']: problems.append(f"{m['missing_people']} military entries point at people missing from GRAPH")
+        if m['routed'] < 20: problems.append(f"only {m['routed']} military services have routes")
+        if 'Montreal' not in m['worthington_stops']: problems.append("William Worthington's captivity (Montreal) missing from MILITARY")
 print('\nPASS' if not problems else '\nFAIL:\n  ' + '\n  '.join(problems))
 sys.exit(1 if problems else 0)

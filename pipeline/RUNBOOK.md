@@ -160,3 +160,24 @@ Atack's railroad GIS, from https://my.vanderbilt.edu/jeremyatack/data-downloads/
 (Natural Earth, 15 MB; European railways). A full run takes about 2 minutes. Its outputs are
 committed, so the regular pipeline doesn't need them. The
 router's rules and costs are at the top of `build_corridor_routes.py`.
+
+## Military service
+
+`pipeline/military/itineraries.py` is hand-authored from pension files,
+service records and family histories (researched with James in September
+2026): each man's unit, summary, sources and stops, and for every stop how
+well it is known (`record`, `unit`, `family`, `conjecture`). Stage 9,
+`pipeline/build2/build_military.py`, routes each leg over the historical
+network (marches on period roads unless a stop says `by='water'`, `'sea'`
+or `'rail'`) and writes `military_prepared.json` -> MILITARY in data.js.
+The run_pipeline.sh runner does this after stage 8. To change a service
+without a new GEDCOM:
+
+```
+python pipeline/build2/build_military.py           # log lists every leg and the corridors it took
+python pipeline/project/write_data_js.py data.js   # write MILITARY
+python tools/check_page.py index.html
+```
+
+People are keyed by GEDCOM individual ID, which is stable across exports;
+check_page.py fails if an entry points at someone no longer in the tree.

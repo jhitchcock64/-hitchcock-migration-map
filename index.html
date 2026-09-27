@@ -126,6 +126,19 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #legend .likely-note { font-size:10px; color:var(--muted); margin:-3px 0 7px; max-width:230px; line-height:1.35; }
 #legend .stripe-swatch { width:22px; height:9px; border:none; border-radius:1px;
   background:linear-gradient(to bottom, #0f8a7a 0 25%, #2050d6 25% 50%, #8033d6 50% 75%, #e0359e 75%); }
+/* military service: a toggle and, while any service is on the map, its key */
+#legend .mil-toggle { display:flex; align-items:center; gap:7px; margin-top:8px; font-size:11px; color:var(--muted);
+  cursor:pointer; background:none; border:none; padding:0; font-family:inherit; }
+#legend .mil-toggle .box { width:12px; height:12px; border:1px solid rgba(156,122,46,0.6); border-radius:3px;
+  display:inline-flex; align-items:center; justify-content:center; font-size:10px; line-height:1; color:#fff; }
+#legend .mil-toggle[aria-pressed="true"] { color:var(--ink); }
+#legend .mil-toggle[aria-pressed="true"] .box { background:#2f3d12; border-color:#2f3d12; }
+#legend .mil-toggle[aria-pressed="true"] .box::after { content:"\2713"; }
+#legend .mil-toggle:focus-visible { outline:2px solid var(--border-stroke); outline-offset:2px; }
+#legend .mil-key { display:none; flex-direction:column; gap:2px; margin:4px 0 0 19px; font-size:10px; color:var(--muted); }
+#legend.mil .mil-key { display:flex; }
+#legend .mil-key span { display:flex; align-items:center; gap:6px; }
+#legend .mil-sw { width:20px; height:0; border-top:3px solid; }
 #legend .hint { font-family:var(--font-mono); font-size:10px; color:var(--muted); margin-top:8px; border-top:1px solid rgba(156,122,46,0.25); padding-top:6px; }
 #legend .hint.credit { font-size:9px; margin-top:3px; border-top:none; padding-top:0; opacity:0.8; }
 
@@ -355,6 +368,13 @@ svg#overlay-svg .interactive { pointer-events:auto; }
     <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
     <div class="cb-labels" id="cb-labels"></div>
     <div class="lw-item likely-only"><span class="stripe-swatch"></span> a road or river several ancestors used; one stripe per route, oldest to newest, width by number of ancestors</div>
+    <button class="mil-toggle" id="mil-toggle" aria-pressed="false" title="Where ancestors served: campaigns, battles, camps and captivity, from pension files, service records and family histories"><span class="box"></span>Military service</button>
+    <div class="mil-key">
+      <span><i class="mil-sw" style="border-color:#2f3d12"></i>documented for him</span>
+      <span><i class="mil-sw" style="border-color:#7a8a3c"></i>his regiment's movements</span>
+      <span><i class="mil-sw" style="border-color:#8c6a34"></i>family account or history</span>
+      <span><i class="mil-sw" style="border-color:#7a8a3c; border-top-style:dashed"></i>a guess</span>
+    </div>
     <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = who traveled &middot; click = trace the line to the target &middot; search top-left</div>
   </div>
 </div>
@@ -815,6 +835,22 @@ function addMapLayers() {
              "circle-stroke-width": 2.5, "circle-stroke-opacity": 0.85 } });
   map.addLayer({ id: "stationary-dot", type: "circle", source: "stationary",
     paint: { "circle-radius": 3, "circle-color": "#9c3c2e", "circle-opacity": 0.85 } });
+  // military service (drawn over the focused thread, so a life journey shows both)
+  for (const id of ["mil", "mil-arrows", "mil-stops"]) map.addSource(id, { type: "geojson", data: fc([]) });
+  const isRecord = ["==", ["get", "c"], "record"];
+  map.addLayer({ id: "mil-casing", type: "line", source: "mil", layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": "#ffffff", "line-opacity": 0.75, "line-width": ["case", isRecord, 6.2, 5.2] } });
+  map.addLayer({ id: "mil-lines", type: "line", source: "mil", filter: ["!=", ["get", "c"], "conjecture"],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": ["get", "color"], "line-opacity": 0.95, "line-width": ["case", isRecord, 3.2, 2.4] } });
+  map.addLayer({ id: "mil-guess", type: "line", source: "mil", filter: ["==", ["get", "c"], "conjecture"],
+    layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": 2.4, "line-dasharray": [2, 1.6] } });
+  map.addLayer({ id: "mil-arrows", type: "symbol", source: "mil-arrows",
+    layout: { "icon-image": "arrow40", "icon-size": ["get", "size"], "icon-rotate": ["get", "rot"], "icon-anchor": "right",
+              "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true },
+    paint: { "icon-color": ["get", "color"], "icon-opacity": 0.95 } });
+  map.addLayer({ id: "mil-stops", type: "circle", source: "mil-stops",
+    paint: { "circle-radius": 4, "circle-color": "#ffffff", "circle-stroke-color": ["get", "color"], "circle-stroke-width": 2 } });
   // family places (placed before the style's own labels, so they win
   // collisions). Text needs the style's fonts, so the fallback map shows dots only.
   map.addLayer({ id: "places", type: "symbol", source: "places",
@@ -912,7 +948,7 @@ function applyAggregation(force) {
 // ---- keeping the map in step with the page's state ----
 // redrawAll() is what the rest of the page calls after changing the target,
 // the focus, the hovered move or the view; it pushes only what changed.
-let shownTarget = null, shownThread = null, shownLikely = null, shownEdgeRoutes = new Map();
+let shownTarget = null, shownThread = null, shownLikely = null, shownEdgeRoutes = new Map(), shownMil = null;
 function redrawAll() {
   if (!mapReady) return;
   if (shownTarget !== CURRENT_TARGET || shownLikely !== likelyRoutes) {
@@ -942,6 +978,15 @@ function redrawAll() {
     const sp = focusActive && focusedStationaryPoint;
     map.getSource("stationary").setData(fc(sp ? [{ type: "Feature", properties: {},
       geometry: { type: "Point", coordinates: toLL(sp.x, sp.y) } }] : []));
+  }
+  const milKey = [lifePerson, showMilitary, CURRENT_TARGET].join("|");
+  if (milKey !== shownMil) {
+    shownMil = milKey;
+    const m = militaryFeatures();
+    map.getSource("mil").setData(fc(m.lines));
+    map.getSource("mil-arrows").setData(fc(m.arrows));
+    map.getSource("mil-stops").setData(fc(m.stops));
+    document.getElementById("legend").classList.toggle("mil", m.stops.length > 0);
   }
   applyAggregation();
   updateZoomReadout();
@@ -1062,8 +1107,11 @@ function threadSegsNear(point, px) {
   }
   return out;
 }
+const MIL_LAYERS = ["mil-stops", "mil-lines", "mil-guess"];
 function doHover(e) {
   const pt = e.point, ev = e.originalEvent;
+  const mil = featuresNear(pt, 7, MIL_LAYERS)[0];
+  if (mil) { showMilTip(ev, mil.properties, mil.layer.id === "mil-stops"); return; }
   if (focusActive) {
     // while a thread is focused only the highlighted line is hoverable
     const hitSegs = threadSegsNear(pt, 8);
@@ -1083,6 +1131,7 @@ function doHover(e) {
 function handleClick(e) {
   const pt = e.point;
   closeRoutePicker();
+  if (featuresNear(pt, 7, MIL_LAYERS).length) return;   // military service: the tooltip says it all
   const hitCluster = clusterNear(pt, 9);
   if (hitCluster) {
     // zoom in just past the aggregation threshold, centred where you clicked,
@@ -1146,6 +1195,8 @@ const styleTimer = setInterval(() => {
 let focusedAnchor = null; // person_id currently focused, or null
 
 let focusActive = false;
+let lifePerson = null;    // the person shown in Life journey: their military service is drawn
+let showMilitary = false; // the legend's Military service toggle (set up near the end)
 
 const AGGREGATE_ZOOM_THRESHOLD = 4.5;
 const MIN_VISIBLE_CLUSTER_SIZE = 2; // matches server-side MIN_CLUSTER_SIZE
@@ -1298,6 +1349,7 @@ document.getElementById("focus-sub").addEventListener("click", (e) => { e.stopPr
 
 function clearFocus() {
   focusedAnchor = null;
+  lifePerson = null;
   focusActive = false;
   hoveredSegIdx = -1;
   currentFocusSegs = null;
@@ -1365,9 +1417,15 @@ function selectSearchResult(i) {
     focusedAnchor = null;
     const hasOwnMoves = PERSON_LEGS[p.id] && PERSON_LEGS[p.id].length > 0;
     focusedStationaryPoint = (!hasOwnMoves && person.fx != null) ? { x: person.fx, y: person.fy, label: p.name } : null;
+    lifePerson = p.id;
+    const service = MIL_DATA[p.id];
+    const serviceSegs = service ? service.flatMap(e => e.stops.map(s => ({ x1: s.x, y1: s.y, x2: s.x, y2: s.y }))) : [];
     if (hasOwnMoves) {
-      zoomToFitSegs(segs);
-      renderFocusedChain(segs, `${p.name}'s life journey`);
+      zoomToFitSegs(segs.concat(serviceSegs));
+      renderFocusedChain(segs, `${p.name}'s life journey${service ? " and military service" : ""}`);
+    } else if (serviceSegs.length) {
+      zoomToFitSegs(serviceSegs);
+      renderFocusedChain([], `${p.name}'s military service`);
     } else if (person.fx != null) {
       zoomToPoint(person.fx, person.fy);
       renderFocusedChain([], `${p.name} \u2014 no recorded moves (lived at one known location)`);
@@ -1404,6 +1462,7 @@ document.querySelectorAll(".mode-btn").forEach(btn => {
     btn.classList.add("active");
     searchMode = btn.dataset.mode;
     pathPickA = null;
+    if (searchMode !== "life" && lifePerson) { lifePerson = null; redrawAll(); }
     updatePathStatus();
     const isEra = searchMode === "era";
     const isSurname = searchMode === "surname";
@@ -1779,6 +1838,58 @@ function setLikelyRoutes(on) {
 document.getElementById("lines-direct").onclick = () => setLikelyRoutes(false);
 document.getElementById("lines-likely").onclick = () => setLikelyRoutes(true);
 setLikelyRoutes(likelyRoutes);
+
+// ---- military service (MILITARY in data.js, from pipeline/military/itineraries.py) ----
+// Off by default; the legend's toggle shows the service of the target's
+// ancestors, and Life journey always shows the chosen person's own.
+const MIL_DATA = typeof MILITARY !== "undefined" ? MILITARY : {};   // tolerate a stale cached data.js
+const MIL_COLOR = { record: "#2f3d12", unit: "#7a8a3c", family: "#8c6a34", conjecture: "#7a8a3c" };
+const MIL_BASIS = { record: "documented for him", unit: "his regiment's movements",
+                    family: "family account or secondary history", conjecture: "a guess" };
+function militaryPeople() {
+  const ids = new Set();
+  if (lifePerson && MIL_DATA[lifePerson]) ids.add(lifePerson);
+  if (showMilitary) for (const id in MIL_DATA) if (TARGET_ANCESTOR_SET.has(id)) ids.add(id);
+  return [...ids];
+}
+function militaryFeatures() {
+  const lines = [], arrows = [], stops = [];
+  for (const pid of militaryPeople()) MIL_DATA[pid].forEach((e, k) => {
+    for (const l of e.legs) {
+      const ll = l.p.map(q => toLL(q[0], q[1])), n = ll.length;
+      lines.push({ type: "Feature", properties: { pid, k, i: l.i, c: l.c, color: MIL_COLOR[l.c] },
+                   geometry: { type: "LineString", coordinates: ll } });
+      if (n > 1) arrows.push({ type: "Feature", properties: { color: MIL_COLOR[l.c], rot: bearingDeg(ll[n-2], ll[n-1]), size: 8 / ARROW_LEN },
+                               geometry: { type: "Point", coordinates: ll[n-1] } });
+    }
+    e.stops.forEach((s, i) => stops.push({ type: "Feature", properties: { pid, k, i, c: s.c, color: MIL_COLOR[s.c] },
+                                           geometry: { type: "Point", coordinates: toLL(s.x, s.y) } }));
+  });
+  return { lines, arrows, stops };
+}
+function showMilTip(event, f, isStop) {
+  const e = MIL_DATA[f.pid][f.k], s = e.stops[f.i], name = (GRAPH.people[f.pid] || {}).name || "";
+  const leg = isStop ? null : e.legs.find(l => l.i === f.i);
+  const head = isStop || !f.i ? s.l : `${e.stops[f.i - 1].l} &rarr; ${s.l}`;
+  tooltip.classed("t-multi", false);
+  tooltip.html(`<span class="t-name">${head}</span>${name} &middot; ${e.war}<br>` +
+    `<span class="t-year">${s.d} &middot; ${MIL_BASIS[s.c]}</span>` +
+    (s.n ? `<br><span class="t-note">${s.n}</span>` : "") +
+    `<br><span class="t-note">${e.unit}</span>` +
+    (leg && leg.via ? `<br><span class="t-year">the way is inferred: ${leg.via}</span>` : "") +
+    `<br><span class="t-year">source: ${e.sources.join("; ")}</span>`);
+  placeTip(event);
+}
+try { showMilitary = localStorage.getItem("hm-military") === "1"; } catch (e) {}
+{ const q = new URLSearchParams(location.search).get("military"); if (q) showMilitary = q === "1"; }   // ?military=1|0
+function setMilitary(on) {
+  showMilitary = on;
+  try { localStorage.setItem("hm-military", on ? "1" : "0"); } catch (e) {}
+  document.getElementById("mil-toggle").setAttribute("aria-pressed", on);
+  redrawAll();
+}
+document.getElementById("mil-toggle").onclick = () => setMilitary(!showMilitary);
+setMilitary(showMilitary);
 </script>
 </body>
 </html>
