@@ -2394,7 +2394,7 @@ async function openProfile(pid) {
   H.push(`<div class="pf-head"><div class="pf-photo${photo ? " has" : ""}">${photo || `<div><svg viewBox="0 0 64 64"><circle cx="32" cy="22" r="12" fill="currentColor"/><path d="M8 60c2-14 12-22 24-22s22 8 24 22z" fill="currentColor"/></svg>No photo yet</div>`}</div>
     <div><h2>${esc(g.name)}</h2><div class="pf-years">${yrs[0] || "?"} &ndash; ${yrs[1] || (g.name === "Private" || familyShown && PRIVATE_PROFILES[pid] ? "" : "?")}</div>
     ${rel ? `<div class="pf-rel">${esc(rel.charAt(0).toUpperCase() + rel.slice(1))}</div>` : ""}</div></div>`);
-  H.push(`<div class="pf-btns"><button class="solid" data-act="life">Life journey on the map</button><button data-act="family">${his.charAt(0).toUpperCase() + his.slice(1)} family history</button><a class="pf-tree" href="tree.html#root=${encodeURIComponent(pid)}">View on the tree</a></div>`);
+  H.push(`<div class="pf-btns"><button class="solid" data-act="life">Life journey</button><button data-act="family">Family journey</button><a class="pf-tree" href="tree.html#root=${encodeURIComponent(pid)}">View on tree</a></div>`);
   // facts
   const facts = [];
   if (pr.b[0] || pr.b[1]) facts.push(["Born", [longDate(pr.b[0]), pr.b[1]].filter(Boolean).join("<br>")]);
