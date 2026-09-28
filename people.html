@@ -14,6 +14,7 @@ h1 { font-family: var(--font-display); font-weight: normal; font-size: 28px; mar
 .filters input[type=search] { font: inherit; padding: 6px 9px; border: 1px solid rgba(156,122,46,0.5); border-radius: 5px; width: 260px; max-width: 100%; background: #fff; }
 .filters select { font: inherit; padding: 5px 6px; border: 1px solid rgba(156,122,46,0.5); border-radius: 5px; background: #fff; }
 .filters label { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); cursor: pointer; }
+.filters .from input { font: inherit; padding: 5px 8px; border: 1px solid rgba(156,60,46,0.5); border-radius: 5px; width: 230px; background: #fff8f2; color: var(--ink); }
 .count { margin-left: auto; color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
 .list { margin-top: 12px; display: grid; gap: 6px; }
 .row { display: grid; grid-template-columns: 40px minmax(180px, 1.4fr) 110px minmax(150px, 1.3fr) minmax(150px, 1fr) 76px; gap: 12px; align-items: center;
@@ -48,24 +49,42 @@ h1 { font-family: var(--font-display); font-weight: normal; font-size: 28px; mar
   <h1>People</h1>
   <p class="lede" id="lede"></p>
   <div class="filters">
+    <label class="from">Viewing from <input id="from" list="from-list" placeholder="Margaret" aria-label="Whose relationships to show" autocomplete="off"></label>
+    <datalist id="from-list"></datalist>
+    <label><input type="checkbox" id="only"> only their ancestors</label>
     <input id="q" type="search" placeholder="Name or place&hellip;" aria-label="Search by name or place" autocomplete="off">
-    <select id="side" aria-label="Side of the family"><option value="">Both sides</option><option value="f">Father's side</option><option value="m">Mother's side</option></select>
+    <select id="side" aria-label="Side of the family"><option value="">Both sides</option><option value="f">Their father's side</option><option value="m">Their mother's side</option></select>
     <select id="sort" aria-label="Sort"><option value="gen">By generation</option><option value="name">By surname</option><option value="born">By birth year</option></select>
     <label><input type="checkbox" id="photo"> with a photo</label>
     <label><input type="checkbox" id="story"> with a story</label>
     <label><input type="checkbox" id="served"> served</label>
-    <label><input type="checkbox" id="events"> in history</label>
+    <label><input type="checkbox" id="events"> in a notable event</label>
     <span class="count" id="count"></span>
   </div>
   <div class="head"><span></span><span>Name</span><span>Years</span><span class="pl">Born</span><span class="rel">Relationship</span><span class="marks"></span></div>
   <div class="list" id="list"></div>
-  <p class="legend">&#x1F4F7; photo &middot; &#x270E; written life story &middot; &#x2694; military service &middot; &#x2605; notable event &middot; colour: father's side (teal) or mother's side (rose)</p>
+  <p class="legend">&#x1F4F7; photo &middot; &#x270E; written life story &middot; &#x2694; military service &middot; &#x2605; part of a notable event on the map (a landing, an arrival in America, a moment in history) &middot; colour: father's side (teal) or mother's side (rose)</p>
 </main>
 <script src="data.js"></script>
 <script src="profiles.js"></script>
 <script src="site.js"></script>
 <script>
-const P = GRAPH.people, ROOT = GRAPH.james_id;
+const P = GRAPH.people;
+let ROOT = GRAPH.james_id;
+// "Viewing from": relationships, sides and the generation order are counted from this person
+const label = pid => `${P[pid].name}${P[pid].by ? " (b. " + P[pid].by + ")" : ""}`;
+function fillFrom() {
+  document.getElementById("from-list").innerHTML = Object.keys(P).filter(id => P[id].name !== "Private")
+    .map(id => `<option value="${Family.esc(label(id))}">`).join("");
+  document.getElementById("from").value = P[ROOT].name === "Private" ? "" : label(ROOT);
+}
+document.getElementById("from").addEventListener("change", e => {
+  const v = e.target.value.trim();
+  const id = !v ? GRAPH.james_id : Object.keys(P).find(k => P[k].name !== "Private" && label(k) === v) || Object.keys(P).find(k => P[k].name === v);
+  if (!id) return;
+  ROOT = id; prepare(); draw();
+  history.replaceState(null, "", id === GRAPH.james_id ? location.pathname : "#from=" + encodeURIComponent(id));
+});
 const inEvent = new Set(NOTABLE.events.flatMap(e => e.p));
 let rows = [];
 function prepare() {
@@ -80,18 +99,21 @@ function prepare() {
     const surname = (p.surname || p.name.split(" ").pop()).toLowerCase();
     return { pid, name: p.name, surname, side, g, years: Family.years(pid), by: +Family.yearOf(pr.b[0]) || p.by || 9999,
              born: pr.b[1] || p.bplace || "", died: pr.d[1] || "",
-             rel: pid === ROOT ? "" : g != null ? Family.relation(g, pid) : "aunt or uncle",
+             rel: pid === ROOT ? "" : g != null ? Family.relation(g, pid) : ROOT === GRAPH.james_id && GRAPH.sibling_ids.includes(pid) ? "aunt or uncle" : "",
+             anc: g != null,
              photo: !!pr.ph, story: !!pr.st, served: !!MILITARY[pid], events: inEvent.has(pid), ph: pr.ph && pr.ph[0] };
   });
   const living = Object.values(P).filter(p => p.name === "Private").length;
-  const who = P[ROOT].name === "Private" ? "the family's" : Family.firstName(ROOT) + "'s";
+  const home = GRAPH.james_id, who = P[home].name === "Private" ? "the family's" : Family.firstName(home) + "'s";
   document.getElementById("lede").textContent = `${rows.length.toLocaleString()} people: ${who} direct ancestors across ` +
-    `${Math.max(...rows.map(r => r.g || 0))} generations, and ${P[ROOT].name === "Private" ? "the youngest generation's" : "her"} aunts and uncle.` + (living ? ` ${living} living family members are hidden until the family password is given.` : "");
+    `${Math.max(...[...Family.generations(home).values()])} generations, and ${P[home].name === "Private" ? "the youngest generation's" : "her"} aunts and uncle.` +
+    (ROOT !== home ? ` Relationships shown are to ${P[ROOT].name}.` : "") + (living ? ` ${living} living family members are hidden until the family password is given.` : "");
 }
 function draw() {
   const q = document.getElementById("q").value.trim().toLowerCase(), side = document.getElementById("side").value, sort = document.getElementById("sort").value;
   const want = id => document.getElementById(id).checked;
-  let r = rows.filter(x => (!q || x.name.toLowerCase().includes(q) || x.born.toLowerCase().includes(q) || x.died.toLowerCase().includes(q))
+  const only = document.getElementById("only").checked;
+  let r = rows.filter(x => (!only || x.anc) && (!q || x.name.toLowerCase().includes(q) || x.born.toLowerCase().includes(q) || x.died.toLowerCase().includes(q))
     && (!side || x.side === side) && (!want("photo") || x.photo) && (!want("story") || x.story) && (!want("served") || x.served) && (!want("events") || x.events));
   const cmp = { gen: (a, b) => (a.g ?? 0.5) - (b.g ?? 0.5) || a.by - b.by, name: (a, b) => a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name),
                 born: (a, b) => a.by - b.by }[sort];
@@ -101,7 +123,7 @@ function draw() {
   document.getElementById("list").innerHTML = r.length ? r.map(x => `<a class="row ${x.side}" href="index.html#p=${encodeURIComponent(x.pid)}" data-pid="${E(x.pid)}">
     ${x.ph ? `<img class="avatar" loading="lazy" src="${E(x.ph)}" alt="">` : `<span class="avatar none">${E(x.name[0])}</span>`}
     <span class="nm">${E(x.name)}</span><span class="yr">${E(x.years)}</span><span class="pl">${E(x.born)}</span>
-    <span class="rel">${x.rel ? E((x.g != null ? root : "") + x.rel) : x.pid === ROOT ? "the root of the tree" : ""}</span>
+    <span class="rel">${x.rel ? E((x.g != null ? root : "") + x.rel) : x.pid === ROOT ? "(viewing from here)" : ""}</span>
     <span class="marks">${x.photo ? "<span title='photo'>&#x1F4F7;</span>" : ""}${x.story ? "<span title='life story'>&#x270E;</span>" : ""}${x.served ? "<span title='military service'>&#x2694;</span>" : ""}${x.events ? "<span title='notable event'>&#x2605;</span>" : ""}</span></a>`).join("")
     : `<div class="empty">No one matches.</div>`;
   // the living's portraits, once unlocked
@@ -110,10 +132,14 @@ function draw() {
     Family.photo(pid).then(u => { if (u) { const i = document.createElement("img"); i.className = "avatar"; i.src = u; el.replaceWith(i); } });
   }
 }
-for (const id of ["q", "side", "sort", "photo", "story", "served", "events"]) document.getElementById(id).addEventListener("input", draw);
+for (const id of ["q", "side", "sort", "photo", "story", "served", "events", "only"]) document.getElementById(id).addEventListener("input", draw);
 Family.mountLock("lock-slot");
-Family.onChange(() => { prepare(); draw(); });
-Family.ready.then(() => { prepare(); draw(); });
+Family.onChange(() => { fillFrom(); prepare(); draw(); });
+Family.ready.then(() => {
+  const m = location.hash.match(/^#from=(.+)$/);
+  if (m && P[decodeURIComponent(m[1])]) ROOT = decodeURIComponent(m[1]);
+  fillFrom(); prepare(); draw();
+});
 </script>
 </body>
 </html>
