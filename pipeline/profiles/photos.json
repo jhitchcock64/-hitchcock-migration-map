@@ -138,6 +138,18 @@
   "original": "image000000.jpg",
   "source": "Google Photos album"
  },
+ "@I240014573249@": {
+  "crop": [
+   0.435,
+   0.27,
+   0.695,
+   0.515
+  ],
+  "file": "I240014573249.jpg",
+  "name": "Imogene MacClellan",
+  "original": "PXL_20210214_222723867.MP.jpg (the older woman, right)",
+  "source": "Google Photos album"
+ },
  "@I240014573857@": {
   "crop": [
    0.3,
@@ -1127,6 +1139,18 @@
   "name": "William Calmes Buck",
   "original": "William Calmes Buck 1790.jpg",
   "source": "Ancestry profile photo (via Family Tree Maker)"
+ },
+ "@I242611471091@": {
+  "crop": [
+   0.26,
+   0.06,
+   0.8,
+   0.55
+  ],
+  "file": "I242611471091.jpg",
+  "name": "Mabel Patterson",
+  "original": "Mabel Patterson Poston(1).jpg",
+  "source": "Family Tree Maker media (captioned Mabel Patterson Poston)"
  },
  "@I242611471104@": {
   "file": "I242611471104.jpg",
