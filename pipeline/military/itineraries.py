@@ -685,3 +685,70 @@ SERVICE += [
          sources=['"Our American History" (family history, 2026)'],
          stops=[]),
 ]
+
+# ======================== from the WikiTree survey (2026-09-28): only claims backed by a cited source ========================
+SERVICE += [
+    dict(pid='@I242611467697@', name='John Snow', war='Revolution, 1776-78',
+         unit='2nd Virginia Continental Regiment, Capt. Francis Taylor\'s company',
+         summary='Enlisted in the spring of 1776 for two years; served them out and was discharged at Valley Forge. '
+                 'His 1818 pension declaration names the battles of Brandywine and Germantown; Francis Cowherd, an '
+                 'officer of the regiment, swore to his service.',
+         sources=['Pension declaration, 1818 (NARA M804), as transcribed on WikiTree (Snow-2968)',
+                  'Revolutionary War Rolls (NARA M246)'],
+         stops=[S('Orange County, VA', 38.245, -78.110, 'spring 1776', 'family', 'enlisted'),
+                S('Williamsburg', 37.271, -76.707, '1776', 'unit', 'the 2nd Virginia\'s first station'),
+                S('Brandywine', 39.872, -75.591, '11 Sept 1777', 'record'),
+                S('Germantown', 40.040, -75.180, '4 Oct 1777', 'record'),
+                S('Valley Forge', 40.097, -75.440, 'spring 1778', 'record', 'discharged at the end of his two years')]),
+
+    dict(pid='@I242611579166@', name='Martin Johnson', war='Creek War (War of 1812), 1814',
+         unit='Sergeant, Capt. James Tate\'s company, Col. Stephen Copeland\'s 3rd West Tennessee Militia (Gen. Thomas Johnson\'s brigade)',
+         summary='Mustered in as a sergeant on 28 January 1814 and discharged in May 1814; the service made him '
+                 'eligible for bounty land in 1850. The regiment marched from Fayetteville by Fort Deposit and Fort '
+                 'Strother to Fort Williams; the route is the regiment\'s.',
+         sources=['1814 muster roll of Capt. Tait\'s Warren County company, transcribed at combs-families.org',
+                  'TNGenWeb, Third Regiment Tennessee Militia, War of 1812', 'WikiTree (Johnson-2448)'],
+         stops=[S('Warren County, TN (McMinnville)', 35.684, -85.770, 'Jan 1814', 'family', 'home'),
+                S('Fayetteville, TN', 35.152, -86.570, '28 Jan 1814', 'record', 'mustered in as a sergeant'),
+                S('Fort Deposit, AL', 34.590, -86.410, 'Feb 1814', 'unit'),
+                S('Fort Strother, AL', 33.895, -86.225, 'Mar 1814', 'unit'),
+                S('Fort Williams, AL', 33.260, -86.340, 'Apr 1814', 'unit'),
+                S('Warren County, TN (McMinnville)', 35.684, -85.770, 'May 1814', 'record', 'discharged')]),
+
+    dict(pid='@I242087821909@', name='Samuel Eells', war='King Philip\'s War, 1675',
+         unit='Captain',
+         summary='Captain in King Philip\'s War. At Dartmouth, Indians who surrendered to him on a promise of fair '
+                 'treatment were "carried away to Plymouth, there sold, and transported out of the country, being '
+                 'about eight-score persons," as Benjamin Church recorded.',
+         sources=['Benjamin Church, The History of King Philip\'s War (2nd ed., Newport, 1772)', 'WikiTree (Eells-5)'],
+         stops=[S('Dartmouth (Apponagansett), MA', 41.600, -70.990, 'summer 1675', 'record',
+                  'the surrendered Indians were sold into slavery at Plymouth')]),
+
+    dict(pid='@I240021677157@', name='Gideon Welles', war='French and Indian War; Revolution',
+         unit='Physician: the Connecticut hospital (French and Indian War); surgeon, Webb\'s regiment (Revolution)',
+         summary='On the Connecticut rolls of the French and Indian War in 1758, when he directed the colony\'s '
+                 'hospital; in the Revolution a surgeon of Webb\'s regiment (William Raymond\'s regiment), on the '
+                 'rolls in 1778 and 1780. The rolls give no places.',
+         sources=['Rolls of Connecticut Men in the French and Indian War (Connecticut Historical Society)',
+                  'Revolutionary War Rolls, 1775-1783', 'WikiTree (Welles-631)'],
+         stops=[]),
+
+    dict(pid='@I240020573684@', name='Joseph Bostwick Jr.', war='French and Indian War, 1758',
+         unit='Connecticut troops',
+         summary='On the Connecticut rolls of the French and Indian War in 1758. The roll gives no places.',
+         sources=['Connecticut Soldiers, French and Indian War, 1755-62 (in James\'s tree)'], stops=[]),
+
+    dict(pid='@I242079819704@', name='John Speer Sr.', war='Revolution, 1779',
+         unit='Capt. Alexander Peebles\'s company, 6th Battalion, Cumberland County (Pennsylvania) militia',
+         summary='In Capt. Alexander Peebles\'s company of the 6th Battalion of Cumberland County militia in 1779, '
+                 'when he lived at Hopewell. The roll gives no service places.',
+         sources=['Cumberland County militia roll, 1779 (in James\'s tree)'], stops=[]),
+
+    dict(pid='@I240022524203@', name='Henry Crosby Floyd', war='War of 1812',
+         unit='Kentucky', summary='Served in the War of 1812; the index gives no unit details.',
+         sources=['United States, War of 1812 Index to Service Records (NARA M602)', 'WikiTree (Floyd-1105)'], stops=[]),
+
+    dict(pid='@I242212388601@', name='Henry Souther Sr.', war='War of 1812',
+         unit='Kentucky', summary='A War of 1812 pension file exists for him; its contents are not yet read.',
+         sources=['U.S., War of 1812 Pension Application Files Index (in James\'s tree)'], stops=[]),
+]
