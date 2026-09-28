@@ -748,6 +748,23 @@ SERVICE += [
          unit='Kentucky', summary='Served in the War of 1812; the index gives no unit details.',
          sources=['United States, War of 1812 Index to Service Records (NARA M602)', 'WikiTree (Floyd-1105)'], stops=[]),
 
+    dict(pid='@I240022524290@', name='Henry Bruce Floyd', war='Revolution, 1778-79',
+         unit="Lieutenant, Illinois Regiment (George Rogers Clark), Capt. Leonard Helm's company",
+         summary="His sons Henry and John swore in 1834 that he had been a lieutenant in Clark's Illinois Regiment "
+                 '"in the subjugation of the posts of Kaskaskia and St. Vincents," serving under his wife\'s brother, '
+                 "Capt. Leonard Helm, and that he received about 2,156 acres in the Illinois Grant. The heirs' claim "
+                 'for his half pay was refused because he had not served to the end of the war. Past fifty when he '
+                 "went. The route to Kaskaskia is the regiment's: down the Ohio from Pittsburgh to the Falls, then "
+                 'to Fort Massac and overland.',
+         sources=["Heirs' half-pay claim R.14982 1/2 (Leonard Helm file), deposition of Henry and John Floyd, 18 Feb 1834 "
+                  '(transcribed at revwarapps.org/r14982.5.pdf)'],
+         stops=[S('Fauquier County, VA', 38.713, -77.795, 'early 1778', 'family', 'home; Helm raised his company here'),
+                S('Pittsburgh', 40.441, -80.004, 'spring 1778', 'unit'),
+                S('Falls of the Ohio (Corn Island)', 38.270, -85.760, 'May-June 1778', 'unit', by='water'),
+                S('Fort Massac', 37.147, -88.706, 'June 1778', 'unit', by='water'),
+                S('Kaskaskia', 37.921, -89.914, '4 July 1778', 'family', 'taken without a fight', by='arc'),
+                S('Vincennes (Post St. Vincent)', 38.678, -87.528, '1778-79', 'family', by='arc')]),
+
     dict(pid='@I242212388601@', name='Henry Souther Sr.', war='War of 1812',
          unit='Kentucky', summary='A War of 1812 pension file exists for him; its contents are not yet read.',
          sources=['U.S., War of 1812 Pension Application Files Index (in James\'s tree)'], stops=[]),
