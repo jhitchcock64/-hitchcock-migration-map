@@ -47,6 +47,7 @@ header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0
 #profile .pf-btns button { font:inherit; font-size:12px; padding:5px 10px; border-radius:5px; border:1px solid #9c3c2e; color:#9c3c2e;
   background:#fff8f2; cursor:pointer; }
 #profile .pf-btns button.solid { background:#9c3c2e; color:#fff; }
+#profile .pf-btns a.pf-tree { font-size:12px; padding:5px 10px; border-radius:5px; border:1px solid #9c3c2e; color:#9c3c2e; background:#fff8f2; text-decoration:none; }
 #profile .pf-sec { border-top:1px solid rgba(156,122,46,0.28); margin-top:14px; padding-top:10px; }
 #profile .pf-eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted, #6b5a3e); margin-bottom:5px; }
 #profile .pf-title { font-family:var(--font-display); font-size:16px; margin:0 0 6px; }
@@ -2393,7 +2394,7 @@ async function openProfile(pid) {
   H.push(`<div class="pf-head"><div class="pf-photo${photo ? " has" : ""}">${photo || `<div><svg viewBox="0 0 64 64"><circle cx="32" cy="22" r="12" fill="currentColor"/><path d="M8 60c2-14 12-22 24-22s22 8 24 22z" fill="currentColor"/></svg>No photo yet</div>`}</div>
     <div><h2>${esc(g.name)}</h2><div class="pf-years">${yrs[0] || "?"} &ndash; ${yrs[1] || (g.name === "Private" || familyShown && PRIVATE_PROFILES[pid] ? "" : "?")}</div>
     ${rel ? `<div class="pf-rel">${esc(rel.charAt(0).toUpperCase() + rel.slice(1))}</div>` : ""}</div></div>`);
-  H.push(`<div class="pf-btns"><button class="solid" data-act="life">Life journey on the map</button><button data-act="family">${his.charAt(0).toUpperCase() + his.slice(1)} family history</button></div>`);
+  H.push(`<div class="pf-btns"><button class="solid" data-act="life">Life journey on the map</button><button data-act="family">${his.charAt(0).toUpperCase() + his.slice(1)} family history</button><a class="pf-tree" href="tree.html#root=${encodeURIComponent(pid)}">View on the tree</a></div>`);
   // facts
   const facts = [];
   if (pr.b[0] || pr.b[1]) facts.push(["Born", [longDate(pr.b[0]), pr.b[1]].filter(Boolean).join("<br>")]);
@@ -2432,12 +2433,12 @@ async function openProfile(pid) {
     `<li>${c.i ? personLink(c.i, c.n) : esc(c.n)}${c.r ? ` <span class="rel">(${esc(c.r === "step" ? "stepchild" : c.r)})</span>` : ""}` +
     `${c.i && TARGET_ANCESTOR_SET.has(c.i) ? '<span class="pf-tag">line</span>' : ""}` +
     `<span class="sub">${[c.y, c.bp && "b. " + c.bp, c.dp && "d. " + c.dp].filter(Boolean).map(esc).join(" · ")}</span></li>`;
-  if (pr.sb && pr.sb.length) F.push(`<div class="pf-eyebrow" style="margin-top:10px">Siblings</div><ul class="pf-kids">` + pr.sb.map(kidRow).join("") + `</ul>`);
   for (const f of pr.f) {
     const sp = f.sp ? (f.sp.lv ? "Private" : f.sp.i ? personLink(f.sp.i, f.sp.n) : esc(f.sp.n)) : "unknown";
     F.push(`<div class="pf-fam">${f.sp ? "Children with " + sp : "Children"}${f.sp && f.sp.y && !f.sp.lv ? ` (${esc(f.sp.y)})` : ""}</div>` +
       (f.k.length ? `<ul class="pf-kids">` + f.k.map(kidRow).join("") + `</ul>` : `<span class="sub">no children recorded</span>`));
   }
+  if (pr.sb && pr.sb.length) F.push(`<div class="pf-eyebrow" style="margin-top:10px">Siblings</div><ul class="pf-kids">` + pr.sb.map(kidRow).join("") + `</ul>`);
   const chain = pid !== CURRENT_TARGET && descentChain(pid);
   if (chain) F.push(`<div class="pf-eyebrow" style="margin-top:10px">Line of descent</div><div class="pf-descent">` +
     chain.map(id => personLink(id, GRAPH.people[id].name)).join('<span class="arr">\u2192</span>') + `</div>`);
