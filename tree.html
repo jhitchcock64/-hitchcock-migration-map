@@ -20,24 +20,25 @@ body { display: flex; flex-direction: column; }
 .key { display: flex; gap: 12px; color: var(--muted); font-size: 11.5px; margin-left: auto; }
 .key i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -2px; margin-right: 4px; }
 #wrap { position: relative; flex: 1; min-height: 0; }
-svg { width: 100%; height: 100%; display: block; cursor: grab; background:
-  radial-gradient(circle at 20% 30%, rgba(255,255,255,.35), transparent 60%), var(--bg); }
+svg { width: 100%; height: 100%; display: block; cursor: grab; background: #45423d; }   /* dark, so the cards stand out */
 svg:active { cursor: grabbing; }
-.link { fill: none; stroke: #b9a57c; stroke-width: 1.4; }
+.link { fill: none; stroke: #b8ad98; stroke-width: 1.3; }
 .card { cursor: pointer; }
-.card .box { width: 226px; height: 56px; display: flex; gap: 8px; align-items: center; padding: 4px 8px 4px 5px; background: var(--card);
-  border: 1px solid rgba(156,122,46,0.45); border-left-width: 4px; border-radius: 6px; font-size: 12px; line-height: 1.25; overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-.card.sel .box { outline: 2px solid var(--accent); outline-offset: 1px; }
-.card .box.root { background: #fff8ee; }
-.card .nm { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.card .yr { color: var(--muted); font-family: var(--font-mono); font-size: 10.5px; }
-.card .av { width: 38px; height: 46px; border-radius: 3px; object-fit: cover; object-position: 50% 25%; flex: none; background: #e3d7bd; }
+.card .box { width: 196px; height: 44px; display: flex; gap: 7px; align-items: center; padding: 3px 6px 3px 4px; background: #fdfbf6;
+  border: none; border-left: 4px solid; border-radius: 4px; font-size: 11.5px; line-height: 1.2; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+.card.sel .box { outline: 2px solid #f0c060; outline-offset: 1px; }
+.card .box.root { background: #2c2417; color: #fff; } .card .box.root .yr { color: #d8ccb4; }
+.card .nm { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.card .yr { color: var(--muted); font-family: var(--font-mono); font-size: 10px; }
+.card .ps { display: inline-block; margin-left: 4px; font-size: 9.5px; color: #9c3c2e; border: 1px solid rgba(156,60,46,.35); border-radius: 3px; padding: 0 4px; }
+.card .ps[title=""] { color: var(--muted); border-color: transparent; padding: 0; }
+.card .av { width: 30px; height: 37px; border-radius: 3px; object-fit: cover; object-position: 50% 25%; flex: none; background: #e3d7bd; }
 .card .av.none { display: grid; place-items: center; color: #8a7a5c; font-family: var(--font-display); font-size: 16px; }
 .tog { cursor: pointer; }
-.tog circle { fill: var(--card); stroke: #9c7a2e; stroke-width: 1.2; }
-.tog text { font: 600 11px var(--font-body); fill: #6b5d43; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.tog:hover circle { fill: #f1e2c0; }
+.tog circle { fill: #6a655c; stroke: #b8ad98; stroke-width: 1; }
+.tog text { font: 600 10px var(--font-body); fill: #fff; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.tog:hover circle { fill: #8c8578; }
 #panel { position: absolute; right: 14px; top: 14px; width: 290px; max-width: calc(100% - 28px); background: var(--panel-bg);
   border: 1px solid rgba(156,122,46,0.5); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.14); padding: 14px; display: none; font-size: 13px; }
 #panel.show { display: block; }
@@ -48,7 +49,7 @@ svg:active { cursor: grabbing; }
 #panel .sub { color: var(--muted); font-size: 12px; }
 #panel .acts { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
 #panel .acts .btn { justify-content: center; }
-#hint { position: absolute; left: 14px; bottom: 12px; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); background: rgba(245,238,218,.85);
+#hint { position: absolute; left: 14px; bottom: 12px; font-family: var(--font-mono); font-size: 10.5px; color: #e8e0cf; background: rgba(0,0,0,.35);
   padding: 4px 8px; border-radius: 4px; }
 @media (max-width: 640px) { .key { display: none; } #bar input { width: 170px; } }
 </style>
@@ -78,9 +79,16 @@ svg:active { cursor: grabbing; }
 <script>
 // A pedigree: the root on the left, each generation of parents to the right. A person
 // can appear more than once (cousins married), so nodes are keyed by their path.
-const W = 226, H = 56, GAPX = 300, GAPY = 66;
+const W = 196, H = 44, GAPX = 232, GAPY = 50;
 const P = GRAPH.people;
 let root = GRAPH.james_id, open = new Set(), selected = null;
+const choice = new Map();          // path -> which parent set is shown (index into psets)
+const REL = { adopted: "adoptive parents", guardian: "guardians", step: "step-parent", foster: "foster parents" };
+function parentsShown(pid, path) {
+  const ps = (P[pid] || {}).psets;
+  if (!ps) return ((P[pid] || {}).parents || []).filter(q => P[q]);
+  return ps[(choice.get(path) || 0) % ps.length].p.filter(q => P[q]);
+}
 const svg = d3.select("#svg"), gZoom = d3.select("#zoom");
 const zoom = d3.zoom().scaleExtent([0.15, 2]).on("zoom", e => gZoom.attr("transform", e.transform));
 svg.call(zoom).on("dblclick.zoom", null);
@@ -88,13 +96,14 @@ svg.call(zoom).on("dblclick.zoom", null);
 function openTo(depth) {            // open every path up to `depth` generations
   open = new Set();
   const walk = (pid, path, d) => { if (d >= depth) return; open.add(path);
-    for (const q of (P[pid] || {}).parents || []) if (P[q]) walk(q, path + "/" + q, d + 1); };
+    for (const q of parentsShown(pid, path)) walk(q, path + "/" + q, d + 1); };
   walk(root, root, 0);
 }
 let depthShown = 4;
 function build(pid, path, d, side) {
-  const par = ((P[pid] || {}).parents || []).filter(q => P[q]);
-  const n = { pid, path, d, side, more: par.length > 0, children: null };
+  const par = parentsShown(pid, path);
+  const ps = (P[pid] || {}).psets, k = ps ? (choice.get(path) || 0) % ps.length : 0;
+  const n = { pid, path, d, side, more: par.length > 0, children: null, sets: ps ? ps.length : 1, rel: ps ? ps[k].r : "birth" };
   if (open.has(path)) n.children = par.map((q, i) => build(q, path + "/" + q, d + 1, d === 0 ? (Family.sex(q) === "F" ? "m" : "f") : side));
   return n;
 }
@@ -108,8 +117,8 @@ async function render(keepView) {
   const g = d3.select("#nodes").selectAll("g.card").data(nodes, n => n.data.path).join(enter => {
     const e = enter.append("g").attr("class", "card");
     e.append("foreignObject").attr("width", W).attr("height", H).attr("y", -H / 2);
-    const t = e.append("g").attr("class", "tog").attr("transform", `translate(${W + 11},0)`);
-    t.append("circle").attr("r", 9); t.append("text");
+    const t = e.append("g").attr("class", "tog").attr("transform", `translate(${W + 10},0)`);
+    t.append("circle").attr("r", 8); t.append("text");
     return e;
   });
   g.attr("transform", n => `translate(${n.y},${n.x})`).classed("sel", n => n.data.path === selected);
@@ -117,11 +126,17 @@ async function render(keepView) {
     const p = P[n.data.pid], pr = PROFILES.people[n.data.pid];
     const face = pr && pr.ph ? `<img class="av" src="${pr.ph[0]}" alt="">` : `<div class="av none" data-pid="${n.data.pid}">${Family.esc((p.name || "?")[0])}</div>`;
     return `<div xmlns="http://www.w3.org/1999/xhtml" class="box${n.depth === 0 ? " root" : ""}" style="border-left-color:${SIDE[n.data.side] || "#9c7a2e"}">${face}
-      <div><div class="nm">${Family.esc(p.name)}</div><div class="yr">${Family.esc(Family.years(n.data.pid))}</div></div></div>`;
+      <div style="min-width:0"><div class="nm">${Family.esc(p.name)}</div><div class="yr">${Family.esc(Family.years(n.data.pid))}
+      ${n.data.sets > 1 || n.data.rel !== "birth" ? `<div class="ps" data-path="${Family.esc(n.data.path)}" title="${n.data.sets > 1 ? "switch to the other parents" : ""}">${n.data.rel === "birth" ? "birth parents" : Family.esc(REL[n.data.rel] || n.data.rel)}${n.data.sets > 1 ? " &#x21C4;" : ""}</div>` : ""}</div></div></div>`;
   });
   g.select(".tog").style("display", n => n.data.more ? null : "none").select("text").text(n => n.children ? "◂" : "▸");
   g.select(".tog").on("click", (e, n) => { e.stopPropagation(); open.has(n.data.path) ? close(n.data.path) : open.add(n.data.path); render(true); });
-  g.on("click", (e, n) => { selected = n.data.path; show(n.data.pid); render(true); });
+  g.on("click", (e, n) => {
+    if (e.target.closest && e.target.closest(".ps") && n.data.sets > 1) {        // switch parent sets
+      close(n.data.path); choice.set(n.data.path, (choice.get(n.data.path) || 0) + 1); open.add(n.data.path); render(true); return;
+    }
+    selected = n.data.path; show(n.data.pid); render(true);
+  });
   // the living, once unlocked: their portraits come from the encrypted store
   if (Family.shown) for (const el of document.querySelectorAll(".av.none[data-pid]")) {
     const url = await Family.photo(el.dataset.pid);

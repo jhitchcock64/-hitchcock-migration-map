@@ -528,6 +528,18 @@ def parents_of(pid):
             if p and p in relevant: out.append(p)
     return out
 
+def parent_sets(pid):
+    """[{p: [parent ids], r: 'birth' | 'adopted' | 'guardian' | 'step' | 'foster' ...}], birth sets
+    first; only for someone with more than one set or a non-birth one."""
+    rels = indi[pid].get("famc_rel", {})
+    sets = []
+    for fc in indi[pid].get("famc", []):
+        f = fam.get(fc) or {}
+        ps = [p for p in (f.get("husb"), f.get("wife")) if p and p in relevant]
+        if ps: sets.append({"p": ps, "r": rels.get(fc, "birth")})
+    if len(sets) < 2 and not rels: return None
+    return sorted(sets, key=lambda s: s["r"] != "birth")
+
 def extract_surname(raw_name):
     m = re.search(r'/([^/]*)/', raw_name or "")
     return m.group(1).strip() if m and m.group(1).strip() else None
@@ -541,6 +553,8 @@ for pid in relevant:
     g = geocoder.normalize_and_geocode(bp) if bp else None
     entry = {"name": d["name"].replace("/",""), "surname": extract_surname(d["name"]), "by": by,
              "bplace": g[0] if g else (bp or None), "parents": parents_of(pid)}
+    ps = parent_sets(pid)
+    if ps: entry["psets"] = ps
     if g:
         px, py = project(g[2], g[1])
         entry["bx"], entry["by_y"] = px, py

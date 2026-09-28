@@ -19,6 +19,8 @@ if not GEDCOM_PATH or not _os.path.exists(GEDCOM_PATH):
 # ---------------------------------------------------------------------------
 # 1. Parse the GEDCOM into indi{} and fam{} dictionaries
 # ---------------------------------------------------------------------------
+nonbirth_rel = {}   # (family id, child id) -> 'adopted' | 'guardian' | 'step' | 'foster' ... (Ancestry's _FREL/_MREL)
+cur_chil = None
 indi = {}   # id -> dict(name, sex, birt_date, birt_plac, deat_date, deat_plac, famc[], fams[])
 fam = {}    # id -> dict(husb, wife, chil[])
 
@@ -93,8 +95,26 @@ with open(GEDCOM_PATH, encoding="utf-8", errors="replace") as f:
                 d["wife"] = val
             elif tag == "CHIL":
                 d["chil"].append(val)
+                cur_chil = val
+
+        # Ancestry marks a child's non-birth link on the CHIL line: 2 _FREL / _MREL
+        # adopted, guardian, step, foster... (natural or none = birth).
+        elif cur_type == "FAM" and level == "2" and parts[1] in ("_FREL", "_MREL"):
+            rel = (parts[2] if len(parts) > 2 else "").strip().lower()
+            if rel and rel not in ("natural", "birth", "biological"):
+                nonbirth_rel.setdefault((cur_id, cur_chil), rel)
 
 print(f"Parsed {len(indi):,} individuals and {len(fam):,} families from GEDCOM.")
+
+# Every parent set is kept (the map counts them all as ancestors). How Ancestry
+# marks a non-birth link (adopted, guardian, step, foster) is recorded per
+# child as famc_rel {family: relation}; stage 7 turns it into GRAPH psets, and
+# the tree shows the birth set first with the others one click away (James,
+# 2026-09-27: Bonnie's guardians, Margaret Lee Masterson's adoptive father...).
+for (fid, cid), rel in nonbirth_rel.items():
+    if cid in indi and fid in indi[cid]["famc"]:
+        indi[cid].setdefault("famc_rel", {})[fid] = rel
+print(f"Parent links Ancestry marks as not birth: {len(nonbirth_rel)}")
 
 # ---------------------------------------------------------------------------
 # 2. Identify James Albert Hitchcock (born 1992)

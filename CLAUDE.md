@@ -44,7 +44,8 @@ South and Midwest.
 
 ```
 index.html                 the map page (the site's root): inline CSS and JS; MapLibre GL + data.js
-tree.html                  interactive pedigree (d3), rooted at anyone (#root=<id>), generations opened one at a time
+tree.html                  interactive pedigree (d3), rooted at anyone (#root=<id>), generations opened one at a time;
+                           birth parents by default, with a switch where GRAPH has psets (below)
 people.html                searchable directory of everyone, filters (side, photo, story, served, in history)
 about.html                 the home page: what the site is, numbers, stories, how to use it, sources, privacy
 site.js, site.css          shared by tree/people/about: the family-password lock (same remembered key as the
@@ -214,6 +215,20 @@ besides the originals), encrypted by write_data_js.py with the family
 password into `private_photos.js`, which the page loads and decrypts only
 after unlocking (`privatePhoto`). write_data_js.py refuses a file there for
 anyone not living (those go in photos/).
+
+Parent sets (2026-09-27): Ancestry marks some child links adopted, guardian,
+step or foster (_FREL/_MREL on the CHIL line). Stage 1 keeps every parent set
+(the map counts them all as ancestors) and records the relation (`famc_rel`);
+stage 7 writes GRAPH `psets` [{p, r}], birth first, for anyone with more than
+one set or a non-birth one. The tree shows the first set and a "birth parents
+&#x21C4;" switch (James: Bonnie Dolan Shiflett, Margaret Lee Masterson, Navada
+Shifflett, John Grove, John Lilly, Robert Jesse Baskett). A general "birth only"
+rule would drop 58 people, so there isn't one.
+
+Portraits come from James's Google Photos labels and from each person's
+Ancestry profile picture (matched to Family Tree Maker's downloaded file by
+size): tools used are scratchpad scripts; only portraits of the person are
+kept (no gravestones, arms, maps, houses or record pages; James).
 
 The site (2026-09-27): every page has the same nav (Map, Tree, People, About);
 the map stays the root URL so old links keep working. Other pages link into
