@@ -76,9 +76,9 @@ header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0
   font:600 11px Georgia, serif; color:#9c3c2e; cursor:pointer; line-height:1; padding:0; }
 .battle-popup a.plink, #tooltip a.plink { color:#2c2417; font-weight:600; text-decoration:none; border-bottom:1px solid rgba(156,60,46,.4); cursor:pointer; }
 /* living family: hidden in the public data; the family password shows them */
-#lock { margin-left:12px; position:relative; align-self:center; }
-header .eyebrow { margin-left:auto; align-self:center; }
-@media (max-width: 700px) { header .eyebrow { display:none; } .site-nav { border-left:none; padding-left:0; margin-left:0; } #lock { margin-left:auto; } }
+#lock { margin-left:auto; position:relative; align-self:center; }
+
+@media (max-width: 700px) { .site-nav { border-left:none; padding-left:0; margin-left:0; } #lock { margin-left:auto; } }
 /* the site's pages: a tab group, set apart from the title by a rule */
 .site-nav { display:flex; align-self:center; margin-left:4px; padding-left:14px; border-left:1px solid rgba(156,122,46,0.45); }
 .site-nav a { font-family:var(--font-body); font-size:12.5px; text-decoration:none; color:var(--ink); padding:3px 11px;
@@ -403,7 +403,6 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 <header>
   <h1 id="page-title">Family History, Visualized</h1>
   <nav class="site-nav"><a href="index.html" class="on">Map</a><a href="tree.html">Tree</a><a href="people.html">People</a><a href="about.html">About</a></nav>
-  <span class="eyebrow">Direct ancestors: migration, service and history &middot; <span id="year-span"></span></span>
   <div id="lock">
     <button id="lock-btn" type="button" aria-expanded="false">&#x1F512; Living family hidden</button>
     <div id="lock-pop" role="dialog" aria-label="Show living family">
@@ -548,7 +547,7 @@ function colorForYear(y) {
     s.style.left = (100 * (y - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) + "%";
     box.appendChild(s);
   }
-  document.getElementById("year-span").textContent = `${lo}–${hi}`;
+  { const ys = document.getElementById("year-span"); if (ys) ys.textContent = `${lo}–${hi}`; }
 })();
 function lwFor(count) { return 1.6 + count * 1.1; }
 
@@ -1784,7 +1783,7 @@ function setEra(range) {
   if (focusActive) clearFocus();
   recomputeClusterVisibility();
   hideTip();
-  const span = document.getElementById("year-span");
+  const span = document.getElementById("year-span") || { set textContent(v) {} };   // removed from the header (James)
   span.textContent = ERA ? `showing ${ERA[0]}\u2013${ERA[1]}` : `${Math.floor(YEAR_MIN)}\u2013${Math.ceil(YEAR_MAX)}`;
   redrawAll();
 }
