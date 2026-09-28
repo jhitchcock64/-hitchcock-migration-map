@@ -17,7 +17,8 @@
 * { box-sizing: border-box; }
 html, body { margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:var(--font-body); height:100%; overflow:hidden; }
 body { display:flex; flex-direction:column; height:100vh; }
-header { display:flex; align-items:baseline; flex-wrap:wrap; column-gap:14px; padding:6px 16px 5px;
+/* the same header as tree/people/about (site.css .site-head) */
+header { display:flex; align-items:center; flex-wrap:wrap; gap:6px 18px; padding:7px 16px;
   border-bottom:1px solid rgba(156,122,46,0.3); flex-shrink:0; background:var(--panel-bg); }
 header h1 { font-family:var(--font-display); font-weight:600; font-size:18px; margin:0; }
 header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); }
@@ -80,15 +81,15 @@ header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0
 
 @media (max-width: 700px) { .site-nav { border-left:none; padding-left:0; margin-left:0; } #lock { margin-left:auto; } }
 /* the site's pages: a tab group, set apart from the title by a rule */
-.site-nav { display:flex; align-self:center; margin-left:4px; padding-left:14px; border-left:1px solid rgba(156,122,46,0.45); }
+.site-nav { display:flex; padding-left:14px; border-left:1px solid rgba(156,122,46,0.45); }
 .site-nav a { font-family:var(--font-body); font-size:12.5px; text-decoration:none; color:var(--ink); padding:3px 11px;
-  border:1px solid rgba(156,122,46,0.45); margin-left:-1px; background:rgba(255,255,255,0.45); }
+  border:1px solid rgba(156,122,46,0.45); margin-left:-1px; background:rgba(255,255,255,0.45); line-height:normal; }
 .site-nav a:first-child { border-radius:5px 0 0 5px; margin-left:0; }
 .site-nav a:last-child { border-radius:0 5px 5px 0; }
 .site-nav a:hover { background:#fff; }
 .site-nav a.on { background:#9c3c2e; border-color:#9c3c2e; color:#fff; }
 #lock-btn { font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted, #6b5a3e);
-  background:none; border:1px solid rgba(156,122,46,0.4); border-radius:4px; padding:3px 8px; cursor:pointer; }
+  background:none; border:1px solid rgba(156,122,46,0.45); border-radius:4px; padding:3px 8px; cursor:pointer; }
 #lock-btn.open { color:#2f3d12; border-color:#2f3d12; }
 #lock-pop { display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:50; width:250px; background:var(--panel-bg);
   border:1px solid rgba(156,122,46,0.5); border-radius:6px; padding:10px; box-shadow:0 4px 14px rgba(0,0,0,0.15); font-size:12px; }
