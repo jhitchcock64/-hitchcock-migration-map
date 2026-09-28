@@ -35,10 +35,11 @@ header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0
   display:grid; place-items:center; color:#8a7a5c; font-size:10px; text-align:center; }
 #profile .pf-photo svg { width:44px; opacity:.45; display:block; margin:0 auto 3px; }
 #profile .pf-photo.has { background:#2c2417; overflow:hidden; cursor:zoom-in; }
-#profile .pf-photo img { width:100%; height:100%; object-fit:cover; object-position:50% 25%; display:block; }
-#profile .pf-photo.big { position:fixed; inset:8% 10%; width:auto; height:auto; z-index:60; background:rgba(20,16,10,0.92); cursor:zoom-out;
-  border-radius:8px; }
-#profile .pf-photo.big img { object-fit:contain; }
+.photo-view { position:fixed; inset:0; z-index:100; background:rgba(20,16,10,0.88); display:grid; place-items:center; cursor:zoom-out; }
+.photo-view figure { margin:0; text-align:center; }
+.photo-view img { max-width:90vw; max-height:82vh; border-radius:6px; box-shadow:0 10px 40px rgba(0,0,0,.5); display:block; margin:0 auto; }
+.photo-view figcaption { color:#f3ecdc; font-family:var(--font-display); font-size:18px; margin-top:10px; }
+#profile .pf-photo img { width:100%; height:100%; object-fit:cover; object-position:50% 50%; display:block; }
 #profile h2 { font-family:var(--font-display); font-weight:normal; font-size:23px; line-height:1.15; margin:2px 0 3px; }
 #profile .pf-years { font-family:var(--font-mono); font-size:12px; color:var(--muted, #6b5a3e); }
 #profile .pf-rel { margin-top:7px; font-size:12.5px; background:#f1e7d2; border-radius:5px; padding:4px 8px; display:inline-block; }
@@ -65,6 +66,7 @@ header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0
 #profile a.plink { color:var(--ink); text-decoration:none; border-bottom:1px solid rgba(156,60,46,.4); cursor:pointer; font-weight:600; }
 #profile .pf-kids { list-style:none; margin:2px 0 0; padding:0; }
 #profile .pf-kids li { padding:2px 0; }
+#profile .pf-kids .rel { font-size:11.5px; color:var(--muted, #6b5a3e); }
 #profile .sub { display:block; font-size:11.5px; color:var(--muted, #6b5a3e); }
 #profile .pf-tag { font-family:var(--font-mono); font-size:9px; letter-spacing:.05em; text-transform:uppercase; padding:1px 4px; border-radius:3px;
   margin-left:5px; background:#f6dfda; color:#9c3c2e; vertical-align:1px; }
@@ -2278,6 +2280,16 @@ document.addEventListener("click", ev => {
 });
 const profileEl = document.getElementById("profile");
 profileEl.querySelector(".pf-close").onclick = () => closeProfile();
+// the whole portrait, over everything; click or Esc closes it
+function showPhoto(src, name) {
+  const o = document.createElement("div");
+  o.className = "photo-view";
+  o.innerHTML = `<figure><img src="${src}" alt=""><figcaption>${esc(name)}</figcaption></figure>`;
+  const close = () => { o.remove(); document.removeEventListener("keydown", key); };
+  const key = e => { if (e.key === "Escape") close(); };
+  o.onclick = close; document.addEventListener("keydown", key);
+  document.body.appendChild(o);
+}
 function closeProfile() {
   profileEl.classList.remove("open");
   if (location.hash.startsWith("#p=")) history.replaceState(null, "", location.pathname + location.search);
@@ -2417,15 +2429,14 @@ async function openProfile(pid) {
   const parents = (g.parents || []).filter(id => GRAPH.people[id]);
   if (parents.length) F.push(`<div class="pf-eyebrow">Parents</div>` + parents.map(id => `<div>${personLink(id, GRAPH.people[id].name)}</div>`).join(""));
   const kidRow = c => c.lv && !c.n ? `<li>Private</li>` :
-    `<li>${c.i ? personLink(c.i, c.n) : esc(c.n)}${c.i && TARGET_ANCESTOR_SET.has(c.i) ? '<span class="pf-tag">line</span>' : ""}` +
-    `<span class="sub">${[c.y, c.bp && "b. " + c.bp, c.dp && "d. " + c.dp].filter(Boolean).map(esc).join(" \u00b7 ")}</span></li>`;
+    `<li>${c.i ? personLink(c.i, c.n) : esc(c.n)}${c.r ? ` <span class="rel">(${esc(c.r === "step" ? "stepchild" : c.r)})</span>` : ""}` +
+    `${c.i && TARGET_ANCESTOR_SET.has(c.i) ? '<span class="pf-tag">line</span>' : ""}` +
+    `<span class="sub">${[c.y, c.bp && "b. " + c.bp, c.dp && "d. " + c.dp].filter(Boolean).map(esc).join(" · ")}</span></li>`;
   if (pr.sb && pr.sb.length) F.push(`<div class="pf-eyebrow" style="margin-top:10px">Siblings</div><ul class="pf-kids">` + pr.sb.map(kidRow).join("") + `</ul>`);
   for (const f of pr.f) {
     const sp = f.sp ? (f.sp.lv ? "Private" : f.sp.i ? personLink(f.sp.i, f.sp.n) : esc(f.sp.n)) : "unknown";
     F.push(`<div class="pf-fam">${f.sp ? "Children with " + sp : "Children"}${f.sp && f.sp.y && !f.sp.lv ? ` (${esc(f.sp.y)})` : ""}</div>` +
-      (f.k.length ? `<ul class="pf-kids">` + f.k.map(c => c.lv && !c.n ? `<li>Private</li>` :
-        `<li>${c.i ? personLink(c.i, c.n) : esc(c.n)}${c.i && TARGET_ANCESTOR_SET.has(c.i) ? '<span class="pf-tag">line</span>' : ""}` +
-        `<span class="sub">${[c.y, c.bp && "b. " + c.bp, c.dp && "d. " + c.dp].filter(Boolean).map(esc).join(" \u00b7 ")}</span></li>`).join("") + `</ul>` : `<span class="sub">no children recorded</span>`));
+      (f.k.length ? `<ul class="pf-kids">` + f.k.map(kidRow).join("") + `</ul>` : `<span class="sub">no children recorded</span>`));
   }
   const chain = pid !== CURRENT_TARGET && descentChain(pid);
   if (chain) F.push(`<div class="pf-eyebrow" style="margin-top:10px">Line of descent</div><div class="pf-descent">` +
@@ -2435,7 +2446,7 @@ async function openProfile(pid) {
     pr.r.map(i => `<li>${esc(PROFILES.sources[i])}</li>`).join("") + `</ul></details></div>`);
   box.innerHTML = H.join("");
   const ph = box.querySelector(".pf-photo.has");
-  if (ph) ph.onclick = () => ph.classList.toggle("big");      // click the portrait to see it whole
+  if (ph) ph.onclick = () => showPhoto(ph.querySelector("img").src, g.name);   // click the portrait to see it whole
   box.querySelector('[data-act="life"]').onclick = () => { document.querySelector('.mode-btn[data-mode="life"]').click(); searchResults.classList.remove("active"); showLifeJourney(pid); };
   box.querySelector('[data-act="family"]').onclick = () => { document.querySelector('.mode-btn[data-mode="target"]').click(); searchResults.classList.remove("active"); setTarget(pid); openProfile(pid); };
   profileEl.scrollTop = 0;

@@ -29,6 +29,13 @@ foreach ($j in $jobs) {
       $x = [int]([double]$j.crop[0] * $imgW); $y = [int]([double]$j.crop[1] * $imgH)
       $cropW = [int](([double]$j.crop[2] - [double]$j.crop[0]) * $imgW); $cropH = [int](([double]$j.crop[3] - [double]$j.crop[1]) * $imgH)
       $cropW = [Math]::Min($cropW, $imgW - $x); $cropH = [Math]::Min($cropH, $imgH - $y)
+      # widen (never narrow) to a 4:5 portrait around the crop's centre, inside the image, so every
+      # display box (all 4:5) shows the whole crop with the face where it was put
+      $cx = $x + $cropW / 2.0; $cy = $y + $cropH / 2.0
+      # (when the image isn't big enough to widen, trim the other side instead)
+      if ($cropW / $cropH -lt 0.8) { $cropW = [int]($cropH * 0.8); if ($cropW -gt $imgW) { $cropW = $imgW; $cropH = [int]($imgW / 0.8) } }
+      else { $cropH = [int]($cropW / 0.8); if ($cropH -gt $imgH) { $cropH = $imgH; $cropW = [int]($imgH * 0.8) } }
+      $x = [int][Math]::Max(0, [Math]::Min($imgW - $cropW, $cx - $cropW / 2.0)); $y = [int][Math]::Max(0, [Math]::Min($imgH - $cropH, $cy - $cropH / 2.0))
       # copy the pixels out directly (CroppedBitmap fails on some scans' DPI settings)
       $stride = $cropW * 3; $buf = New-Object byte[] ($stride * $cropH)
       $src.CopyPixels((New-Object System.Windows.Int32Rect($x, $y, $cropW, $cropH)), $buf, $stride, 0)

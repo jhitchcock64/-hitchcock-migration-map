@@ -10,7 +10,7 @@ Writes profiles_prepared.json:
     people: { pid: {
       b: [date, place], d: [date, place], bu: burial place,
       f: [{sp: {i?: pid if on the map, n: name, y: 'years', lv?: 1}, m: [date, place],
-           k: [{i?: pid if in the line, n, y: 'years', bp, dp, lv?: 1}]}],
+           k: [{i?: pid if in the line, n, y: 'years', bp, dp, lv?: 1, r?: 'step' | 'adopted' ...}]}],
       sb?: [siblings, as k: the birth family's other children],
       t: [[year, 'date', kind, place, note?, url?], ...]   (kind: born, lived, married, event
                                                             text, military, died, buried)
@@ -159,7 +159,12 @@ def profile(pid):
         kids = []
         for k in f.get('chil', []):
             ki = INDI.get(k, {})
+            r = ki.get('famc_rel', {}).get(fid)       # this family is a step/adopted/guardian/foster one for the child
+            if r and any(fid2 != fid and k in FAM.get(fid2, {}).get('chil', []) and fid2 not in ki.get('famc_rel', {})
+                         for fid2 in i.get('fams', [])):
+                continue                               # listed once, under the family they were born to (James: Albert Carl's five)
             c = {'n': clean_name(ki.get('name')), 'y': years(k), 'bp': place(ki.get('birt_plac')), 'dp': place(ki.get('deat_plac'))}
+            if r: c['r'] = r
             if k in P: c['i'] = k
             elif living_other(k, [by, year(INDI.get(sp or '', {}).get('birt_date'))]): c['lv'] = 1
             kids.append(c)
