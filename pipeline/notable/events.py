@@ -316,3 +316,18 @@ EVENTS += [
       'The Reverend John Eells (Yale, 1724) is ordained the first pastor of the church at New Canaan.',
       'New Canaan, CT', 41.147, -73.495, source='Dexter, Yale Biographical Sketches; Gardner, Canaan Parish 1733-2008; WikiTree (Eells-32)'),
 ]
+
+# confirmed by James (2026-09-28)
+EVENTS += [
+    E('@I242216133710@', '23 July 1603', 1603,
+      'Edward Filmer is knighted by James I on the eve of his coronation. He was later High Sheriff of Kent (1614).',
+      'Whitehall, London', 51.504, -0.126, source='WikiTree (Filmer-5); confirmed by James'),
+    E(['@I242568882041@', '@I242568882040@'], 'after 1588', 1589,
+      'After Richard Argall\'s death in 1588, his widow Mary (Scott), daughter of Sir Reginald Scott of Scott\'s Hall, '
+      'marries Lawrence Washington, Esquire, as her monument at East Sutton records. She died in 1605.',
+      'East Sutton, Kent', 51.216, 0.629, source='Monument inscription, East Sutton; WikiTree (Argall-6); confirmed by James'),
+    E('@I242144605997@', 'after 1819', 1825,
+      'James Williams Clay, a Henderson tobacco merchant, and his partner, the lawyer Archibald Dixon, buy the mill '
+      'John James Audubon had built at Henderson before his bankruptcy in 1819.',
+      'Henderson, KY', 37.836, -87.590, source='Filson Historical Society; WikiTree (Clay-1726); confirmed by James'),
+]
