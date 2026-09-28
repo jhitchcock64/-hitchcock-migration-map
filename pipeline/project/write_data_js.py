@@ -49,7 +49,8 @@ arrays = {name: json.load(open(_os.path.join(BUILD_DIR, f), encoding='utf-8')) f
 living = privacy.living_ids(arrays['GRAPH'], json.load(open(_os.path.join(PROJECT_DIR, 'indi.json'), encoding='utf-8')))
 profiles = json.load(open(_os.path.join(BUILD_DIR, 'profiles_prepared.json'), encoding='utf-8'))
 private = privacy.redact_profiles(profiles, living, privacy.redact(arrays, living))
-off_map = [c['n'] for p in private['pfam'].values() for f in p for c in f['k'] + ([f['sp']] if 'sp' in f else []) if c.get('lv')]
+off_map = [c['n'] for p in private['pfam'].values() for f in p for c in f['k'] + ([f['sp']] if 'sp' in f else []) if c.get('lv')] + \
+          [c['n'] for s in private['psib'].values() for c in s if c.get('lv')]
 arrays['PRIVATE'] = privacy.encrypt(private, privacy.password())
 print(f'{len(living)} living people hidden; their details encrypted in PRIVATE')
 public = json.dumps({k: v for k, v in arrays.items() if k != 'PRIVATE'}, ensure_ascii=False) + json.dumps(profiles, ensure_ascii=False)

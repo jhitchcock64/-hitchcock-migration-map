@@ -28,6 +28,7 @@ const Family = (() => {
     if (typeof PROFILES !== "undefined") {
       Object.assign(PROFILES.people, d.profiles || {});
       for (const [pid, f] of Object.entries(d.pfam || {})) if (PROFILES.people[pid]) PROFILES.people[pid].f = f;
+      for (const [pid, s] of Object.entries(d.psib || {})) if (PROFILES.people[pid]) PROFILES.people[pid].sb = s;
     }
     shown = true;
     listeners.forEach(f => f());

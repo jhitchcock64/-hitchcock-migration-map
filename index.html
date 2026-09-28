@@ -2263,7 +2263,7 @@ setNotable(showNotable);
 // profiles.js (build_profiles.py via write_data_js.py) is loaded the first time a
 // profile opens. Living people's profiles, and living children named in others',
 // come from PRIVATE once the family password has been given.
-let PROFILES_LOADED = null, PRIVATE_PROFILES = {}, PRIVATE_PFAM = {};
+let PROFILES_LOADED = null, PRIVATE_PROFILES = {}, PRIVATE_PFAM = {}, PRIVATE_PSIB = {};
 function loadProfiles() {
   if (!PROFILES_LOADED) PROFILES_LOADED = new Promise((ok, fail) => {
     const s = document.createElement("script"); s.src = "profiles.js"; s.onload = ok; s.onerror = fail; document.head.appendChild(s);
@@ -2325,7 +2325,10 @@ async function privatePhoto(pid) {
 function profileOf(pid) {
   const pr = PRIVATE_PROFILES[pid] || (typeof PROFILES !== "undefined" && PROFILES.people[pid]);
   if (!pr) return null;
-  return PRIVATE_PFAM[pid] ? Object.assign({}, pr, { f: PRIVATE_PFAM[pid] }) : pr;
+  const o = Object.assign({}, pr);
+  if (PRIVATE_PFAM[pid]) o.f = PRIVATE_PFAM[pid];
+  if (PRIVATE_PSIB[pid]) o.sb = PRIVATE_PSIB[pid];
+  return o;
 }
 // the summary for anyone without a written story, from the facts
 function autoSummary(pid, pr) {
@@ -2413,6 +2416,10 @@ async function openProfile(pid) {
   const F = [];
   const parents = (g.parents || []).filter(id => GRAPH.people[id]);
   if (parents.length) F.push(`<div class="pf-eyebrow">Parents</div>` + parents.map(id => `<div>${personLink(id, GRAPH.people[id].name)}</div>`).join(""));
+  const kidRow = c => c.lv && !c.n ? `<li>Private</li>` :
+    `<li>${c.i ? personLink(c.i, c.n) : esc(c.n)}${c.i && TARGET_ANCESTOR_SET.has(c.i) ? '<span class="pf-tag">line</span>' : ""}` +
+    `<span class="sub">${[c.y, c.bp && "b. " + c.bp, c.dp && "d. " + c.dp].filter(Boolean).map(esc).join(" \u00b7 ")}</span></li>`;
+  if (pr.sb && pr.sb.length) F.push(`<div class="pf-eyebrow" style="margin-top:10px">Siblings</div><ul class="pf-kids">` + pr.sb.map(kidRow).join("") + `</ul>`);
   for (const f of pr.f) {
     const sp = f.sp ? (f.sp.lv ? "Private" : f.sp.i ? personLink(f.sp.i, f.sp.n) : esc(f.sp.n)) : "unknown";
     F.push(`<div class="pf-fam">${f.sp ? "Children with " + sp : "Children"}${f.sp && f.sp.y && !f.sp.lv ? ` (${esc(f.sp.y)})` : ""}</div>` +
@@ -2474,7 +2481,7 @@ function showFamily(d) {
   for (const [pid, p] of Object.entries(d.graph)) GRAPH.people[pid] = p;
   for (const [i, s] of d.search) { s.nameLower = s.name.toLowerCase(); SEARCH_INDEX.splice(i, 0, s); }
   for (const [i, r] of Object.entries(d.routes)) Object.assign(ROUTES[+i], r);
-  PRIVATE_PROFILES = d.profiles || {}; PRIVATE_PFAM = d.pfam || {};
+  PRIVATE_PROFILES = d.profiles || {}; PRIVATE_PFAM = d.pfam || {}; PRIVATE_PSIB = d.psib || {};
   childrenOf.map = null;
   familyShown = true;
   routeViewCache = new Map(); genTarget = null;

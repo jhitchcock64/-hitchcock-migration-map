@@ -11,6 +11,7 @@ Writes profiles_prepared.json:
       b: [date, place], d: [date, place], bu: burial place,
       f: [{sp: {i?: pid if on the map, n: name, y: 'years', lv?: 1}, m: [date, place],
            k: [{i?: pid if in the line, n, y: 'years', bp, dp, lv?: 1}]}],
+      sb?: [siblings, as k: the birth family's other children],
       t: [[year, 'date', kind, place, note?, url?], ...]   (kind: born, lived, married, event
                                                             text, military, died, buried)
       nt: [research note, ...], r: [source index, ...], st?: {title, text: [...]} } } }
@@ -61,7 +62,7 @@ def place(raw):
         g = geocoder.normalize_and_geocode(raw)
     except Exception:
         g = None
-    mc = lambda s: re.sub(r'\b(Mc|Mac)([a-z])', lambda m: m.group(1) + m.group(2).upper(), s)
+    mc = lambda s: re.sub(r'\b(Mc)([a-z])', lambda m: m.group(1) + m.group(2).upper(), s)
     if g and g[3] in ('town', 'county'): return mc(g[0])
     parts = [p.strip() for p in raw.split(',') if p.strip()]
     parts = [p for p in parts if p.lower() not in ('usa', 'united states', 'united states of america')]
@@ -167,6 +168,23 @@ def profile(pid):
         fams.append(fam)
     fams.sort(key=lambda f: year((f.get('m') or [''])[0]) or 9999)
     pr['f'] = fams
+    # siblings: the other children of the birth family (the first family not marked
+    # adopted/guardian/step/foster), as children are listed; half-siblings not included
+    rel = i.get('famc_rel', {})
+    birth_fam = next((fc for fc in i.get('famc', []) if fc not in rel), None)
+    if birth_fam:
+        pf = FAM.get(birth_fam, {})
+        pyears = [year(INDI.get(x, {}).get('birt_date')) for x in (pf.get('husb'), pf.get('wife')) if x]
+        sibs = []
+        for k in pf.get('chil', []):
+            if k == pid: continue
+            ki = INDI.get(k, {})
+            c = {'n': clean_name(ki.get('name')), 'y': years(k), 'bp': place(ki.get('birt_plac')), 'dp': place(ki.get('deat_plac'))}
+            if k in P: c['i'] = k
+            elif living_other(k, pyears): c['lv'] = 1
+            sibs.append(c)
+        sibs.sort(key=lambda c: year(c['y']) or 9999)
+        if sibs: pr['sb'] = sibs
     # timeline
     t = []
     if b: t.append([year(b['date']), date_text(b['date']), 'born', place(b['plac'])])

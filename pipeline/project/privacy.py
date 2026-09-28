@@ -83,7 +83,11 @@ def redact_profiles(profiles, living, private):
     people = profiles['people']
     private['profiles'] = {pid: people.pop(pid) for pid in sorted(living) if pid in people}
     private['pfam'] = {}
+    private['psib'] = {}
     for pid, pr in people.items():
+        if any(c.get('lv') or c.get('i') in living for c in pr.get('sb', [])):
+            private['psib'][pid] = pr['sb']
+            pr['sb'] = [_blank(c, living) for c in pr['sb']]
         hit = False
         for f in pr['f']:
             for c in f['k'] + ([f['sp']] if 'sp' in f else []):
