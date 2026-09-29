@@ -22,6 +22,7 @@ def _title(s):
 TOWN_COORDS = {
     # New England
     "plymouth|massachusetts": (41.958, -70.667),
+    "guilford|connecticut": (41.289, -72.682),  # the town (New Haven Co.): the Leetes
     "duxbury|massachusetts": (42.047, -70.673),
     "south duxbury|massachusetts": (42.030, -70.690),
     "braintree|massachusetts": (42.222, -71.003),
