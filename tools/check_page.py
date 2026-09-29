@@ -3,7 +3,7 @@ Smoke test for the map page. Loads it in headless Chromium and checks that it
 renders without errors and that key people and routes are present.
 
 Setup (once):  pip install playwright && python -m playwright install chromium
-Usage:         python tools/check_page.py [path/to/index.html] [--shot out.png]
+Usage:         python tools/check_page.py [path/to/map.html] [--shot out.png]
                (works on index.html and on legacy.html, the pre-rebuild page)
 Exit code 0 = all checks passed.
 """
@@ -11,7 +11,7 @@ import sys, pathlib, json
 from playwright.sync_api import sync_playwright
 
 args = [a for a in sys.argv[1:] if not a.startswith('--')]
-page_path = pathlib.Path(args[0] if args else 'index.html').resolve()
+page_path = pathlib.Path(args[0] if args else 'map.html').resolve()
 shot = sys.argv[sys.argv.index('--shot') + 1] if '--shot' in sys.argv else None
 
 CHECKS = """() => {

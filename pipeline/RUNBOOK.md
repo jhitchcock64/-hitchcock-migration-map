@@ -79,7 +79,7 @@ runner finds a working Python by itself and sets UTF-8 mode).
 6. **Check the page in a browser:**
 
    ```
-   python tools/check_page.py index.html --shot map.png
+   python tools/check_page.py map.html --shot map.png
    ```
 
    Then open it yourself (serve the repo: `python -m http.server 8000`, then
@@ -183,7 +183,7 @@ without a new GEDCOM:
 ```
 python pipeline/build2/build_military.py           # log lists every leg and the corridors it took
 python pipeline/project/write_data_js.py data.js   # write MILITARY
-python tools/check_page.py index.html
+python tools/check_page.py map.html
 ```
 
 People are keyed by GEDCOM individual ID, which is stable across exports;
@@ -200,7 +200,7 @@ writes `notable_prepared.json` -> NOTABLE. To add or fix an event:
 ```
 python pipeline/build2/build_notable.py
 python pipeline/project/write_data_js.py data.js
-python tools/check_page.py index.html
+python tools/check_page.py map.html
 ```
 
 Write event text without "your": the page adds each person's relationship to

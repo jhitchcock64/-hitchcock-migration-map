@@ -1,0 +1,2541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family History, Visualized</title>
+<link rel="stylesheet" href="vendor/maplibre-gl-4.7.1/maplibre-gl.css">
+<style>
+:root {
+  --bg: #ece2c8; --panel-bg: #f5eeda; --land: #d9cca2; --land-stroke: #8a7248;
+  --state-stroke: #a3906a; --border-stroke: #9c3c2e; --lake: #aac3cf;
+  --ink: #2c2417; --muted: #6b5d43; --gold: #9c7a2e;
+  --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+  --font-body: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', 'Consolas', 'Menlo', monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:var(--font-body); height:100%; overflow:hidden; }
+body { display:flex; flex-direction:column; height:100vh; }
+/* the same header as tree/people/about (site.css .site-head) */
+header { display:flex; align-items:center; flex-wrap:wrap; gap:6px 18px; padding:7px 16px;
+  border-bottom:1px solid rgba(156,122,46,0.3); flex-shrink:0; background:var(--panel-bg); }
+header h1 { font-family:var(--font-display); font-weight:600; font-size:18px; margin:0; }
+header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); }
+/* ---- the profile panel (one person's life; profiles.js, loaded when first opened) ---- */
+#profile { position:absolute; top:0; right:0; bottom:0; width:min(430px, 100%); z-index:40; background:var(--panel-bg);
+  border-left:1px solid rgba(156,122,46,0.45); box-shadow:-6px 0 18px rgba(0,0,0,0.12); overflow-y:auto; display:none;
+  font-size:13.5px; line-height:1.5; color:var(--ink); }
+#profile.open { display:block; }
+#profile .pf-close { position:sticky; top:0; float:right; margin:8px 10px 0 0; z-index:2; width:28px; height:28px; border-radius:50%;
+  border:1px solid rgba(156,122,46,0.45); background:var(--panel-bg); cursor:pointer; font-size:16px; line-height:1; color:var(--muted, #6b5a3e); }
+#profile .pf-in { padding:16px 18px 40px; }
+#profile .pf-head { display:flex; gap:14px; align-items:flex-start; }
+#profile .pf-photo { flex:none; width:92px; height:112px; border-radius:6px; background:linear-gradient(160deg,#e9dfc8,#d9ccad);
+  display:grid; place-items:center; color:#8a7a5c; font-size:10px; text-align:center; }
+#profile .pf-photo svg { width:44px; opacity:.45; display:block; margin:0 auto 3px; }
+#profile .pf-photo.has { background:#2c2417; overflow:hidden; cursor:zoom-in; }
+.photo-view { position:fixed; inset:0; z-index:100; background:rgba(20,16,10,0.88); display:grid; place-items:center; cursor:zoom-out; }
+.photo-view figure { margin:0; text-align:center; }
+.photo-view img { max-width:90vw; max-height:82vh; border-radius:6px; box-shadow:0 10px 40px rgba(0,0,0,.5); display:block; margin:0 auto; }
+.photo-view figcaption { color:#f3ecdc; font-family:var(--font-display); font-size:18px; margin-top:10px; }
+#profile .pf-photo img { width:100%; height:100%; object-fit:cover; object-position:50% 50%; display:block; }
+#profile h2 { font-family:var(--font-display); font-weight:normal; font-size:23px; line-height:1.15; margin:2px 0 3px; }
+#profile .pf-years { font-family:var(--font-mono); font-size:12px; color:var(--muted, #6b5a3e); }
+#profile .pf-rel { margin-top:7px; font-size:12.5px; background:#f1e7d2; border-radius:5px; padding:4px 8px; display:inline-block; }
+#profile .pf-btns { display:flex; gap:8px; margin:12px 0 4px; flex-wrap:wrap; }
+#profile .pf-btns button { font:inherit; font-size:12px; padding:5px 10px; border-radius:5px; border:1px solid #9c3c2e; color:#9c3c2e;
+  background:#fff8f2; cursor:pointer; }
+#profile .pf-btns button.solid { background:#9c3c2e; color:#fff; }
+#profile .pf-btns a.pf-tree { font-size:12px; padding:5px 10px; border-radius:5px; border:1px solid #9c3c2e; color:#9c3c2e; background:#fff8f2; text-decoration:none; }
+#profile .pf-sec { border-top:1px solid rgba(156,122,46,0.28); margin-top:14px; padding-top:10px; }
+#profile .pf-eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted, #6b5a3e); margin-bottom:5px; }
+#profile .pf-title { font-family:var(--font-display); font-size:16px; margin:0 0 6px; }
+#profile .pf-story p { margin:0 0 8px; }
+#profile .pf-auto { font-size:11px; color:var(--muted, #6b5a3e); font-style:italic; }
+#profile .pf-note { font-size:12px; color:var(--muted, #6b5a3e); border-left:2px solid rgba(156,122,46,0.35); padding-left:8px; margin:6px 0; }
+#profile dl { display:grid; grid-template-columns:auto 1fr; gap:3px 12px; margin:0; font-size:13px; }
+#profile dt { color:var(--muted, #6b5a3e); }
+#profile dd { margin:0; }
+#profile .pf-tl { list-style:none; margin:0; padding:0; }
+#profile .pf-tl li { display:grid; grid-template-columns:44px 12px 1fr; gap:7px; padding:3px 0; align-items:start; }
+#profile .pf-tl .y { font-family:var(--font-mono); font-size:11px; color:var(--muted, #6b5a3e); text-align:right; padding-top:2px; }
+#profile .pf-tl .dot { width:10px; height:10px; border-radius:50%; margin-top:5px; box-shadow:0 0 0 1px rgba(0,0,0,.15); }
+#profile .pf-tl .where { display:block; font-size:12px; color:var(--muted, #6b5a3e); }
+#profile .pf-fam { margin-top:9px; font-size:12.5px; color:var(--muted, #6b5a3e); }
+#profile .pf-tl a { font-size:11px; margin-left:4px; }
+#profile a.plink { color:var(--ink); text-decoration:none; border-bottom:1px solid rgba(156,60,46,.4); cursor:pointer; font-weight:600; }
+#profile .pf-kids { list-style:none; margin:2px 0 0; padding:0; }
+#profile .pf-kids li { padding:2px 0; }
+#profile .pf-kids .rel { font-size:11.5px; color:var(--muted, #6b5a3e); }
+#profile .sub { display:block; font-size:11.5px; color:var(--muted, #6b5a3e); }
+#profile .pf-tag { font-family:var(--font-mono); font-size:9px; letter-spacing:.05em; text-transform:uppercase; padding:1px 4px; border-radius:3px;
+  margin-left:5px; background:#f6dfda; color:#9c3c2e; vertical-align:1px; }
+#profile .pf-descent { font-size:12px; line-height:1.9; }
+#profile .pf-descent .arr { color:#b9a57c; margin:0 3px; }
+#profile details summary { cursor:pointer; color:var(--muted, #6b5a3e); font-size:12.5px; }
+#profile .pf-recs { margin:6px 0 0; padding-left:16px; font-size:12px; }
+.sr-item { display:flex; align-items:baseline; gap:6px; }
+.sr-item .sr-prof { margin-left:auto; flex:none; border:1px solid rgba(156,122,46,0.45); background:none; border-radius:50%; width:20px; height:20px;
+  font:600 11px Georgia, serif; color:#9c3c2e; cursor:pointer; line-height:1; padding:0; }
+.battle-popup a.plink, #tooltip a.plink { color:#2c2417; font-weight:600; text-decoration:none; border-bottom:1px solid rgba(156,60,46,.4); cursor:pointer; }
+/* living family: hidden in the public data; the family password shows them */
+#lock { margin-left:auto; position:relative; align-self:center; }
+
+@media (max-width: 700px) { .site-nav { border-left:none; padding-left:0; margin-left:0; } #lock { margin-left:auto; } }
+/* the site's pages: a tab group, set apart from the title by a rule */
+.site-nav { display:flex; padding-left:14px; border-left:1px solid rgba(156,122,46,0.45); }
+.site-nav a { font-family:var(--font-body); font-size:12.5px; text-decoration:none; color:var(--ink); padding:3px 11px;
+  border:1px solid rgba(156,122,46,0.45); margin-left:-1px; background:rgba(255,255,255,0.45); line-height:normal; }
+.site-nav a:first-child { border-radius:5px 0 0 5px; margin-left:0; }
+.site-nav a:last-child { border-radius:0 5px 5px 0; }
+.site-nav a:hover { background:#fff; }
+.site-nav a.on { background:#9c3c2e; border-color:#9c3c2e; color:#fff; }
+#lock-btn { font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted, #6b5a3e);
+  background:none; border:1px solid rgba(156,122,46,0.45); border-radius:4px; padding:3px 8px; cursor:pointer; }
+#lock-btn.open { color:#2f3d12; border-color:#2f3d12; }
+#lock-pop { display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:50; width:250px; background:var(--panel-bg);
+  border:1px solid rgba(156,122,46,0.5); border-radius:6px; padding:10px; box-shadow:0 4px 14px rgba(0,0,0,0.15); font-size:12px; }
+#lock-pop.show { display:block; }
+#lock-pop p { margin:0 0 7px; color:var(--muted, #6b5a3e); line-height:1.35; }
+#lock-pop form { display:flex; gap:6px; }
+#lock-pop input { flex:1; min-width:0; font:inherit; padding:4px 6px; border:1px solid rgba(156,122,46,0.5); border-radius:4px; }
+#lock-pop button { font:inherit; padding:4px 8px; border-radius:4px; border:1px solid #2f3d12; background:#2f3d12; color:#fff; cursor:pointer; }
+#lock-msg { color:#9c3c2e; margin-top:6px; min-height:1em; }
+
+#map-wrap { position:relative; flex:1; min-height:0; overflow:hidden; }
+/* MapLibre draws the map (basemap, routes, labels) into #map; the search box,
+   legend, zoom buttons, panels and tooltip sit above it. */
+#map { position:absolute; inset:0; z-index:1; }
+#map .maplibregl-ctrl-attrib { font-size:11px; }
+.map-layer { position:absolute; top:0; left:0; width:100%; height:100%; }
+/* The stage holds everything drawn in map coordinates, rendered with an
+   overscan margin on every side (sized in computeBase). During a pan or zoom
+   the finished stage is moved with a CSS transform -- a compositor-only
+   operation -- and redrawn sharp once the gesture settles. Each layer is its
+   own GPU layer, so a change to one (e.g. place dots fading in) never forces
+   the others to be painted again. */
+/* The basemap is a separate bitmap, drawn off the main thread (see
+   "basemap" in the script); it sits under the stage with the same geometry
+   and keeps its own transform, since a new bitmap can arrive a few frames
+   after the routes have been redrawn. */
+#map-stage, #basemap-canvas { position:absolute; transform-origin:0 0; will-change:transform; }
+#basemap-canvas { z-index:0; }
+/* Routes (WebGL) and the focused thread (Canvas 2D) are redrawn every frame
+   at the current view, so they cover just the visible map (sized in
+   computeBase) and never get stretched. */
+#routes-gl, #thread-canvas { position:absolute; pointer-events:none; }
+#routes-gl { z-index:1; }
+#thread-canvas { z-index:2; }
+#map-stage { z-index:3; }
+#map-stage > .map-layer { will-change:transform; }
+canvas#routes-canvas { z-index:2; }
+svg#overlay-svg { z-index:3; pointer-events:none; }
+svg#overlay-svg .interactive { pointer-events:auto; }
+#zoom-capture { z-index:4; background:transparent; cursor:grab; touch-action:none; }
+#zoom-capture.dragging { cursor:grabbing; }
+
+.land { fill:var(--land); stroke:var(--land-stroke); stroke-width:0.012; opacity:1; }
+.river { stroke:var(--lake); stroke-width:0.018; opacity:0.85; stroke-linecap:round; stroke-linejoin:round; }
+.lake { fill:var(--lake); stroke:var(--land-stroke); stroke-width:0.02; }
+.state-border { fill:none; stroke:var(--state-stroke); stroke-width:0.026; stroke-dasharray:0.2 0.15; opacity:0.75; }
+
+.place-dot { fill:var(--border-stroke); opacity:0; transition:opacity 0.2s ease; }
+.ref-city-dot { fill:#a8998a; opacity:0; transition:opacity 0.2s ease; }
+.ref-city-dot.visible { opacity:0.55; }
+.ref-label { color:#a8998a !important; font-style:italic; }
+/* towns: a little smaller than the reference cities, with their own dot
+   (the label box sits 3px right of and 16px above its place) */
+.town-label { font-size:11px; }
+.town-label::before { content:""; position:absolute; left:-5px; top:14px; width:4px; height:4px;
+  border-radius:50%; background:#a8998a; opacity:0.8; }
+.place-dot.visible { opacity:0.9; }
+.place-label-html {
+  position:absolute; font-family:var(--font-mono); font-size:12px; color:var(--ink);
+  text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg), 0 0 3px var(--bg), 0 0 3px var(--bg);
+  pointer-events:none; white-space:nowrap; z-index:5;
+  /* positioned by transform (not left/top) so moving a label during a
+     gesture is a compositor-only change, never a layout or repaint */
+  left:0; top:0; will-change:transform;
+}
+
+.convergence-ring { fill:none; stroke:var(--border-stroke); stroke-width:1.6; vector-effect:non-scaling-stroke; }
+
+#tooltip {
+  position:absolute; pointer-events:none; background:var(--panel-bg); border:1px solid rgba(156,122,46,0.5);
+  border-radius:4px; padding:8px 12px; font-size:13px; line-height:1.5; max-width:260px; color:var(--ink);
+  opacity:0; transition:opacity 0.1s ease; z-index:20;
+  box-shadow:0 6px 18px rgba(60,45,20,0.25);
+}
+#tooltip .t-name { font-family:var(--font-display); font-weight:600; color:var(--border-stroke); display:block; margin-bottom:2px; }
+#tooltip .t-year { font-family:var(--font-mono); color:var(--muted); font-size:11px; }
+#tooltip .t-note { display:inline-block; margin-top:3px; font-size:12px; font-style:italic; color:var(--ink); line-height:1.35; }
+#tooltip.t-multi { max-width:320px; }
+#tooltip .t-multi-row { padding-top:6px; margin-top:6px; border-top:1px solid rgba(156,122,46,0.25); }
+#tooltip .t-multi-row:first-of-type { border-top:none; margin-top:4px; padding-top:0; }
+#tooltip .t-multi-dest { font-weight:600; color:var(--border-stroke); }
+#tooltip .t-multi-more { font-family:var(--font-mono); color:var(--muted); font-size:10.5px; margin-top:6px; padding-top:6px; border-top:1px solid rgba(156,122,46,0.25); }
+
+#hud { position:absolute; top:14px; right:14px; display:flex; flex-direction:column; gap:8px; z-index:10; align-items:flex-end; }
+.hud-btn {
+  width:34px; height:34px; border-radius:6px; background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45);
+  color:var(--gold); font-size:18px; font-family:var(--font-mono); cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.hud-btn:hover { background:#efe4c4; }
+#zoomLevel { font-family:var(--font-mono); font-size:11px; color:var(--muted); background:var(--panel-bg); padding:3px 8px; border-radius:4px; border:1px solid rgba(156,122,46,0.3); }
+
+#legend {
+  position:absolute; left:14px; bottom:14px; background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4);
+  border-radius:8px; padding:12px 16px; z-index:10; max-width:300px;
+}
+#legend .cb-gradient { display:block; width:160px; height:10px; border-radius:3px; }
+#legend .cb-labels { position:relative; height:15px; font-family:var(--font-mono); font-size:9px; color:var(--muted); width:160px; margin-bottom:0; }
+/* century ticks: a short mark up to the gradient, the year centred under it */
+#legend .cb-labels span { position:absolute; top:4px; white-space:nowrap; transform:translateX(-50%); }
+#legend .cb-labels span::before { content:""; position:absolute; left:50%; top:-5px; height:4px; border-left:1px solid var(--muted); }
+#legend .lw-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:3px; }
+#legend .lw-swatch { width:22px; height:0; border-top-style:solid; border-color:#8a7248; }
+#legend .likely-only { display:none; }
+#legend.likely .likely-only { display:flex; }
+#legend .likely-note { font-size:10px; color:var(--muted); margin:-3px 0 7px; max-width:230px; line-height:1.35; }
+#legend .stripe-swatch { width:22px; height:9px; border:none; border-radius:1px;
+  background:linear-gradient(to bottom, #0f8a7a 0 25%, #2050d6 25% 50%, #8033d6 50% 75%, #e0359e 75%); }
+/* military service: a toggle and, while any service is on the map, its key */
+#legend .layers { display:flex; flex-direction:column; gap:4px; margin-bottom:2px; }
+#legend .layer-toggle { display:flex; align-items:center; gap:7px; margin-top:0; font-size:11px; color:var(--muted);
+  cursor:pointer; background:none; border:none; padding:0; font-family:inherit; }
+#legend .layer-toggle .box { width:12px; height:12px; border:1px solid rgba(156,122,46,0.6); border-radius:3px;
+  display:inline-flex; align-items:center; justify-content:center; font-size:10px; line-height:1; color:#fff; }
+#legend .layer-toggle[aria-pressed="true"] { color:var(--ink); }
+#legend .layer-toggle[aria-pressed="true"] .box { background:#2f3d12; border-color:#2f3d12; }
+#legend .layer-toggle[aria-pressed="true"] .box::after { content:"\2713"; }
+#legend .layer-toggle:focus-visible { outline:2px solid var(--border-stroke); outline-offset:2px; }
+/* each layer's key sits under its checkbox, shown while it's on */
+#legend .sub { display:flex; flex-direction:column; gap:3px; margin:1px 0 6px 19px; font-size:10px; color:var(--muted);
+  max-width:235px; line-height:1.3; }
+#legend .layer-toggle[aria-pressed="false"] + .sub { display:none; }
+#legend .sub > span { display:flex; align-items:center; gap:6px; }
+#legend .sub .sw { flex:none; }
+#legend .sub-note { margin-bottom:2px; }
+#legend .with-likely { display:none; }
+#legend.likely-known .with-likely { display:inline; }
+#legend .timeline { margin-top:7px; }
+.battle-popup .maplibregl-popup-content { font-family:var(--font-body, Georgia, serif); font-size:12px; color:#2c2417;
+  background:#fbf6ea; border:1px solid rgba(156,122,46,0.5); border-radius:6px; padding:10px 22px 10px 12px; max-height:340px; overflow:auto; }
+.battle-popup .t-name { display:block; font-weight:bold; font-size:13px; }
+.battle-popup .t-year, .battle-popup .t-note { font-size:11px; color:#6b5a3e; }
+.battle-list { margin:6px 0 0; padding-left:16px; }
+.battle-list li { margin-bottom:5px; }
+#tooltip .battle-list { margin:4px 0 0; padding-left:14px; }
+#legend .tl-cap { font-size:10px; color:var(--muted); margin-bottom:3px; }
+#legend .hint { font-family:var(--font-mono); font-size:10px; color:var(--muted); margin-top:4px; border-top:1px solid rgba(156,122,46,0.25); padding-top:6px; }
+#legend .hint.credit { font-size:9px; margin-top:3px; border-top:none; padding-top:0; opacity:0.8; }
+
+#search-box { position:absolute; top:14px; left:14px; z-index:12; max-width:240px; }   /* above the legend, so its results cover it */
+#search-modes { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:5px; }
+.mode-btn {
+  font-family:var(--font-mono); font-size:9.5px; padding:4px 7px; border-radius:5px; cursor:pointer;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4); color:var(--muted);
+}
+.mode-btn.active { background:var(--border-stroke); color:var(--panel-bg); border-color:var(--border-stroke); }
+.mode-btn:hover:not(.active) { background:rgba(156,122,46,0.15); }
+#path-status {
+  font-family:var(--font-mono); font-size:10.5px; color:var(--border-stroke); margin-bottom:4px; display:none;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4); border-radius:5px; padding:5px 8px;
+}
+#path-status.active { display:block; }
+#path-status .clear-path { color:var(--muted); cursor:pointer; text-decoration:underline; margin-left:6px; }
+#search-input {
+  font-family:var(--font-mono); font-size:12px; padding:7px 10px; width:190px;
+  border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
+}
+#search-input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; width:210px; }
+#surname-input {
+  font-family:var(--font-mono); font-size:12px; padding:7px 10px; width:150px;
+  border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
+}
+#surname-input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; width:200px; }
+#year-range-box { display:flex; align-items:center; gap:5px; }
+#year-range-box input {
+  font-family:var(--font-mono); font-size:12px; padding:7px 8px; width:62px; text-align:center;
+  border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
+  -moz-appearance:textfield;
+}
+#year-range-box input::-webkit-outer-spin-button, #year-range-box input::-webkit-inner-spin-button {
+  -webkit-appearance:none; margin:0;
+}
+#year-range-box input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; }
+#era-play-btn {
+  font-size:11px; padding:7px 9px; border:1px solid rgba(156,122,46,0.45); border-radius:6px;
+  background:var(--panel-bg); color:var(--border-stroke); cursor:pointer; line-height:1;
+}
+#era-play-btn:hover { background:rgba(156,122,46,0.15); }
+#era-play-btn.playing { background:var(--border-stroke); color:var(--panel-bg); }
+#year-range-box .yr-dash { color:var(--muted); font-family:var(--font-mono); font-size:12px; }
+#era-person-filter { margin-top:6px; position:relative; }
+#era-person-input {
+  font-family:var(--font-mono); font-size:12px; padding:7px 10px; width:150px;
+  border:1px solid rgba(156,122,46,0.45); border-radius:6px; background:var(--panel-bg); color:var(--ink);
+}
+#era-person-input:focus { outline:2px solid var(--border-stroke); outline-offset:1px; width:200px; }
+#era-person-chip {
+  display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:11.5px;
+  color:var(--border-stroke); background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45);
+  border-radius:6px; padding:6px 8px; max-width:200px;
+}
+#era-person-chip-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#era-person-chip .chip-clear { color:var(--muted); cursor:pointer; margin-left:auto; flex-shrink:0; }
+#era-person-chip .chip-clear:hover { color:var(--border-stroke); }
+#era-person-results {
+  position:absolute; top:38px; left:0; width:260px; max-height:220px; overflow-y:auto;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45); border-radius:6px;
+  box-shadow:0 8px 20px rgba(60,45,20,0.3); display:none; z-index:11;
+}
+#era-person-results.active { display:block; }
+#era-person-results .sr-item { padding:7px 10px; font-size:12px; cursor:pointer; border-bottom:1px solid rgba(156,122,46,0.15); }
+#era-person-results .sr-item:last-child { border-bottom:none; }
+#era-person-results .sr-item:hover, #era-person-results .sr-item.sel { background:rgba(156,122,46,0.15); }
+#era-person-results .sr-years { color:var(--muted); font-family:var(--font-mono); font-size:10.5px; }
+#search-results {
+  position:absolute; top:73px; left:0; width:260px; max-height:280px; overflow-y:auto;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.45); border-radius:6px;
+  box-shadow:0 8px 20px rgba(60,45,20,0.3); display:none;
+}
+#search-results.active { display:block; }
+#search-results .sr-item {
+  padding:7px 10px; font-size:12px; cursor:pointer; border-bottom:1px solid rgba(156,122,46,0.15);
+}
+#search-results .sr-item:last-child { border-bottom:none; }
+#search-results .sr-item:hover, #search-results .sr-item.sel { background:rgba(156,122,46,0.15); }
+#search-results .sr-years { color:var(--muted); font-family:var(--font-mono); font-size:10px; }
+#search-results .sr-empty { padding:10px; font-size:12px; color:var(--muted); }
+
+@media (max-width: 640px) {
+  header { padding:5px 12px 4px; }
+  header h1 { font-size:15px; }
+  .mode-btn { padding:15px 9px; font-size:11px; }
+  #search-input { width:110px; padding:14px 10px; font-size:13px; }
+  #search-input:focus { width:150px; }
+  #search-results { top:108px; }
+  #surname-input { width:110px; padding:14px 10px; font-size:13px; }
+  #surname-input:focus { width:150px; }
+  #year-range-box input { width:52px; padding:14px 6px; font-size:13px; }
+  #era-play-btn { padding:15px 17px; font-size:13px; }
+  #era-person-input { width:130px; padding:14px 10px; font-size:13px; }
+  #era-person-input:focus { width:170px; }
+  #era-person-results { top:51px; }
+  .hud-btn { width:44px; height:44px; font-size:20px; }
+  #legend { max-width:200px; padding:8px 10px; left:8px; bottom:8px; }
+  #legend .cb-gradient, #legend .cb-labels { width:120px; }
+  #legend .lw-item { font-size:9.5px; }
+  #legend .hint { font-size:8.5px; }
+  #legend .hint.credit { font-size:7px; }
+  #hud { top:8px; right:8px; }
+  #focus-panel { max-width:94%; padding:8px 12px; gap:8px; flex-wrap:wrap; }
+  #route-picker { top:8px; max-width:94%; width:94%; }
+  #route-picker .picker-row { padding:12px 14px; font-size:12.5px; }
+  #focus-title { font-size:12px; }
+}
+
+#focus-panel {
+  position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:15;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.5); border-radius:8px;
+  padding:10px 18px; display:none; align-items:center; gap:14px; max-width:80%;
+  box-shadow:0 6px 20px rgba(60,45,20,0.3);
+}
+#focus-panel.active { display:flex; }
+#focus-title { font-family:var(--font-display); font-style:italic; font-size:14px; color:var(--ink); }
+#focus-sub {
+  font-family:var(--font-mono); font-size:11px; color:var(--border-stroke); cursor:pointer;
+  display:flex; align-items:center; gap:4px; padding:3px 6px; border-radius:4px;
+  border:1px solid rgba(156,122,46,0.4);
+}
+#focus-sub:hover { background:rgba(156,122,46,0.12); }
+#focus-sub .chevron { font-size:9px; transition:transform 0.15s ease; }
+#focus-sub.open .chevron { transform:rotate(180deg); }
+#focus-clear {
+  font-family:var(--font-mono); font-size:11px; background:var(--border-stroke); color:var(--panel-bg);
+  border:none; border-radius:4px; padding:5px 10px; cursor:pointer; flex-shrink:0;
+}
+#focus-clear:hover { opacity:0.85; }
+
+#focus-dropdown {
+  position:absolute; top:56px; left:50%; transform:translateX(-50%); z-index:14;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.5); border-radius:8px;
+  box-shadow:0 10px 26px rgba(60,45,20,0.35); max-width:520px; width:90%;
+  max-height:min(50vh, 420px); overflow-y:auto; display:none;
+}
+#focus-dropdown.active { display:block; }
+#focus-dropdown .move-row {
+  display:grid; grid-template-columns:3px 1fr; gap:10px; align-items:center;
+  padding:6px 14px; font-family:var(--font-mono); font-size:11.5px; color:var(--ink);
+  border-bottom:1px solid rgba(156,122,46,0.15); cursor:default;
+}
+#focus-dropdown .move-row:last-child { border-bottom:none; }
+#focus-dropdown .move-row:hover { background:rgba(156,122,46,0.1); }
+#focus-dropdown .move-year { color:var(--muted); }
+#focus-dropdown .move-bar { width:3px; height:16px; border-radius:2px; }
+#focus-dropdown .move-person { font-family:var(--font-display); font-style:italic; color:var(--border-stroke); }
+#focus-dropdown .move-place { color:var(--ink); }
+
+#route-picker {
+  position:absolute; top:56px; left:50%; transform:translateX(-50%); z-index:15;
+  background:var(--panel-bg); border:1px solid rgba(156,122,46,0.5); border-radius:8px;
+  box-shadow:0 10px 26px rgba(60,45,20,0.35); max-width:520px; width:90%;
+  max-height:min(60vh, 460px); overflow-y:auto; display:none;
+}
+#route-picker.active { display:block; }
+#route-picker .picker-header {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:9px 14px; font-family:var(--font-mono); font-size:11px; color:var(--muted);
+  border-bottom:1px solid rgba(156,122,46,0.3); position:sticky; top:0; background:var(--panel-bg);
+}
+#route-picker .picker-close { color:var(--muted); cursor:pointer; font-size:15px; line-height:1; }
+#route-picker .picker-close:hover { color:var(--border-stroke); }
+#route-picker .picker-row {
+  display:block; padding:8px 14px; font-family:var(--font-mono); font-size:11.5px; color:var(--ink);
+  border-bottom:1px solid rgba(156,122,46,0.15); cursor:pointer;
+}
+#route-picker .picker-row:last-child { border-bottom:none; }
+#route-picker .picker-row:hover { background:rgba(156,122,46,0.15); }
+#route-picker .picker-dest { font-family:var(--font-display); font-weight:600; color:var(--border-stroke); }
+#route-picker .picker-year { color:var(--muted); float:right; }
+#route-picker .picker-people { display:block; margin-top:1px; color:var(--ink); }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="page-title">Family History, Visualized</h1>
+  <nav class="site-nav"><a href="index.html">Ask</a><a href="map.html" class="on">Map</a><a href="tree.html">Tree</a><a href="people.html">People</a><a href="about.html">About</a></nav>
+  <div id="lock">
+    <button id="lock-btn" type="button" aria-expanded="false">&#x1F512; Living family hidden</button>
+    <div id="lock-pop" role="dialog" aria-label="Show living family">
+      <p id="lock-text">Living family members appear as &ldquo;Private&rdquo;. Enter the family password to show them on this device.</p>
+      <form id="lock-form"><input id="lock-pw" type="password" autocomplete="current-password" aria-label="Family password"><button type="submit" id="lock-go">Show</button></form>
+      <div id="lock-msg"></div>
+    </div>
+  </div>
+</header>
+<div id="map-wrap">
+  <aside id="profile" aria-label="Profile"><button class="pf-close" aria-label="Close profile">&times;</button><div class="pf-in"></div></aside>
+  <div id="map" role="application" aria-label="Interactive migration map. Use the search box to find an ancestor, or the zoom buttons to navigate."></div>
+  <div id="search-box">
+    <div id="search-modes" role="group" aria-label="Search mode">
+      <button class="mode-btn active" data-mode="target" title="Click a result to make them the map's target">Family journey</button>
+      <button class="mode-btn" data-mode="life" title="Click a result to see just their own movement">Life journey</button>
+      <button class="mode-btn" data-mode="path" title="Pick two people to isolate the path between them">Path between</button>
+      <button class="mode-btn" data-mode="era" title="Enter a year range to highlight journeys taken then">Time period</button>
+      <button class="mode-btn" data-mode="surname" title="Highlight every journey by anyone with a matching surname">Surname</button>
+    </div>
+    <div id="path-status"></div>
+    <input id="search-input" type="text" placeholder="Show family history of..." aria-label="Search for an ancestor by name" autocomplete="off">
+    <input id="surname-input" type="text" placeholder="e.g. Speer" aria-label="Filter by surname" autocomplete="off" style="display:none;">
+    <div id="year-range-box" style="display:none;">
+      <input id="year-from" type="number" placeholder="From" aria-label="Start year" inputmode="numeric">
+      <span class="yr-dash">&ndash;</span>
+      <input id="year-to" type="number" placeholder="To" aria-label="End year" inputmode="numeric">
+      <button id="era-play-btn" type="button" title="Play: sweep this range forward through time" aria-label="Play">&#9654;</button>
+    </div>
+    <div id="era-person-filter" style="display:none;">
+      <input id="era-person-input" type="text" placeholder="Limit to one person's ancestors (optional)..." aria-label="Optional: limit to one person's ancestors" autocomplete="off">
+      <div id="era-person-chip" style="display:none;"><span id="era-person-chip-name"></span><span class="chip-clear" title="Remove this filter">&times;</span></div>
+      <div id="era-person-results" role="listbox"></div>
+    </div>
+    <div id="search-results" role="listbox"></div>
+  </div>
+  <div id="focus-panel">
+    <span id="focus-title"></span>
+    <span id="focus-sub"></span>
+    <button id="focus-clear">&times; clear</button>
+  </div>
+  <div id="focus-dropdown"></div>
+  <div id="route-picker"></div>
+  <div id="tooltip"></div>
+  <div id="hud">
+    <button class="hud-btn" id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+    <button class="hud-btn" id="zoomOut" title="Zoom out" aria-label="Zoom out">&minus;</button>
+    <button class="hud-btn" id="zoomReset" title="Reset view" aria-label="Reset view" style="font-size:13px;">&#8634;</button>
+    <span id="zoomLevel">1.0&times;</span>
+  </div>
+  <div id="legend">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="yeargrad">
+      <stop offset="0" stop-color="#0f8a7a"/><stop offset=".17" stop-color="#2050d6"/><stop offset=".33" stop-color="#8033d6"/>
+      <stop offset=".5" stop-color="#e0359e"/><stop offset=".67" stop-color="#f0453f"/><stop offset=".83" stop-color="#ff8c1a"/>
+      <stop offset="1" stop-color="#e8c020"/></linearGradient></defs></svg>
+    <div class="layers" role="group" aria-label="Layers">
+      <button class="layer-toggle" id="layer-likely" aria-pressed="true" title="Moves along the roads, rivers, railroads and highways of their time"><span class="box"></span>Likely routes</button>
+      <div class="sub">
+        <div class="sub-note">Moves follow the roads, rivers, railroads and highways of their time. The route is inferred; the records give only the places and years.</div>
+        <span><span class="stripe-swatch"></span>a road or river several ancestors used: one stripe per route, width by number of ancestors</span>
+      </div>
+      <button class="layer-toggle" id="layer-known" aria-pressed="false" title="Each documented move as a line from the old home to the new one"><span class="box"></span>Known movements only</button>
+      <div class="sub">
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><path d="M2 8Q13 0 24 8" fill="none" stroke="url(#yeargrad)" stroke-width="2.2"/></svg>each documented move, old home to new<span class="with-likely">&nbsp;(faint and dashed under the likely routes)</span></span>
+      </div>
+      <button class="layer-toggle" id="mil-toggle" aria-pressed="false" title="Where ancestors served: campaigns, battles, camps and captivity, from pension files, service records and family histories"><span class="box"></span>Military service</button>
+      <div class="sub">
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><circle cx="4.5" cy="5" r="2.5" fill="url(#yeargrad)"/><circle cx="11.5" cy="5" r="2.5" fill="url(#yeargrad)"/><circle cx="18.5" cy="5" r="2.5" fill="url(#yeargrad)"/></svg>documented for him</span>
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><circle cx="4.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="10.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="16.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="22.0" cy="5" r="2" fill="url(#yeargrad)"/></svg>his regiment's movements</span>
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10" style="opacity:.5"><circle cx="4.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="10.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="16.0" cy="5" r="2" fill="url(#yeargrad)"/><circle cx="22.0" cy="5" r="2" fill="url(#yeargrad)"/></svg>family account or history</span>
+        <span><svg class="sw" width="26" height="10" viewBox="0 0 26 10"><rect x="2" y="3.8" width="4" height="2.4" fill="url(#yeargrad)"/><rect x="9" y="3.8" width="4" height="2.4" fill="url(#yeargrad)"/><rect x="16" y="3.8" width="4" height="2.4" fill="url(#yeargrad)"/><rect x="23" y="3.8" width="2" height="2.4" fill="url(#yeargrad)"/></svg>a guess</span>
+        <span><svg class="sw" width="16" height="16" viewBox="0 0 32 32" fill="none" stroke-linecap="round"><g stroke="#2c2417" stroke-width="6"><path d="M7 7L25 25M25 7L7 25M18 25l6-6M8 19l6 6"/></g><g stroke="#e0359e" stroke-width="3"><path d="M7 7L25 25M25 7L7 25M18 25l6-6M8 19l6 6"/></g></svg>a battle: hover or click for who was there</span>
+      </div>
+      <button class="layer-toggle" id="layer-notable" aria-pressed="false" title="Arrivals in America and other moments from the family's history"><span class="box"></span>Notable events</button>
+      <div class="sub">
+        <span><svg class="sw" width="15" height="15" viewBox="0 0 32 32"><path d="M16 3.5 L19.1 12.3 L28.4 12.5 L21 18.1 L23.7 27 L16 21.7 L8.3 27 L11 18.1 L3.6 12.5 L12.9 12.3 Z" fill="url(#yeargrad)" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/></svg>an event</span>
+        <span><svg class="sw" width="15" height="15" viewBox="0 0 32 32"><path d="M16 3.5 L19.1 12.3 L28.4 12.5 L21 18.1 L23.7 27 L16 21.7 L8.3 27 L11 18.1 L3.6 12.5 L12.9 12.3 Z" fill="none" stroke="url(#yeargrad)" stroke-width="3.6" stroke-linejoin="round"/></svg>a family story</span>
+        <span><svg class="sw" width="15" height="15" viewBox="0 0 32 32" fill="none" stroke="url(#yeargrad)" stroke-width="2.8" stroke-linecap="round"><circle cx="16" cy="6" r="2.6"/><path d="M16 9v18M10 12h12M7 19a9 9 0 0 0 18 0M7 19l-2-3M25 19l2-3"/></svg>arrival in America</span>
+      </div>
+    </div>
+    <div class="hint">scroll = zoom &middot; drag = pan &middot; hover = who traveled &middot; click = trace the line to the target &middot; search top-left</div>
+    <div class="timeline">
+      <div class="tl-cap">colour = year, on every layer</div>
+      <canvas class="cb-gradient" id="cbGradientCanvas" width="160" height="10"></canvas>
+      <div class="cb-labels" id="cb-labels"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="vendor/maplibre-gl-4.7.1/maplibre-gl.js"></script>
+<script src="data.js"></script>
+<script>
+ROUTES.forEach((r,i)=>{ r._i = i; });
+PLACES.forEach((p,i)=>{ p._i = i; });
+
+for (const p of SEARCH_INDEX) p.nameLower = p.name.toLowerCase();
+const YEAR_MIN = d3.min(ROUTES, d => d.mean_year);
+const YEAR_MAX = d3.max(ROUTES, d => d.mean_year);
+// d3.interpolateRdYlBu is non-trivial (parses + interpolates two colors per
+// call). Routes share far fewer distinct years than there are routes, so we
+// memoize by rounded year -- collapsing ~895 interpolations/frame into a few
+// dozen cache hits. Keyed to whole years; sub-year precision is invisible here.
+const _sortedYears = ROUTES.map(d => d.mean_year).sort((a,b) => a-b);
+function rankT(y) {
+  const i = d3.bisectLeft(_sortedYears, y);
+  return i / (_sortedYears.length - 1);
+}
+const _colorStops = ['#0f8a7a','#2050d6','#8033d6','#e0359e','#f0453f','#ff8c1a','#e8c020'];
+const _colorScale = d3.interpolateRgbBasis(_colorStops);
+const _colorCache = new Map();
+function colorForYear(y) {
+  const key = Math.round(y);
+  let c = _colorCache.get(key);
+  if (c === undefined) {
+    c = _colorScale(rankT(key));
+    _colorCache.set(key, c);
+  }
+  return c;
+}
+(function renderLegendGradient() {
+  const canvas = document.getElementById('cbGradientCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  for (let x = 0; x < w; x++) {
+    const y = YEAR_MIN + (x / (w - 1)) * (YEAR_MAX - YEAR_MIN);
+    ctx.fillStyle = _colorScale(rankT(y));
+    ctx.fillRect(x, 0, 1, canvas.height);
+  }
+})();
+// Legend: a tick at every whole century inside the data's year range, each
+// where that year falls on the gradient (which runs by year, left to right),
+// read like a ruler. The full range is in the header.
+(function renderYearLabels() {
+  const lo = Math.floor(YEAR_MIN), hi = Math.ceil(YEAR_MAX);
+  const box = document.getElementById("cb-labels");
+  box.innerHTML = "";
+  for (let y = Math.ceil(lo / 100) * 100; y <= hi; y += 100) {
+    const s = document.createElement("span");
+    s.textContent = y;
+    s.style.left = (100 * (y - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) + "%";
+    box.appendChild(s);
+  }
+  { const ys = document.getElementById("year-span"); if (ys) ys.textContent = `${lo}–${hi}`; }
+})();
+function lwFor(count) { return 1.6 + count * 1.1; }
+
+// ============ genealogical graph algorithms (operate on GRAPH + PERSON_LEGS) ============
+function parentsOf(pid) { return (GRAPH.people[pid] && GRAPH.people[pid].parents) || []; }
+
+const ancestorSetMemo = {};
+function ancestorSetOf(pid) {
+  if (ancestorSetMemo[pid]) return ancestorSetMemo[pid];
+  const set = new Set([pid]);
+  for (const p of parentsOf(pid)) for (const a of ancestorSetOf(p)) set.add(a);
+  ancestorSetMemo[pid] = set;
+  return set;
+}
+const depthMemo = {};
+function depthOf(pid) {
+  if (pid in depthMemo) return depthMemo[pid];
+  const ps = parentsOf(pid);
+  const d = ps.length ? 1 + Math.max(...ps.map(depthOf)) : 0;
+  depthMemo[pid] = d;
+  return d;
+}
+// chain from `from` up to (and including) a CONFIRMED ancestor `to`, youngest-first
+function chainUpTo(from, to) {
+  const chain = [from];
+  let cur = from;
+  while (cur !== to) {
+    const next = parentsOf(cur).find(p => ancestorSetOf(p).has(to));
+    if (!next) break;
+    chain.push(next);
+    cur = next;
+  }
+  return chain;
+}
+// exact hop count from `from` up to `to` (BFS), or Infinity if not an ancestor
+function hopsToAncestor(from, to) {
+  if (from === to) return 0;
+  let frontier = [from], hops = 0, seen = new Set([from]);
+  while (frontier.length) {
+    hops++;
+    const next = [];
+    for (const pid of frontier) for (const p of parentsOf(pid)) {
+      if (p === to) return hops;
+      if (!seen.has(p)) { seen.add(p); next.push(p); }
+    }
+    frontier = next;
+  }
+  return Infinity;
+}
+// the "as far back as it goes" chain: at each generation, follow whichever
+// parent has the deeper remaining tree
+function deepestAncestorChain(pid) {
+  const chain = [pid];
+  let cur = pid;
+  while (true) {
+    const ps = parentsOf(cur);
+    if (!ps.length) break;
+    const next = ps.reduce((a,b) => depthOf(a) >= depthOf(b) ? a : b);
+    chain.push(next);
+    cur = next;
+  }
+  return chain;
+}
+// general path between any two people: direct ancestor-descendant if related
+// that way, otherwise via their closest common ancestor. Returns an ordered
+// person-chain from idA to idB, or null if genuinely unconnected.
+function findPath(idA, idB) {
+  if (idA === idB) return [idA];
+  const ancA = ancestorSetOf(idA), ancB = ancestorSetOf(idB);
+  if (ancA.has(idB)) return chainUpTo(idA, idB);
+  if (ancB.has(idA)) return chainUpTo(idB, idA).slice().reverse();
+  let best = null, bestHops = Infinity;
+  for (const c of ancA) {
+    if (!ancB.has(c)) continue;
+    const h = hopsToAncestor(idA, c) + hopsToAncestor(idB, c);
+    if (h < bestHops) { bestHops = h; best = c; }
+  }
+  if (!best) return null;
+  const upA = chainUpTo(idA, best);
+  const downB = chainUpTo(idB, best).slice().reverse().slice(1);
+  return upA.concat(downB);
+}
+// gather every leg for every person in an ordered chain into one flat,
+// chronologically-meaningful segment list (each person's own legs are
+// already in order; concatenating across the chain in order gives the
+// full multi-generation story)
+function assemblePath(chain) {
+  const segs = [];
+  for (const pid of chain) {
+    const legs = PERSON_LEGS[pid];
+    if (!legs) continue;
+    const name = (GRAPH.people[pid] && GRAPH.people[pid].name) || "?";
+    for (const l of legs) segs.push(Object.assign({ person: name }, l));
+  }
+  return segs;
+}
+
+let CURRENT_TARGET = GRAPH.james_id;
+let TARGET_ANCESTOR_SET = ancestorSetOf(CURRENT_TARGET);
+
+// ============ the map: MapLibre GL, OpenFreeMap "Liberty" style ============
+// MapLibre draws the basemap (OpenFreeMap vector tiles, OpenStreetMap data)
+// and handles pan, zoom, pinch and label placement. Our data stays in the
+// pipeline's projected units (x = lon + 35, y = 65 - lat); toLL() converts
+// to longitude/latitude for MapLibre, whose map is Web Mercator.
+// "k" (the zoom readout, thresholds such as AGGREGATE_ZOOM_THRESHOLD) keeps
+// its old meaning: 1x = the default view of the whole map, Z1 in MapLibre's
+// zoom levels, so k = 2^(zoom - Z1).
+const mapWrap = document.getElementById("map-wrap");
+const zoomLevelEl = document.getElementById("zoomLevel");
+const tooltip = d3.select("#tooltip");
+const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const MAX_ZOOM = 13;          // town and street level
+function toLL(x, y) {
+  let lon = x - 35;
+  if (lon < -180) lon += 360; else if (lon >= 180) lon -= 360;
+  return [lon, 65 - y];
+}
+// the old default view (VB), as a lon/lat box
+const DEFAULT_BOUNDS = [toLL(VB.x0, VB.y0 + VB.h), toLL(VB.x0 + VB.w, VB.y0)];
+// phones: the old page opened on the data's touch-weighted centre at 2.6x
+const MOBILE_VIEW = { center: toLL(-36.57, 25.43), k: 2.6 };
+
+const map = new maplibregl.Map({
+  container: "map",
+  style: STYLE_URL,
+  bounds: DEFAULT_BOUNDS,
+  maxZoom: MAX_ZOOM,
+  dragRotate: false, pitchWithRotate: false, touchPitch: false,
+  attributionControl: { compact: true },
+});
+map.touchZoomRotate.disableRotation();
+map.keyboard.disableRotation();
+let Z1 = map.getZoom();       // zoom of the default view; recomputed on resize
+function computeZ1() {
+  const cam = map.cameraForBounds(DEFAULT_BOUNDS);
+  Z1 = cam ? cam.zoom : map.getZoom();
+  map.setMinZoom(Math.max(0, Z1 - 0.01));   // no further out than the whole map (1x)
+}
+const kToZoom = k => Z1 + Math.log2(k);
+// the old code's view object: only .k is still meaningful
+const currentTransform = { get k() { return Math.pow(2, map.getZoom() - Z1); } };
+// visible-map pixel position of a point in projected units
+function dataToScreen(x, y) { const p = map.project(toLL(x, y)); return [p.x, p.y]; }
+
+// ---- geometry: curves -> lon/lat polylines ----
+// A bow is sampled in the old projection (so it keeps the shape the pipeline
+// gave it) and each sample converted; waypointed routes convert point by point.
+function curveLL(c, n) {
+  if (c.mode === "path") return c.coords.map(p => toLL(p[0], p[1]));
+  n = n || 24;
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, mt = 1 - t;
+    pts.push(toLL(mt*mt*c.x1 + 2*mt*t*c.cx + t*t*c.x2, mt*mt*c.y1 + 2*mt*t*c.cy + t*t*c.y2));
+  }
+  return pts;
+}
+// a straight segment in the old projection (ocean legs), sampled so it keeps that line
+function straightLL(x1, y1, x2, y2) {
+  const pts = [];
+  for (let i = 0; i <= 16; i++) { const t = i / 16; pts.push(toLL(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t)); }
+  return pts;
+}
+// screen direction (degrees clockwise from east) of the line from a to b, in Web Mercator
+function bearingDeg(a, b) {
+  const mercY = lat => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
+  const dx = (b[0] - a[0]) * Math.PI / 180, dy = -(mercY(b[1]) - mercY(a[1]));
+  return Math.atan2(dy, dx) * 180 / Math.PI;
+}
+const ROUTE_LL = ROUTES.map(r => curveLL(r.curve));
+const CLUSTER_LL = CLUSTERS.map(c => curveLL(c.curve));
+
+// ---- likely routes: moves along the period roads, rivers and sea lanes ----
+// CORRIDORS (from pipeline/build2/build_corridor_routes.py) holds the network
+// edges and, for each routed move, the edges it takes (negative = walked
+// backwards) plus the short overland links at each end (h, t). Moves without
+// an entry keep their direct line in this view too.
+let likelyRoutes = true;       // the default view since 2026-09-25
+try { likelyRoutes = localStorage.getItem("hm-likely-routes") !== "0"; } catch (e) {}
+{ const q = new URLSearchParams(location.search).get("lines"); if (q) likelyRoutes = q === "likely"; }   // ?lines=likely|direct
+const CORR_EDGE_LL = CORRIDORS.edges.map(e => e.c.map(p => toLL(p[0], p[1])));
+const routeVia = i => likelyRoutes ? CORRIDORS.routes[i] || null : null;
+const legKey = s => [s.x1, s.y1, s.x2, s.y2].map(v => Math.round(v * 100)).join(",") + "," + s.year;
+const segVia = s => likelyRoutes ? CORRIDORS.legs[legKey(s)] || null : null;
+// the whole path of a routed move, as one lon/lat polyline
+function viaLL(v) {
+  const out = [];
+  const add = pts => { for (const p of pts) { const q = out[out.length - 1]; if (!q || q[0] !== p[0] || q[1] !== p[1]) out.push(p); } };
+  if (v.h.length) add(v.h.map(p => toLL(p[0], p[1])));
+  for (const e of v.e) { const c = CORR_EDGE_LL[Math.abs(e) - 1]; add(e > 0 ? c : c.slice().reverse()); }
+  if (v.t.length) add(v.t.map(p => toLL(p[0], p[1])));
+  return out;
+}
+
+// ---- arrowhead and dot images (signed-distance fields, so MapLibre can colour them) ----
+// Arrow: a triangle pointing east with its tip on the right edge; the icon is
+// anchored on its right edge, so the tip sits on the route's end point.
+function sdfImage(size, dist) {   // dist(px, py) = signed distance in px, negative inside
+  const data = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const a = Math.max(0, Math.min(255, 191 - dist(x + 0.5, y + 0.5) * 24));
+    const o = (y * size + x) * 4; data[o] = data[o+1] = data[o+2] = 255; data[o+3] = a;
+  }
+  return { width: size, height: size, data };
+}
+function triangleDist(size, halfAngle) {
+  const pad = 4, tipX = size - pad, len = size - 2 * pad, cy = size / 2;
+  const h = Math.tan(halfAngle) * len;
+  const P = [[tipX, cy], [tipX - len, cy - h], [tipX - len, cy + h]];
+  return (px, py) => {           // distance to the triangle (negative inside)
+    let d = Infinity, inside = true;
+    for (let i = 0; i < 3; i++) {
+      const [ax, ay] = P[i], [bx, by] = P[(i + 1) % 3];
+      const ex = bx - ax, ey = by - ay, L = ex * ex + ey * ey;
+      const t = Math.max(0, Math.min(1, ((px - ax) * ex + (py - ay) * ey) / L));
+      d = Math.min(d, Math.hypot(px - ax - t * ex, py - ay - t * ey));
+      if (ex * (py - ay) - ey * (px - ax) > 0) inside = false;
+    }
+    return inside ? -d : d;
+  };
+}
+const ARROW_PX = 64;                       // icon image size; its triangle is ARROW_PX - 8 long
+const ARROW_LEN = ARROW_PX - 8;
+// ---- signed-distance shapes for the icons (32 px, drawn at 2x) ----
+function segDist(px, py, ax, ay, bx, by) {
+  const ex = bx - ax, ey = by - ay, L = ex * ex + ey * ey;
+  const s = Math.max(0, Math.min(1, ((px - ax) * ex + (py - ay) * ey) / L));
+  return Math.hypot(px - ax - s * ex, py - ay - s * ey);
+}
+function polyDist(P) {           // distance to a polygon, negative inside
+  return (px, py) => {
+    let d = Infinity, inside = false;
+    for (let i = 0, k = P.length - 1; i < P.length; k = i++) {
+      const [ax, ay] = P[k], [bx, by] = P[i];
+      d = Math.min(d, segDist(px, py, ax, ay, bx, by));
+      if ((ay > py) !== (by > py) && px < ax + (bx - ax) * (py - ay) / (by - ay)) inside = !inside;
+    }
+    return inside ? -d : d;
+  };
+}
+const STAR_PTS = Array.from({ length: 10 }, (_, k) => {
+  const r = k % 2 ? 5.6 : 13, a = -Math.PI / 2 + k * Math.PI / 5;
+  return [16 + r * Math.cos(a), 17 + r * Math.sin(a)];
+});
+const starDist = polyDist(STAR_PTS);
+// an anchor: ring, shank, stock, arms and flukes, as strokes
+function anchorDist(px, py) {
+  const w = 1.5;
+  let d = Math.abs(Math.hypot(px - 16, py - 6.5) - 2.6) - 1.1;
+  d = Math.min(d, segDist(px, py, 16, 9, 16, 26.5) - w, segDist(px, py, 10.5, 12.5, 21.5, 12.5) - w);
+  const r = Math.hypot(px - 16, py - 18), a = Math.atan2(py - 18, px - 16);
+  if (a > 0.3 && a < Math.PI - 0.3) d = Math.min(d, Math.abs(r - 9) - w);
+  const e1 = [16 + 9 * Math.cos(0.3), 18 + 9 * Math.sin(0.3)], e2 = [16 - 9 * Math.cos(0.3), e1[1]];
+  d = Math.min(d, segDist(px, py, e1[0], e1[1], e1[0] + 2.4, e1[1] - 3.6) - w, segDist(px, py, e2[0], e2[1], e2[0] - 2.4, e2[1] - 3.6) - w);
+  return d;
+}
+// crossed swords: blades, crossguards, grips and pommels
+function swordsDist(px, py) {
+  let d = Infinity;
+  for (const s of [1, -1]) {
+    const X = x => s > 0 ? x : 32 - x;
+    d = Math.min(d,
+      segDist(px, py, X(6), 6, X(21.5), 21.5) - 1.6,           // blade
+      segDist(px, py, X(17.5), 24.5, X(24.5), 17.5) - 1.3,     // crossguard
+      segDist(px, py, X(21.5), 21.5, X(25.5), 25.5) - 1.9,     // grip
+      Math.hypot(px - X(26.8), py - 26.8) - 2.1);              // pommel
+  }
+  return d;
+}
+function addImages() {
+  // (the triangle is walked tip -> upper corner -> lower corner: inside = every cross product <= 0)
+  map.addImage("arrow45", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.45)), { sdf: true, pixelRatio: 1 });
+  map.addImage("arrow40", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.40)), { sdf: true, pixelRatio: 1 });
+  map.addImage("arrow35", sdfImage(ARROW_PX, triangleDist(ARROW_PX, 0.35)), { sdf: true, pixelRatio: 1 });
+  map.addImage("dot", sdfImage(24, (x, y) => Math.hypot(x - 12, y - 12) - 5), { sdf: true, pixelRatio: 2 });
+  // notable events (stars, an anchor) and battles (swords): SDFs, so each takes its year's colour
+  map.addImage("nb-event", sdfImage(32, starDist), { sdf: true, pixelRatio: 2 });
+  map.addImage("nb-story", sdfImage(32, (x, y) => Math.abs(starDist(x, y) + 1.6) - 1.6), { sdf: true, pixelRatio: 2 });
+  map.addImage("nb-arrival", sdfImage(32, anchorDist), { sdf: true, pixelRatio: 2 });
+  map.addImage("swords", sdfImage(32, swordsDist), { sdf: true, pixelRatio: 2 });
+}
+
+// ---- data for the map, rebuilt when the target changes ----
+function routeFeatures() {
+  // same selection and order as before: relevant to the target; thickest first (bottom)
+  const inVisibleCluster = new Set();
+  for (const c of CLUSTERS) if (c._visMembers.length >= MIN_VISIBLE_CLUSTER_SIZE) for (const i of c._visMembers) inVisibleCluster.add(i);
+  const lines = [], arrows = [], edgeRoutes = new Map();
+  ROUTES.forEach((r, i) => {
+    if (!isRouteRelevant(r) || !routeInEra(i)) return;
+    const v = routeVia(i);
+    const rv = routeView(i);
+    const ll = v ? viaLL(v) : ROUTE_LL[i], color = colorForYear(rv.mean), w = lwFor(rv.count);
+    const props = { i, color, w, osc: !!r.oscillation,
+                    clustered: inVisibleCluster.has(i), sort: -rv.count };
+    if (v) {
+      // the network part is drawn as shared bands (bundleFeatures); here only the links at each end
+      for (const part of [v.h, v.t]) if (part.length)
+        lines.push({ type: "Feature", properties: props, geometry: { type: "LineString", coordinates: part.map(p => toLL(p[0], p[1])) } });
+      for (const e of v.e) { const k = Math.abs(e) - 1; if (!edgeRoutes.has(k)) edgeRoutes.set(k, []); edgeRoutes.get(k).push(i); }
+    } else
+      lines.push({ type: "Feature", id: i, properties: props, geometry: { type: "LineString", coordinates: ll } });
+    const alen = Math.max(9, w * 1.3);
+    const n = ll.length;
+    arrows.push({ type: "Feature", properties: { ...props, rot: bearingDeg(ll[n-2], ll[n-1]), size: alen / ARROW_LEN },
+                  geometry: { type: "Point", coordinates: ll[n-1] } });
+    if (r.oscillation)
+      arrows.push({ type: "Feature", properties: { ...props, rot: bearingDeg(ll[1], ll[0]), size: alen / ARROW_LEN },
+                    geometry: { type: "Point", coordinates: ll[0] } });
+  });
+  return { lines, arrows, edgeRoutes };
+}
+// A network edge used by several routes is one band, as wide as a cluster
+// band for that many ancestors, split lengthwise into one stripe per route in
+// its route colour, oldest on the left of the edge's direction, each as wide
+// as its share of the ancestors. Stripes keep their order along a corridor,
+// so a road used across two centuries reads as a band of colours.
+function bundleFeatures(edgeRoutes) {
+  const stripes = [], casings = [];
+  for (const [k, idxs] of edgeRoutes) {
+    idxs.sort((a, b) => routeView(a).mean - routeView(b).mean || a - b);
+    const P = idxs.reduce((s, i) => s + routeView(i).count, 0);
+    const W = Math.min(lwFor(P), aggLwFor(P));
+    const geometry = { type: "LineString", coordinates: CORR_EDGE_LL[k] };
+    let x = -W / 2;
+    for (const i of idxs) {
+      const sw = W * routeView(i).count / P;
+      stripes.push({ type: "Feature", properties: { edge: k, i, color: colorForYear(routeView(i).mean), sw, off: x + sw / 2 }, geometry });
+      x += sw;
+    }
+    casings.push({ type: "Feature", properties: { edge: k, w: W + 2 }, geometry });
+  }
+  return { stripes, casings };
+}
+function clusterFeatures() {
+  const lines = [], arrows = [];
+  CLUSTERS.forEach((c, ci) => {
+    if (c._visMembers.length < MIN_VISIBLE_CLUSTER_SIZE) return;
+    const meanYear = c._visYears.reduce((a, b) => a + b, 0) / c._visYears.length;
+    const color = colorForYear(meanYear), w = aggLwFor(c._visCount), ll = CLUSTER_LL[ci], n = ll.length;
+    lines.push({ type: "Feature", id: ci, properties: { ci, color, w }, geometry: { type: "LineString", coordinates: ll } });
+    arrows.push({ type: "Feature", properties: { color, rot: bearingDeg(ll[n-2], ll[n-1]), size: (7 + w * 0.5) / ARROW_LEN },
+                  geometry: { type: "Point", coordinates: ll[n-1] } });
+  });
+  return { lines, arrows };
+}
+// family places: labelled where a relevant route starts or ends, by tier, then how many routes touch them
+function placeFeatures() {
+  const keys = new Set();
+  for (const r of ROUTES) if (isRouteRelevant(r) && routeInEra(r._i)) {
+    const c = r.curve, ends = c.mode === "path" ? [c.coords[0], c.coords[c.coords.length-1]] : [[c.x1, c.y1], [c.x2, c.y2]];
+    for (const [x, y] of ends) keys.add(Math.round(x*10) + "," + Math.round(y*10));
+  }
+  return PLACES.filter(p => keys.has(Math.round(p.x*10) + "," + Math.round(p.y*10))).map(p => ({
+    type: "Feature", properties: { label: p.label, sort: p.tier * 100000 - p.touches },
+    geometry: { type: "Point", coordinates: toLL(p.x, p.y) } }));
+}
+// the focused thread: every segment, its arrowhead and its start dot
+function threadFeatures() {
+  const lines = [], arrows = [], dots = [];
+  (currentFocusSegs || []).forEach((s, i) => {
+    const v = segVia(s);
+    const ll = v ? viaLL(v) : s.waypts ? s.waypts.map(p => toLL(p[0], p[1]))
+      : s.ocean ? straightLL(s.x1, s.y1, s.x2, s.y2)
+      : curveLL({ mode: "bow", x1: s.x1, y1: s.y1, cx: s.cx, cy: s.cy, x2: s.x2, y2: s.y2 });
+    const hovered = i === hoveredSegIdx, n = ll.length;
+    const props = { i, color: colorForYear(s.year), hovered, dim: hoveredSegIdx >= 0 && !hovered };
+    lines.push({ type: "Feature", properties: props, geometry: { type: "LineString", coordinates: ll } });
+    arrows.push({ type: "Feature", properties: { ...props, rot: bearingDeg(ll[n-2], ll[n-1]), size: (hovered ? 12 : 9) / ARROW_LEN },
+                  geometry: { type: "Point", coordinates: ll[n-1] } });
+    dots.push({ type: "Feature", properties: { hovered }, geometry: { type: "Point", coordinates: ll[0] } });
+  });
+  return { lines, arrows, dots };
+}
+const fc = features => ({ type: "FeatureCollection", features });
+
+// ---- layers ----
+let mapReady = false;
+function addMapLayers() {
+  addImages();
+  const firstLabel = map.getStyle().layers.find(l => l.type === "symbol" && /place|label|name/i.test(l.id));
+  const before = firstLabel && firstLabel.id;
+  // terrain shading, from free elevation tiles (Mapzen/Terrarium, AWS Open Data)
+  map.addSource("dem", { type: "raster-dem", encoding: "terrarium", tileSize: 256, maxzoom: 13,
+    tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+    attribution: '<a href="https://registry.opendata.aws/terrain-tiles/">Terrain: Mapzen / AWS Open Data</a>' });
+  map.addLayer({ id: "hillshade", type: "hillshade", source: "dem",
+    paint: { "hillshade-exaggeration": 0.45, "hillshade-shadow-color": "#473b2e",
+             "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#5c4d3c" } },
+    map.getStyle().layers.find(l => l.type === "symbol")?.id);
+  // County-level lines: US counties (Census 1:500k) and first-level divisions
+  // elsewhere, from basemap/county_lines.js (built by pipeline/basemap/),
+  // preloaded when the browser is idle after startup, or at 4x if sooner. (OpenFreeMap's own tiles only
+  // carry county boundaries from about zoom 10, i.e. ~150x here.)
+  map.addSource("counties", { type: "geojson", data: fc([]) });
+  map.addLayer({ id: "county-lines", type: "line", source: "counties", minzoom: kToZoom(COUNTY_MIN_K),
+    paint: { "line-color": "#a09aa8", "line-width": 0.7, "line-opacity": 0.55 } }, before);
+
+  // the likely-routes networks' credits show while their bands are on the map
+  const LIKELY_CREDIT = 'Likely routes: railroads from <a href="https://my.vanderbilt.edu/jeremyatack/data-downloads/">J. Atack, ' +
+    'Historical GIS of U.S. Railroads</a>; highways from <a href="https://www.naturalearthdata.com/">Natural Earth</a>';
+  for (const id of ["routes", "route-arrows", "bundles", "bundle-casings", "clusters", "cluster-arrows", "places", "thread", "thread-arrows", "thread-dots", "stationary", "target"])
+    map.addSource(id, id === "bundles" ? { type: "geojson", data: fc([]), attribution: LIKELY_CREDIT } : { type: "geojson", data: fc([]) });
+
+  // (which routes a cluster band hides is switched by applyAggregation as the zoom changes)
+  const notHiddenByCluster = ["!", ["get", "clustered"]];
+  const lineLayout = { "line-cap": "round", "line-join": "round", "line-sort-key": ["get", "sort"] };
+  // routes (hidden while a thread is focused; the dimmed layer shows them then)
+  map.addLayer({ id: "routes-plain", type: "line", source: "routes",
+    filter: notHiddenByCluster,
+    layout: lineLayout, paint: { "line-color": ["get", "color"], "line-opacity": 0.72, "line-width": ["get", "w"] } }, before);
+  // likely routes: shared corridor bands (a pale casing, then the stripes)
+  map.addLayer({ id: "bundle-casings", type: "line", source: "bundle-casings", layout: { "line-join": "round", "line-cap": "butt" },
+    paint: { "line-color": "#ffffff", "line-opacity": 0.55, "line-width": ["get", "w"] } }, before);
+  map.addLayer({ id: "bundles", type: "line", source: "bundles", layout: { "line-join": "round", "line-cap": "butt" },
+    paint: { "line-color": ["get", "color"], "line-opacity": 0.9, "line-width": ["get", "sw"], "line-offset": ["get", "off"] } }, before);
+  map.addLayer({ id: "bundles-dim", type: "line", source: "bundle-casings", layout: { "visibility": "none", "line-join": "round" },
+    paint: { "line-color": "#8a7248", "line-opacity": 0.12, "line-width": 1 } }, before);
+  map.addLayer({ id: "route-arrows", type: "symbol", source: "route-arrows", filter: notHiddenByCluster,
+    layout: { "icon-image": "arrow45", "icon-size": ["get", "size"], "icon-rotate": ["get", "rot"], "icon-anchor": "right",
+              "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true },
+    paint: { "icon-color": ["get", "color"], "icon-opacity": 0.95 } }, before);
+  // cluster bands, drawn over the routes below the aggregation zoom
+  map.addLayer({ id: "clusters", type: "line", source: "clusters",
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": ["get", "color"], "line-opacity": 0.8, "line-width": ["get", "w"] } }, before);
+  map.addLayer({ id: "cluster-arrows", type: "symbol", source: "cluster-arrows",
+    layout: { "icon-image": "arrow35", "icon-size": ["get", "size"], "icon-rotate": ["get", "rot"], "icon-anchor": "right",
+              "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true },
+    paint: { "icon-color": ["get", "color"], "icon-opacity": 0.9 } }, before);
+  // dimmed context while a thread is focused
+  map.addLayer({ id: "routes-dim", type: "line", source: "routes", layout: { "visibility": "none", "line-join": "round" },
+    paint: { "line-color": "#8a7248", "line-opacity": 0.12, "line-width": 1 } }, before);
+  // the focused thread
+  map.addLayer({ id: "thread-glow", type: "line", source: "thread", filter: ["get", "hovered"],
+    layout: { "line-cap": "round" }, paint: { "line-color": ["get", "color"], "line-opacity": 0.35, "line-width": 13 } });
+  map.addLayer({ id: "thread", type: "line", source: "thread", layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": ["get", "color"], "line-opacity": ["case", ["get", "dim"], 0.45, 0.95],
+             "line-width": ["case", ["get", "hovered"], 6, 4] } });
+  map.addLayer({ id: "thread-arrows", type: "symbol", source: "thread-arrows",
+    layout: { "icon-image": "arrow40", "icon-size": ["get", "size"], "icon-rotate": ["get", "rot"], "icon-anchor": "right",
+              "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true },
+    paint: { "icon-color": ["get", "color"], "icon-opacity": ["case", ["get", "dim"], 0.45, 0.95] } });
+  map.addLayer({ id: "thread-dots", type: "circle", source: "thread-dots",
+    paint: { "circle-radius": ["case", ["get", "hovered"], 4.2, 2.6], "circle-color": "#2c2417" } });
+  map.addLayer({ id: "stationary", type: "circle", source: "stationary",
+    paint: { "circle-radius": 9, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#9c3c2e",
+             "circle-stroke-width": 2.5, "circle-stroke-opacity": 0.85 } });
+  map.addLayer({ id: "stationary-dot", type: "circle", source: "stationary",
+    paint: { "circle-radius": 3, "circle-color": "#9c3c2e", "circle-opacity": 0.85 } });
+  // known movements drawn faintly under the likely routes, when both layers are on
+  map.addSource("routes-ghost", { type: "geojson", data: fc([]) });
+  map.addLayer({ id: "routes-ghost", type: "line", source: "routes-ghost", layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": ["get", "color"], "line-opacity": 0.45, "line-width": 1.3, "line-dasharray": [2, 2] } }, "routes-plain");
+  // military service (drawn over the focused thread, so a life journey shows both)
+  for (const id of ["mil", "mil-arrows", "mil-stops"]) map.addSource(id, { type: "geojson", data: fc([]) });
+  const isRecord = ["==", ["get", "c"], "record"];
+  // military service: in the year's colour like everything else, but dotted,
+  // so it never reads as a migration (James chose dots over bars, 2026-09-27).
+  // Documented = larger dots; his regiment's = smaller; family account = faded; a guess = dashed.
+  const notGuess = ["!=", ["get", "c"], "conjecture"], faded = ["==", ["get", "c"], "family"];
+  map.addLayer({ id: "mil-lines", type: "line", source: "mil", filter: notGuess,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": ["get", "color"], "line-opacity": ["case", faded, 0.45, 1],
+             "line-width": ["case", isRecord, 5, 4], "line-dasharray": [0, 1.7] } });
+  map.addLayer({ id: "mil-guess", type: "line", source: "mil", filter: ["==", ["get", "c"], "conjecture"],
+    layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": 2.4, "line-dasharray": [2, 1.6] } });
+  map.addLayer({ id: "mil-arrows", type: "symbol", source: "mil-arrows",
+    layout: { "icon-image": "arrow40", "icon-size": ["get", "size"], "icon-rotate": ["get", "rot"], "icon-anchor": "right",
+              "icon-rotation-alignment": "map", "icon-allow-overlap": true, "icon-ignore-placement": true },
+    paint: { "icon-color": ["get", "color"], "icon-opacity": 0.95 } });
+  map.addLayer({ id: "mil-stops", type: "circle", source: "mil-stops",
+    paint: { "circle-radius": 3.6, "circle-color": "#ffffff", "circle-stroke-color": "#2c2417", "circle-stroke-width": 1.8 } });
+  // battles: crossed swords in the year's colour; hover or click lists who was there
+  map.addSource("battles", { type: "geojson", data: fc([]) });
+  map.addLayer({ id: "battles", type: "symbol", source: "battles",
+    layout: { "icon-image": "swords", "icon-allow-overlap": true, "icon-ignore-placement": true,
+              "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 1.15, 9, 1.8] },
+    paint: { "icon-color": ["get", "color"], "icon-halo-color": "#2c2417", "icon-halo-width": 1.4 } });
+  // notable events: a pin for each (arrivals smaller)
+  map.addSource("notable", { type: "geojson", data: fc([]) });
+  map.addLayer({ id: "notable", type: "symbol", source: "notable",
+    layout: { "icon-image": ["match", ["get", "k"], "arrival", "nb-arrival", "story", "nb-story", "nb-event"],
+              "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.9, 9, 1.3],
+              "icon-allow-overlap": true, "icon-ignore-placement": true },
+    paint: { "icon-color": ["get", "color"], "icon-halo-color": "#ffffff", "icon-halo-width": 1.4 } });
+  // family places (placed before the style's own labels, so they win
+  // collisions). Text needs the style's fonts, so the fallback map shows dots only.
+  map.addLayer({ id: "places", type: "symbol", source: "places",
+    layout: usingFallback
+      ? { "icon-image": "dot", "icon-size": 1, "symbol-sort-key": ["get", "sort"] }
+      : { "icon-image": "dot", "icon-size": 1, "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"],
+          "text-size": 12, "text-anchor": "bottom-left", "text-offset": [0.35, -0.1], "symbol-sort-key": ["get", "sort"],
+          "icon-allow-overlap": false },
+    paint: usingFallback ? { "icon-color": "#9c3c2e", "icon-opacity": 0.9 }
+      : { "icon-color": "#9c3c2e", "icon-opacity": 0.9, "text-color": "#2c2417",
+          "text-halo-color": "rgba(255,255,255,0.9)", "text-halo-width": 1.6 } });
+  // the target: ring and label at the birthplace
+  map.addLayer({ id: "target-ring", type: "circle", source: "target",
+    paint: { "circle-radius": 7, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#9c3c2e", "circle-stroke-width": 1.6 } });
+  if (!usingFallback) map.addLayer({ id: "target-label", type: "symbol", source: "target",
+    layout: { "text-field": ["get", "label"], "text-font": ["Noto Sans Italic"], "text-size": 15, "text-anchor": "left",
+              "text-offset": [0.8, 0], "text-allow-overlap": true, "text-ignore-placement": true },
+    paint: { "text-color": "#2c2417", "text-halo-color": "rgba(255,255,255,0.9)", "text-halo-width": 2 } });
+}
+
+// ---- fallback: our own simple map, if the OpenFreeMap style can't be loaded ----
+// Used when the style hasn't loaded after STYLE_TIMEOUT_MS or fails outright
+// (single tile errors don't count). Land, lakes, borders and major rivers come
+// from basemap/fallback.js (built by pipeline/basemap/build_basemap.py). No
+// fonts are available then, so the map itself carries no text; the panels,
+// search, tooltips and legend all still work.
+const STYLE_TIMEOUT_MS = 12000;
+let usingFallback = false;
+const FALLBACK_STYLE = { version: 8, name: "fallback", sources: {},
+  layers: [{ id: "background", type: "background", paint: { "background-color": "#a9c9e8" } }] };
+function decodeLL(e, q) {
+  const c = []; let x = 0, y = 0;
+  for (let i = 0; i < e.length; i += 2) {
+    if (i === 0) { x = e[0]; y = e[1]; } else { x += e[i]; y += e[i + 1]; }
+    c.push([x * q, y * q]);
+  }
+  return c;
+}
+function addFallbackLayers() {
+  const F = window.FALLBACK_MAP, q = F.quant;
+  // land and lakes: every ring drawn as its own polygon. That fills the few
+  // holes in the land outline (inland water) as land; the lakes layer then
+  // paints the lakes back over it -- good enough for an emergency fallback.
+  const polys = rings => ({ type: "Feature", properties: {},
+    geometry: { type: "MultiPolygon", coordinates: rings.map(e => [decodeLL(e, q)]) } });
+  const lines = ls => ({ type: "Feature", properties: {},
+    geometry: { type: "MultiLineString", coordinates: ls.map(e => decodeLL(e, q)) } });
+  map.addSource("fb-land", { type: "geojson", data: polys(F.land) });
+  map.addSource("fb-lakes", { type: "geojson", data: polys(F.lakes) });
+  map.addSource("fb-borders", { type: "geojson", data: lines(F.borders) });
+  map.addSource("fb-rivers", { type: "geojson", data: lines(F.rivers) });
+  map.addLayer({ id: "fb-land", type: "fill", source: "fb-land", paint: { "fill-color": "#f3efe6", "fill-outline-color": "#b4ab98" } });
+  map.addLayer({ id: "fb-rivers", type: "line", source: "fb-rivers", paint: { "line-color": "#a9c9e8", "line-width": 1 } });
+  map.addLayer({ id: "fb-lakes", type: "fill", source: "fb-lakes", paint: { "fill-color": "#a9c9e8", "fill-outline-color": "#8fb3d6" } });
+  map.addLayer({ id: "fb-borders", type: "line", source: "fb-borders",
+    paint: { "line-color": "#9e9cab", "line-width": 0.9, "line-dasharray": [3, 2] } });
+}
+function useFallbackMap(reason) {
+  if (usingFallback || mapReady) return;
+  usingFallback = true;
+  clearInterval(styleTimer);
+  console.warn("OpenFreeMap style unavailable (" + reason + "); using the built-in map.");
+  document.getElementById("map").insertAdjacentHTML("beforeend",
+    '<div id="fallback-note" style="position:absolute;bottom:36px;right:8px;z-index:3;background:rgba(255,255,255,0.85);' +
+    'padding:4px 8px;border-radius:4px;font:11px sans-serif;color:#6b5d43">Detailed map background unavailable — showing a simplified map</div>');
+  const s = document.createElement("script");
+  s.src = "basemap/fallback.js";
+  s.onload = () => {
+    map.once("style.load", () => { addFallbackLayers(); onStyleReady(); });
+    map.setStyle(FALLBACK_STYLE);
+  };
+  document.head.appendChild(s);
+}
+// Below AGGREGATE_ZOOM_THRESHOLD (4.5x) routes that belong to a cluster band
+// are hidden and the band is drawn instead; while a thread is focused, all
+// routes show (dimmed) and no bands. Filters change only when that flips.
+let aggregationShown = null;
+function applyAggregation(force) {
+  if (!mapReady) return;
+  const aggregating = !focusActive && currentTransform.k < AGGREGATE_ZOOM_THRESHOLD;
+  const key = aggregating + "|" + focusActive + "|" + showLikely + "|" + showKnown;
+  if (!force && key === aggregationShown) return;
+  aggregationShown = key;
+  const keep = aggregating ? ["!", ["get", "clustered"]] : true;
+  map.setFilter("routes-plain", keep);
+  map.setFilter("route-arrows", keep);
+  const moves = showLikely || showKnown;
+  const normal = focusActive || !moves ? "none" : "visible";
+  for (const id of ["routes-plain", "route-arrows", "bundles", "bundle-casings"])
+    map.setLayoutProperty(id, "visibility", normal);
+  map.setLayoutProperty("routes-ghost", "visibility", normal === "visible" && showLikely && showKnown ? "visible" : "none");
+  map.setLayoutProperty("bundles-dim", "visibility", focusActive && moves ? "visible" : "none");
+  for (const id of ["clusters", "cluster-arrows"]) map.setLayoutProperty(id, "visibility", aggregating && moves ? "visible" : "none");
+  map.setLayoutProperty("routes-dim", "visibility", focusActive && moves ? "visible" : "none");
+}
+
+// ---- keeping the map in step with the page's state ----
+// redrawAll() is what the rest of the page calls after changing the target,
+// the focus, the hovered move or the view; it pushes only what changed.
+let shownTarget = null, shownThread = null, shownLikely = null, shownEdgeRoutes = new Map(), shownMil = null, shownGhost = null, shownNotable = null;
+function redrawAll() {
+  if (!mapReady) return;
+  if (shownTarget !== CURRENT_TARGET + "|" + eraKey() || shownLikely !== likelyRoutes) {
+    shownTarget = CURRENT_TARGET + "|" + eraKey();
+    if (shownLikely !== likelyRoutes) shownThread = null;
+    shownLikely = likelyRoutes;
+    const r = routeFeatures(), c = clusterFeatures(), b = bundleFeatures(r.edgeRoutes);
+    shownEdgeRoutes = r.edgeRoutes;
+    map.getSource("routes").setData(fc(r.lines));
+    map.getSource("route-arrows").setData(fc(r.arrows));
+    map.getSource("bundles").setData(fc(b.stripes));
+    map.getSource("bundle-casings").setData(fc(b.casings));
+    map.getSource("clusters").setData(fc(c.lines));
+    map.getSource("cluster-arrows").setData(fc(c.arrows));
+    map.getSource("places").setData(fc(placeFeatures()));
+    const [tx, ty] = targetConvPoint();
+    map.getSource("target").setData({ type: "Feature", properties: { label: targetLabel() },
+                                      geometry: { type: "Point", coordinates: toLL(tx, ty) } });
+  }
+  const threadKey = focusActive ? [currentFocusSegs, hoveredSegIdx, focusedStationaryPoint] : null;
+  if (!threadKey || !shownThread || threadKey.some((v, i) => v !== shownThread[i])) {
+    shownThread = threadKey;
+    const t = focusActive ? threadFeatures() : { lines: [], arrows: [], dots: [] };
+    map.getSource("thread").setData(fc(t.lines));
+    map.getSource("thread-arrows").setData(fc(t.arrows));
+    map.getSource("thread-dots").setData(fc(t.dots));
+    const sp = focusActive && focusedStationaryPoint;
+    map.getSource("stationary").setData(fc(sp ? [{ type: "Feature", properties: {},
+      geometry: { type: "Point", coordinates: toLL(sp.x, sp.y) } }] : []));
+  }
+  const ghostKey = showLikely && showKnown ? CURRENT_TARGET + eraKey() : null;
+  if (ghostKey !== shownGhost) {
+    shownGhost = ghostKey;
+    const g = [];
+    if (ghostKey) ROUTES.forEach((r, i) => { if (isRouteRelevant(r) && routeVia(i) && routeInEra(i)) g.push({ type: "Feature",
+      properties: { color: colorForYear(routeView(i).mean) }, geometry: { type: "LineString", coordinates: ROUTE_LL[i] } }); });
+    map.getSource("routes-ghost").setData(fc(g));
+  }
+  const nbKey = [lifePerson, showNotable, CURRENT_TARGET, eraKey(), SURNAME_SET && SURNAME_SET.key, likelyRoutes].join("|");
+  if (nbKey !== shownNotable) {
+    shownNotable = nbKey;
+    const f = notableFeatures();
+    map.getSource("notable").setData(fc(f));
+    document.getElementById("legend").classList.toggle("notable", f.length > 0);
+  }
+  const milKey = [lifePerson, showMilitary, CURRENT_TARGET, eraKey(), SURNAME_SET && SURNAME_SET.key].join("|");
+  if (milKey !== shownMil) {
+    shownMil = milKey;
+    const m = militaryFeatures();
+    map.getSource("mil").setData(fc(m.lines));
+    map.getSource("mil-arrows").setData(fc(m.arrows));
+    map.getSource("mil-stops").setData(fc(m.stops));
+    map.getSource("battles").setData(fc(m.battles));
+    document.getElementById("legend").classList.toggle("mil", m.stops.length > 0);
+  }
+  applyAggregation();
+  updateZoomReadout();
+}
+const renderNow = redrawAll;
+function updateZoomReadout() {
+  zoomLevelEl.textContent = currentTransform.k.toFixed(1) + "×";
+  if (currentTransform.k >= COUNTY_MIN_K * 0.8) loadCountyLines();
+}
+// county-level lines, loaded once, just before they're first needed
+const COUNTY_MIN_K = 5;
+let countyLinesRequested = false;
+function loadCountyLines() {
+  if (countyLinesRequested || !mapReady) return;
+  countyLinesRequested = true;
+  const s = document.createElement("script");
+  s.src = "basemap/county_lines.js";
+  s.onload = () => {
+    const q = COUNTY_LINES.quant;
+    const features = COUNTY_LINES.lines.map(e => {
+      const c = []; let x = 0, y = 0;
+      for (let i = 0; i < e.length; i += 2) {
+        if (i === 0) { x = e[0]; y = e[1]; } else { x += e[i]; y += e[i + 1]; }
+        c.push([x * q, y * q]);
+      }
+      return { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: c } };
+    });
+    map.getSource("counties").setData(fc(features));
+  };
+  document.head.appendChild(s);
+}
+// label layout is MapLibre's now
+function updateLabels() {}
+function scheduleLabelUpdate() {}
+
+function setTarget(pid) {
+  if (!GRAPH.people[pid]) return;
+  CURRENT_TARGET = pid;
+  TARGET_ANCESTOR_SET = ancestorSetOf(pid); // includes pid itself
+  recomputeClusterVisibility();
+  // the default view says "Family History, Visualized"; a chosen person's, "Family History of X, Visualized"
+  const nm = GRAPH.people[pid].name;
+  const title = pid === GRAPH.james_id || nm === "Private" ? "Family History, Visualized" : `Family History of ${nm}, Visualized`;
+  document.title = title;
+  document.getElementById("page-title").textContent = title;
+  clearFocus();
+  redrawAll();
+}
+function targetConvPoint() {
+  const p = GRAPH.people[CURRENT_TARGET];
+  return (p && p.bx != null) ? [p.bx, p.by_y] : [-41.501, 22.557]; // fall back to Ithaca if birthplace unresolved
+}
+function targetLabel() {
+  const p = GRAPH.people[CURRENT_TARGET];
+  if (!p || p.name === "Private") return "";
+  return `${p.name}${p.by ? ", b. " + p.by : ""}`;
+}
+
+// ---- moving the view ----
+function lonLatBoundsOf(xys) {
+  let w = Infinity, e = -Infinity, s = Infinity, n = -Infinity;
+  for (const [x, y] of xys) { const [lon, lat] = toLL(x, y); w = Math.min(w, lon); e = Math.max(e, lon); s = Math.min(s, lat); n = Math.max(n, lat); }
+  return [[w, s], [e, n]];
+}
+// fit a set of moves (padded 15%, at least 3 units), between 1x and 20x as before
+function zoomToFitSegs(segs) {
+  if (!segs.length) return;
+  let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+  for (const s of segs) for (const [x,y] of [[s.x1,s.y1],[s.x2,s.y2]]) {
+    minX=Math.min(minX,x); maxX=Math.max(maxX,x); minY=Math.min(minY,y); maxY=Math.max(maxY,y);
+  }
+  const padX = Math.max((maxX-minX)*0.15, 3), padY = Math.max((maxY-minY)*0.15, 3);
+  const box = lonLatBoundsOf([[minX-padX, minY-padY], [maxX+padX, maxY+padY]]);
+  const cam = map.cameraForBounds(box);
+  const zoom = Math.max(kToZoom(1), Math.min(kToZoom(20), cam ? cam.zoom : Z1));
+  map.jumpTo({ center: cam ? cam.center : map.getCenter(), zoom });
+  redrawAll();
+}
+function zoomToPoint(x, y) { map.jumpTo({ center: toLL(x, y), zoom: kToZoom(8) }); redrawAll(); }
+// zoom by `factor` keeping the point under (mx, my) fixed (zoom buttons, cluster clicks)
+function applyZoomAt(mx, my, factor) {
+  const k1 = Math.max(1, Math.min(Math.pow(2, MAX_ZOOM - Z1), currentTransform.k * factor));
+  map.easeTo({ zoom: kToZoom(k1), around: map.unproject([mx, my]), duration: 250 });
+}
+function resetView() {
+  if (window.innerWidth <= 640) map.jumpTo({ center: MOBILE_VIEW.center, zoom: kToZoom(MOBILE_VIEW.k) });
+  else map.fitBounds(DEFAULT_BOUNDS, { duration: 0 });
+}
+
+// ---- hover and click: MapLibre finds the drawn features near the pointer ----
+const ROUTE_LAYERS = ["routes-plain"];
+function featuresNear(point, px, layers) {
+  const box = [[point.x - px, point.y - px], [point.x + px, point.y + px]];
+  return map.queryRenderedFeatures(box, { layers: layers.filter(id => map.getLayer(id)) });
+}
+function routesNear(point, px) {
+  const seen = new Set(), out = [];
+  for (const f of featuresNear(point, px, ROUTE_LAYERS)) {
+    const i = f.properties.i;
+    if (!seen.has(i)) { seen.add(i); out.push(ROUTES[i]); }
+  }
+  return out;
+}
+// a corridor band near the pointer: its edge and the routes on it, oldest first
+function bundleNear(point, px) {
+  const f = featuresNear(point, px, ["bundles", "bundle-casings"])[0];
+  if (!f) return null;
+  const k = f.properties.edge;
+  return { edge: CORRIDORS.edges[k], routes: (shownEdgeRoutes.get(k) || []).map(i => ROUTES[i]) };
+}
+function clusterNear(point, px) {
+  const f = featuresNear(point, px, ["clusters"])[0];
+  return f ? CLUSTERS[f.properties.ci] : null;
+}
+function threadSegsNear(point, px) {
+  const seen = new Set(), out = [];
+  for (const f of featuresNear(point, px, ["thread"])) {
+    const i = f.properties.i;
+    if (!seen.has(i) && currentFocusSegs && currentFocusSegs[i]) { seen.add(i); out.push(currentFocusSegs[i]); }
+  }
+  return out;
+}
+const MIL_LAYERS = ["mil-stops", "mil-lines", "mil-guess"];
+// who was at a battle, and on what evidence
+function battleHTML(name) {
+  const b = BATTLES_SHOWN[name]; if (!b) return "";
+  const rows = b.men.map(m => {
+    const e = MIL_DATA[m.pid][m.k], s = e.stops[m.i], r = relationOf(m.pid);
+    return `<li>${personLink(m.pid, (GRAPH.people[m.pid] || {}).name || "")}${r ? ` (${r})` : ""}<br>` +
+      `<span class="t-year">${e.unit} &middot; ${MIL_BASIS[s.c]}</span>${s.n ? `<br><span class="t-note">${s.n}</span>` : ""}</li>`;
+  }).join("");
+  return `<span class="t-name">${b.name}</span><span class="t-year">${b.date} &middot; ${b.men.length} ` +
+    `${b.men.length === 1 ? "ancestor" : "ancestors"} there</span><ul class="battle-list">${rows}</ul>`;
+}
+let battlePopup = null;
+function doHover(e) {
+  const pt = e.point, ev = e.originalEvent;
+  const bt = featuresNear(pt, 8, ["battles"])[0];
+  if (bt && battlePopup && battlePopup.isOpen()) { hideTip(); return; }   // its list is already pinned
+  if (bt) { tooltip.classed("t-multi", false); tooltip.html(battleHTML(bt.properties.b)); placeTip(ev); return; }
+  const nb = featuresNear(pt, 6, ["notable"]);
+  if (nb.length) { showNotableTip(ev, nb.map(f => f.properties.n)); return; }
+  const mil = featuresNear(pt, 7, MIL_LAYERS)[0];
+  if (mil) { showMilTip(ev, mil.properties, mil.layer.id === "mil-stops"); return; }
+  if (focusActive) {
+    // while a thread is focused only the highlighted line is hoverable
+    const hitSegs = threadSegsNear(pt, 8);
+    if (hitSegs.length > 1) showMultiSegTip(ev, hitSegs);
+    else if (hitSegs.length === 1) showSegTip(ev, hitSegs[0]);
+    else hideTip();
+    return;
+  }
+  const hitCluster = clusterNear(pt, 8);
+  if (hitCluster) { showClusterTip(ev, hitCluster); return; }
+  const matches = routesNear(pt, 7);
+  if (matches.length > 1) { showMultiTip(ev, matches); return; }
+  if (matches.length === 1) { showTip(ev, matches[0]); return; }
+  const band = bundleNear(pt, 4);
+  if (band) showCorridorTip(ev, band); else hideTip();
+}
+function handleClick(e) {
+  const pt = e.point;
+  closeRoutePicker();
+  const bt = featuresNear(pt, 8, ["battles"])[0];
+  if (bt) {                              // a battle: pin the list of who was there
+    hideTip();
+    if (battlePopup) battlePopup.remove();
+    battlePopup = new maplibregl.Popup({ maxWidth: "320px", className: "battle-popup", offset: 12 })
+      .setLngLat(bt.geometry.coordinates).setHTML(battleHTML(bt.properties.b)).addTo(map);
+    return;
+  }
+  const mil = featuresNear(pt, 7, MIL_LAYERS)[0];
+  if (mil) { hideTip(); openProfile(mil.properties.pid); return; }
+  const nb = featuresNear(pt, 6, ["notable"]);
+  if (nb.length) {                       // pin the event with links to its people
+    hideTip();
+    if (battlePopup) battlePopup.remove();
+    battlePopup = new maplibregl.Popup({ maxWidth: "320px", className: "battle-popup", offset: 10 })
+      .setLngLat(nb[0].geometry.coordinates).setHTML(notableHTML(nb.map(f => f.properties.n), true)).addTo(map);
+    return;
+  }
+  const hitCluster = clusterNear(pt, 9);
+  if (hitCluster) {
+    // zoom in just past the aggregation threshold, centred where you clicked,
+    // so the individual lines it represents reveal themselves
+    applyZoomAt(pt.x, pt.y, (AGGREGATE_ZOOM_THRESHOLD + 1.5) / currentTransform.k);
+    return;
+  }
+  let matches = routesNear(pt, 8);
+  if (!matches.length) { const band = bundleNear(pt, 5); if (band) matches = band.routes; }
+  if (matches.length > 1) { showRoutePicker(matches); return; }
+  const best = matches[0];
+  if (best && best.anchor) focusThread(best.anchor);
+  else if (focusActive) clearFocus(); // clicked empty space while focused -> clear
+}
+let hoverScheduled = false, lastHover = null;
+map.on("mousemove", e => {
+  lastHover = e;
+  if (hoverScheduled) return;
+  hoverScheduled = true;
+  requestAnimationFrame(() => { hoverScheduled = false; if (!map.isMoving()) doHover(lastHover); });
+});
+map.on("mouseout", () => hideTip());
+map.on("movestart", () => hideTip());
+map.on("click", handleClick);
+map.on("zoom", () => { updateZoomReadout(); applyAggregation(); });
+
+document.getElementById("zoomIn").onclick = () => { const c = map.getContainer(); applyZoomAt(c.clientWidth/2, c.clientHeight/2, 1.6); };
+document.getElementById("zoomOut").onclick = () => { const c = map.getContainer(); applyZoomAt(c.clientWidth/2, c.clientHeight/2, 1/1.6); };
+document.getElementById("zoomReset").onclick = () => { resetView(); redrawAll(); };
+map.on("resize", () => { computeZ1(); applyAggregation(true); updateZoomReadout(); });
+
+// Once a style is ready (Liberty, or the fallback): our layers, then draw.
+function onStyleReady() {
+  if (mapReady) return;
+  clearInterval(styleTimer);
+  computeZ1();
+  if (window.innerWidth <= 640) resetView();
+  addMapLayers();
+  mapReady = true;
+  redrawAll();
+  // fetch the county lines once the page has settled, so the first zoom past
+  // 5x doesn't stall while 36,000 lines are downloaded and prepared
+  (window.requestIdleCallback || (f => setTimeout(f, 1)))(() => setTimeout(loadCountyLines, 2500));
+}
+map.on("load", () => { if (!usingFallback) onStyleReady(); });
+// the style itself failing (not a single tile: those carry a sourceId) -> fallback
+map.on("error", e => {
+  if (!mapReady && !usingFallback && e && !e.sourceId) useFallbackMap(String((e.error && e.error.message) || "error"));
+});
+// The timeout counts only time the page is visible: a hidden tab doesn't draw,
+// so the style can't finish loading there however healthy OpenFreeMap is.
+let styleWaited = 0, styleLast = performance.now();
+const styleTimer = setInterval(() => {
+  const now = performance.now();
+  if (document.visibilityState === "visible") styleWaited += Math.min(now - styleLast, 1000);
+  styleLast = now;
+  if (styleWaited >= STYLE_TIMEOUT_MS) useFallbackMap("timed out");
+}, 250);
+
+
+let focusedAnchor = null; // person_id currently focused, or null
+
+let focusActive = false;
+let SURNAME_SET = null;  // Surname mode: the people with that surname (military and notable show only theirs)
+let lifePerson = null;    // the person shown in Life journey: their military service is drawn
+let showMilitary = true;  // the legend's Military service toggle, on by default (James); set up near the end
+
+const AGGREGATE_ZOOM_THRESHOLD = 4.5;
+const MIN_VISIBLE_CLUSTER_SIZE = 2; // matches server-side MIN_CLUSTER_SIZE
+function aggLwFor(count) { return 3 + Math.sqrt(count) * 2.1; }
+
+// Single shared definition of "is this route part of the current target's
+// story" -- used everywhere routes get filtered, so the ancestor-set check
+// and the per-target culmination check can't drift out of sync across
+// the different places that need them (main render, clusters, labels).
+// ---- Time period: a filter on everything drawn (moves, military service,
+// notable events), not a separate view. ERA = [from, to] or null. ----
+let ERA = null;
+const eraKey = () => ERA ? ERA.join("-") : "";
+const inEra = y => !ERA || (y != null && y >= ERA[0] && y <= ERA[1]);
+// a route is in the period if any of its moves (by the target's ancestors) is
+function routeInEra(i) {
+  if (!ERA) return true;
+  const v = routeView(i);
+  return v.max >= ERA[0] && v.min <= ERA[1];
+}
+function isRouteRelevant(r) {
+  if (r.anchor_ids && r.anchor_ids.length) {
+    for (const pid of r.anchor_ids) if (TARGET_ANCESTOR_SET.has(pid)) return true;
+    return false;
+  }
+  return !!r.anchor && TARGET_ANCESTOR_SET.has(r.anchor);
+}
+
+// Recomputed only when the target changes (not per-frame): for each cluster,
+// which of its member routes are actually relevant to the current target,
+// and what the aggregate's stats look like for just that subset -- so the
+// "37 ancestors" a cluster claims stays accurate rather than always
+// reflecting the full James-rooted total regardless of target.
+// A route bundles everyone in the tree who made the same move (Margaret's
+// whole ancestry). For the current target it should describe only the
+// target's own ancestors: their names, how many, their years, and so the
+// route's colour and width. Recomputed when the target changes.
+let routeViewCache = new Map();
+function routeView(i) {
+  let v = routeViewCache.get(i);
+  if (v) return v;
+  const r = ROUTES[i];
+  const all = r.anchor_ids && r.anchor_ids.length ? r.anchor_ids : (r.anchor ? [r.anchor] : []);
+  const ids = all.filter(id => TARGET_ANCESTOR_SET.has(id));
+  if (ids.length === all.length) {
+    v = { people: r.people, count: r.count, min: r.min_year, max: r.max_year, mean: r.mean_year, names: null };
+  } else {
+    // this route's moves by those people: same places (either way for a back-and-forth), same years
+    const years = [];
+    for (const id of ids) for (const l of (PERSON_LEGS[id] || [])) {
+      const same = (l.from === r.from && l.to === r.to) || (r.oscillation && l.from === r.to && l.to === r.from);
+      if (same && l.year >= r.min_year && l.year <= r.max_year) years.push(l.year);
+    }
+    const names = ids.map(id => (GRAPH.people[id] || {}).name).filter(Boolean);
+    v = years.length
+      ? { people: names, count: years.length, min: Math.min(...years), max: Math.max(...years),
+          mean: years.reduce((a, b) => a + b, 0) / years.length, names: new Set(names) }
+      : { people: names, count: Math.max(1, ids.length), min: r.min_year, max: r.max_year, mean: r.mean_year, names: new Set(names) };
+  }
+  routeViewCache.set(i, v);
+  return v;
+}
+// keep a route note's names (military, relatives) to the target's ancestors
+const viewNames = (d, list) => { const v = routeView(d._i); return v.names ? list.filter(n => v.names.has(n)) : list; };
+
+function recomputeClusterVisibility() {
+  routeViewCache = new Map();
+  for (const c of CLUSTERS) {
+    const vis = c.members.filter(idx => isRouteRelevant(ROUTES[idx]) && !routeVia(idx) && routeInEra(idx));
+    c._visMembers = vis;
+    c._visCount = vis.reduce((s,idx) => s + routeView(idx).count, 0);
+    c._visYears = vis.length ? vis.map(idx => routeView(idx).mean) : [c.mean_year];
+  }
+}
+
+let hoveredSegIdx = -1;
+let currentFocusSegs = null;
+
+function computeFocusSegs(pid) {
+  const ancestorsPart = deepestAncestorChain(pid).slice().reverse(); // oldest -> pid
+  const toTargetPart = findPath(pid, CURRENT_TARGET);
+  const fullChain = toTargetPart ? ancestorsPart.concat(toTargetPart.slice(1)) : ancestorsPart;
+  return assemblePath(fullChain);
+}
+
+// Renders any already-assembled chain of people as the focused thread --
+// shared by click-to-anchor (chain = deepest ancestors -> target) and the
+// explicit path-between-two-people tool (chain = findPath(A,B) directly).
+function renderFocusedChain(segs, titleHTML, peopleLabel) {
+  peopleLabel = peopleLabel || "generation";
+  currentFocusSegs = segs;
+  focusActive = segs.length > 0;
+  const years = segs.map(s=>s.year);
+  const people = [...new Set(segs.map(s=>s.person))];
+  document.getElementById("focus-title").innerHTML = titleHTML;
+  document.getElementById("focus-sub").innerHTML =
+    (years.length ? `${Math.min(...years)}\u2013${Math.max(...years)} \u00b7 ${people.length} ${peopleLabel}${people.length!==1?'s':''} \u00b7 ${segs.length} moves` : "") +
+    ` <span class="chevron">\u25be</span>`;
+  document.getElementById("focus-panel").classList.add("active");
+  buildFocusDropdown(segs);
+  closeFocusDropdown();
+  redrawAll();
+}
+
+let focusedStationaryPoint = null; // {x,y,label} when the focused person has no moves of their own
+
+function focusThread(pid) {
+  focusedAnchor = pid;
+  const segs = computeFocusSegs(pid);
+  const people = [...new Set(segs.map(s=>s.person))];
+  const targetName = (GRAPH.people[CURRENT_TARGET] || {}).name || "?";
+  const person = GRAPH.people[pid] || {};
+  const hasOwnMoves = PERSON_LEGS[pid] && PERSON_LEGS[pid].length > 0;
+  focusedStationaryPoint = (!hasOwnMoves && person.fx != null)
+    ? { x: person.fx, y: person.fy, label: person.name }
+    : null;
+  let title;
+  if (people.length) {
+    title = `${people[0]} \u2192 \u2026 \u2192 ${targetName}`;
+  } else if (person.name) {
+    title = person.fx != null
+      ? `${person.name} \u2014 no recorded moves (lived at one known location)`
+      : `${person.name} \u2014 no location data recorded`;
+  } else {
+    title = "";
+  }
+  renderFocusedChain(segs, title);
+}
+
+
+function buildFocusDropdown(segs) {
+  const dd = document.getElementById("focus-dropdown");
+  dd.innerHTML = "";
+  segs.forEach((s, i) => {
+    const row = document.createElement("div");
+    row.className = "move-row";
+    const color = colorForYear(s.year);
+    row.innerHTML =
+      `<span class="move-bar" style="background:${color}"></span>` +
+      `<span><span class="move-person">${s.person}</span> &mdash; <span class="move-place">${s.from} \u2192 ${s.to}</span> <span class="move-year">(arrived ${s.year})</span></span>`;
+    row.addEventListener("mouseenter", () => { hoveredSegIdx = i; redrawAll(); });
+    row.addEventListener("mouseleave", () => { hoveredSegIdx = -1; redrawAll(); });
+    dd.appendChild(row);
+  });
+}
+
+function toggleFocusDropdown() {
+  const dd = document.getElementById("focus-dropdown");
+  const sub = document.getElementById("focus-sub");
+  const opening = !dd.classList.contains("active");
+  dd.classList.toggle("active", opening);
+  sub.classList.toggle("open", opening);
+  if (!opening) { hoveredSegIdx = -1; redrawAll(); }
+}
+function closeFocusDropdown() {
+  document.getElementById("focus-dropdown").classList.remove("active");
+  document.getElementById("focus-sub").classList.remove("open");
+  hoveredSegIdx = -1;
+}
+document.getElementById("focus-sub").addEventListener("click", (e) => { e.stopPropagation(); toggleFocusDropdown(); });
+
+function clearFocus() {
+  focusedAnchor = null;
+  lifePerson = null;
+  focusActive = false;
+  hoveredSegIdx = -1;
+  currentFocusSegs = null;
+  focusedStationaryPoint = null;
+  document.getElementById("focus-panel").classList.remove("active");
+  closeFocusDropdown();
+  redrawAll();
+}
+document.getElementById("focus-clear").onclick = clearFocus;
+
+const searchInput = document.getElementById("search-input");
+const searchResults = document.getElementById("search-results");
+let searchSelIdx = -1, searchMatches = [];
+
+function runSearch(q) {
+  q = q.trim().toLowerCase();
+  searchResults.innerHTML = "";
+  searchSelIdx = -1;
+  if (!q) { searchResults.classList.remove("active"); return; }
+  searchMatches = SEARCH_INDEX.filter(p => p.nameLower.includes(q)).slice(0, 25);
+  if (!searchMatches.length) {
+    searchResults.innerHTML = '<div class="sr-empty">No ancestor matches "' + q.replace(/</g,"") + '"</div>';
+    searchResults.classList.add("active");
+    return;
+  }
+  searchMatches.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "sr-item";
+    row.setAttribute("role","option");
+    row.innerHTML = `<span>${p.name}${p.birt ? ` <span class="sr-years">b. ${p.birt}</span>` : ""}</span><button class="sr-prof" title="Profile" aria-label="Profile of ${p.name.replace(/"/g, "")}">i</button>`;
+    row.addEventListener("click", () => selectSearchResult(i));
+    row.querySelector(".sr-prof").addEventListener("click", ev => { ev.stopPropagation(); searchResults.classList.remove("active"); openProfile(p.id); });
+    searchResults.appendChild(row);
+  });
+  searchResults.classList.add("active");
+}
+let searchMode = "target"; // "target" | "life" | "path" | "era"
+let pathPickA = null;
+
+function updatePathStatus() {
+  const el = document.getElementById("path-status");
+  if (searchMode !== "path") { el.classList.remove("active"); return; }
+  el.classList.add("active");
+  if (!pathPickA) {
+    el.innerHTML = "Pick the first person...";
+    searchInput.placeholder = "Find the first person...";
+  } else {
+    const nameA = (GRAPH.people[pathPickA]||{}).name || "?";
+    el.innerHTML = `From <b>${nameA}</b> \u2014 now pick the second person... <span class="clear-path">cancel</span>`;
+    el.querySelector(".clear-path").onclick = () => { pathPickA = null; updatePathStatus(); };
+    searchInput.placeholder = "Find the second person...";
+  }
+}
+
+// one person's own moves, service and events (Life journey)
+function showLifeJourney(pid) {
+  const p = { id: pid, name: (GRAPH.people[pid] || {}).name || "" };
+  const segs = assemblePath([p.id]);
+  const person = GRAPH.people[p.id] || {};
+  focusedAnchor = null;
+  const hasOwnMoves = PERSON_LEGS[p.id] && PERSON_LEGS[p.id].length > 0;
+  focusedStationaryPoint = (!hasOwnMoves && person.fx != null) ? { x: person.fx, y: person.fy, label: p.name } : null;
+  lifePerson = p.id;
+  const service = MIL_DATA[p.id];
+  const serviceSegs = (service ? service.flatMap(e => e.stops.map(s => ({ x1: s.x, y1: s.y, x2: s.x, y2: s.y }))) : [])
+    .concat(NB_EVENTS.filter(e => e.p.includes(p.id)).map(e => ({ x1: e.x, y1: e.y2, x2: e.x, y2: e.y2 })));
+  if (hasOwnMoves) {
+    zoomToFitSegs(segs.concat(serviceSegs));
+    renderFocusedChain(segs, `${p.name}'s life journey${service ? " and military service" : ""}`);
+  } else if (serviceSegs.length) {
+    zoomToFitSegs(serviceSegs);
+    renderFocusedChain([], `${p.name}'s military service`);
+  } else if (person.fx != null) {
+    zoomToPoint(person.fx, person.fy);
+    renderFocusedChain([], `${p.name} \u2014 no recorded moves (lived at one known location)`);
+  } else {
+    renderFocusedChain([], `${p.name} \u2014 no location data recorded`);
+  }
+}
+function selectSearchResult(i) {
+  const p = searchMatches[i];
+  if (!p) return;
+  searchResults.classList.remove("active");
+  if (searchMode === "target") {
+    searchInput.value = "";
+    setTarget(p.id);
+  } else if (searchMode === "life") {
+    searchInput.value = "";
+    showLifeJourney(p.id);
+    openProfile(p.id);
+  } else if (searchMode === "path") {
+    if (!pathPickA) {
+      pathPickA = p.id;
+      searchInput.value = "";
+      updatePathStatus();
+    } else {
+      const idB = p.id;
+      searchInput.value = "";
+      const chain = findPath(pathPickA, idB);
+      const segs = chain ? assemblePath(chain) : [];
+      if (segs.length) zoomToFitSegs(segs);
+      const nameA = (GRAPH.people[pathPickA]||{}).name || "?", nameB = (GRAPH.people[idB]||{}).name || "?";
+      focusedAnchor = null;
+      focusedStationaryPoint = null;
+      let title;
+      if (segs.length) title = `${nameA} \u2192 \u2026 \u2192 ${nameB}`;
+      else if (chain) title = `${nameA} and ${nameB} are related, but no one in between has any recorded moves`;
+      else title = "No connection found between these two people";
+      renderFocusedChain(segs, title);
+      pathPickA = null;
+      updatePathStatus();
+    }
+  }
+}
+document.querySelectorAll(".mode-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    searchMode = btn.dataset.mode;
+    pathPickA = null;
+    if (searchMode !== "life" && lifePerson) { lifePerson = null; redrawAll(); }
+    if (searchMode !== "surname" && SURNAME_SET) { SURNAME_SET = null; if (focusActive) clearFocus(); redrawAll(); }
+    if (searchMode !== "era" && ERA) { if (playInterval) stopPlayback(); setEra(null); }
+    updatePathStatus();
+    const isEra = searchMode === "era";
+    const isSurname = searchMode === "surname";
+    searchInput.style.display = (isEra || isSurname) ? "none" : "";
+    document.getElementById("year-range-box").style.display = isEra ? "flex" : "none";
+    document.getElementById("era-person-filter").style.display = isEra ? "block" : "none";
+    surnameInput.style.display = isSurname ? "" : "none";
+    if (isEra) {
+      searchResults.classList.remove("active");
+      yearFromInput.focus();
+    } else if (isSurname) {
+      searchResults.classList.remove("active");
+      surnameInput.focus();
+    } else {
+      searchInput.placeholder = searchMode === "target" ? "Show family history of..."
+        : searchMode === "life" ? "Find someone to see their life journey..." : "Find the first person...";
+      searchInput.focus();
+    }
+  });
+});
+searchInput.addEventListener("input", () => runSearch(searchInput.value));
+searchInput.addEventListener("keydown", (e) => {
+  const rows = searchResults.querySelectorAll(".sr-item");
+  if (e.key === "ArrowDown") { e.preventDefault(); searchSelIdx = Math.min(searchSelIdx+1, rows.length-1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); searchSelIdx = Math.max(searchSelIdx-1, 0); }
+  else if (e.key === "Enter") { if (searchSelIdx>=0) selectSearchResult(searchSelIdx); return; }
+  else if (e.key === "Escape") { searchResults.classList.remove("active"); searchInput.blur(); return; }
+  else return;
+  rows.forEach((r,i) => r.classList.toggle("sel", i===searchSelIdx));
+  if (rows[searchSelIdx]) rows[searchSelIdx].scrollIntoView({block:"nearest"});
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#search-box")) searchResults.classList.remove("active");
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#route-picker") && !e.target.closest("#map")) closeRoutePicker();
+});
+
+// --- Time period mode: highlight every voyage whose arrival year falls
+// within the entered range, using the same dim-everything-else rendering
+// as Path between (renderFocusedChain), but sourced from every person's
+// legs rather than one connected genealogical chain. ---
+const yearFromInput = document.getElementById("year-from");
+const yearToInput = document.getElementById("year-to");
+let yearRangeDebounce = null;
+let eraPersonFilterID = null;
+
+function applyYearRange() {
+  const fromVal = yearFromInput.value.trim(), toVal = yearToInput.value.trim();
+  if (!fromVal || !toVal) { return; } // wait for both bounds before filtering anything
+  let a = parseInt(fromVal, 10), b = parseInt(toVal, 10);
+  if (isNaN(a) || isNaN(b)) return;
+  setEra([Math.min(a, b), Math.max(a, b)]);   // forgiving of bounds entered backwards
+}
+// the view stays where the viewer left it (James, 2026-09-25): no fitting to each window
+function setEra(range) {
+  ERA = range;
+  if (focusActive) clearFocus();
+  recomputeClusterVisibility();
+  hideTip();
+  const span = document.getElementById("year-span") || { set textContent(v) {} };   // removed from the header (James)
+  span.textContent = ERA ? `showing ${ERA[0]}\u2013${ERA[1]}` : `${Math.floor(YEAR_MIN)}\u2013${Math.ceil(YEAR_MAX)}`;
+  redrawAll();
+}
+function scheduleYearRangeApply() {
+  if (playInterval) stopPlayback();
+  clearTimeout(yearRangeDebounce);
+  yearRangeDebounce = setTimeout(applyYearRange, 500);
+}
+[yearFromInput, yearToInput].forEach(inp => {
+  inp.addEventListener("input", scheduleYearRangeApply);
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { clearTimeout(yearRangeDebounce); applyYearRange(); inp.blur(); }
+  });
+});
+
+// Playback: always sweeps the *full* timeline from its earliest year,
+// using whatever window width is currently set (or a sensible default if
+// empty) -- it does not continue from wherever the user's own from/to
+// happen to be, since that would drag a manually-chosen period toward the
+// present rather than showing the intended "watch it unfold" sweep.
+const playBtn = document.getElementById("era-play-btn");
+const MAP_MIN_YEAR = Math.floor(YEAR_MIN), MAP_MAX_YEAR = Math.ceil(YEAR_MAX);  // derived from the data so playback never stops short
+const PLAY_STEP_YEARS = 2, PLAY_TICK_MS = 200;
+let playInterval = null;
+function startPlayback() {
+  let a = parseInt(yearFromInput.value, 10), b = parseInt(yearToInput.value, 10);
+  const width = (!isNaN(a) && !isNaN(b)) ? Math.max(Math.abs(b - a), 1) : 25;
+  yearFromInput.value = MAP_MIN_YEAR;
+  yearToInput.value = MAP_MIN_YEAR + width;
+  applyYearRange();
+  playBtn.textContent = "\u23F8";
+  playBtn.title = "Pause";
+  playBtn.classList.add("playing");
+  playInterval = setInterval(() => {
+    let from = parseInt(yearFromInput.value, 10) + PLAY_STEP_YEARS;
+    let to = parseInt(yearToInput.value, 10) + PLAY_STEP_YEARS;
+    if (to >= MAP_MAX_YEAR) { to = MAP_MAX_YEAR; from = to - width; stopPlayback(); }
+    yearFromInput.value = from;
+    yearToInput.value = to;
+    applyYearRange();
+  }, PLAY_TICK_MS);
+}
+function stopPlayback() {
+  if (playInterval) { clearInterval(playInterval); playInterval = null; }
+  playBtn.textContent = "\u25B6";
+  playBtn.title = "Play: sweep this range forward through time";
+  playBtn.classList.remove("playing");
+}
+playBtn.addEventListener("click", () => { if (playInterval) stopPlayback(); else startPlayback(); });
+
+// optional person filter within Time period mode: a small, self-contained
+// search (separate from the main search-input, which is hidden in this mode)
+const eraPersonInput = document.getElementById("era-person-input");
+const eraPersonResults = document.getElementById("era-person-results");
+const eraPersonChip = document.getElementById("era-person-chip");
+const eraPersonChipName = document.getElementById("era-person-chip-name");
+let eraPersonMatches = [], eraPersonSelIdx = -1;
+
+function runEraPersonSearch(q) {
+  q = q.trim().toLowerCase();
+  eraPersonResults.innerHTML = "";
+  eraPersonSelIdx = -1;
+  if (!q) { eraPersonResults.classList.remove("active"); return; }
+  eraPersonMatches = SEARCH_INDEX.filter(p => p.nameLower.includes(q)).slice(0, 25);
+  if (!eraPersonMatches.length) {
+    eraPersonResults.innerHTML = '<div class="sr-empty">No ancestor matches "' + q.replace(/</g,"") + '"</div>';
+    eraPersonResults.classList.add("active");
+    return;
+  }
+  eraPersonMatches.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "sr-item";
+    row.setAttribute("role","option");
+    row.innerHTML = `${p.name}${p.birt ? ` <span class="sr-years">b. ${p.birt}</span>` : ""}`;
+    row.addEventListener("click", () => selectEraPerson(i));
+    eraPersonResults.appendChild(row);
+  });
+  eraPersonResults.classList.add("active");
+}
+function selectEraPerson(i) {
+  const p = eraPersonMatches[i];
+  if (!p) return;
+  eraPersonFilterID = p.id;
+  eraPersonInput.value = "";
+  eraPersonResults.classList.remove("active");
+  eraPersonInput.style.display = "none";
+  eraPersonChipName.textContent = p.name;
+  eraPersonChip.style.display = "flex";
+  setTarget(p.id);
+  applyYearRange();
+}
+eraPersonChip.querySelector(".chip-clear").addEventListener("click", () => {
+  eraPersonFilterID = null;
+  eraPersonChip.style.display = "none";
+  eraPersonInput.style.display = "";
+  setTarget(GRAPH.james_id);
+  applyYearRange();
+});
+eraPersonInput.addEventListener("input", () => runEraPersonSearch(eraPersonInput.value));
+eraPersonInput.addEventListener("keydown", (e) => {
+  const rows = eraPersonResults.querySelectorAll(".sr-item");
+  if (e.key === "ArrowDown") { e.preventDefault(); eraPersonSelIdx = Math.min(eraPersonSelIdx+1, rows.length-1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); eraPersonSelIdx = Math.max(eraPersonSelIdx-1, 0); }
+  else if (e.key === "Enter") { if (eraPersonSelIdx>=0) selectEraPerson(eraPersonSelIdx); return; }
+  else if (e.key === "Escape") { eraPersonResults.classList.remove("active"); eraPersonInput.blur(); return; }
+  else return;
+  rows.forEach((r,i) => r.classList.toggle("sel", i===eraPersonSelIdx));
+  if (rows[eraPersonSelIdx]) rows[eraPersonSelIdx].scrollIntoView({block:"nearest"});
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#era-person-filter")) eraPersonResults.classList.remove("active");
+});
+
+// --- Surname mode: highlight every journey by anyone with a matching
+// surname, regardless of how they relate to each other or to the current
+// target. Matches the surname as a whole word anywhere in the person's
+// name (not the full display name), since middle names in this dataset can
+// look like surnames without being the person's own maiden name (e.g.
+// "Speer" in "Katherine Speer Hitchcock" -- her actual surname is Hitchcock).
+const surnameInput = document.getElementById("surname-input");
+let surnameDebounce = null;
+
+function computeSurnameSegs(surname) {
+  const target = surname.trim().toLowerCase();
+  const segs = [];
+  for (const pid in PERSON_LEGS) {
+    const person = GRAPH.people[pid];
+    if (!person || !person.surname || person.surname.toLowerCase() !== target) continue;
+    const legs = PERSON_LEGS[pid];
+    if (!legs || !legs.length) continue;
+    for (const l of legs) segs.push(Object.assign({ person: person.name }, l));
+  }
+  return segs;
+}
+function applySurnameFilter() {
+  const val = surnameInput.value.trim();
+  if (val.length < 2) { return; }
+  focusedAnchor = null;
+  focusedStationaryPoint = null;
+  const segs = computeSurnameSegs(val);
+  SURNAME_SET = new Set(Object.keys(GRAPH.people).filter(id => (GRAPH.people[id].surname || "").toLowerCase() === val.toLowerCase()));
+  SURNAME_SET.key = val.toLowerCase();
+  const peopleCount = new Set(segs.map(s => s.person)).size;
+  const title = segs.length
+    ? `Every ${val}`
+    : `No journeys found for "${val}"`;
+  // fit the moves plus the surname's military stops and notable events
+  const pts = [];
+  for (const id of SURNAME_SET) {
+    if (showMilitary && MIL_DATA[id]) for (const e of MIL_DATA[id]) for (const s of e.stops) pts.push({ x1: s.x, y1: s.y, x2: s.x, y2: s.y });
+  }
+  if (showNotable) for (const e of NB_EVENTS) if (e.p.some(id => SURNAME_SET.has(id))) pts.push({ x1: e.x, y1: e.y2, x2: e.x, y2: e.y2 });
+  if (segs.length || pts.length) zoomToFitSegs(segs.concat(pts));
+  const label = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+  renderFocusedChain(segs, title, label);
+  redrawAll();
+}
+function scheduleSurnameApply() {
+  clearTimeout(surnameDebounce);
+  surnameDebounce = setTimeout(applySurnameFilter, 500);
+}
+surnameInput.addEventListener("input", scheduleSurnameApply);
+surnameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { clearTimeout(surnameDebounce); applySurnameFilter(); surnameInput.blur(); }
+});
+
+// --- tooltips and the route picker ---
+function showRoutePicker(matches) {
+  hideTip();
+  const sorted = matches.slice().sort((a,b) => a.min_year - b.min_year);
+  const panel = document.getElementById("route-picker");
+  panel.innerHTML = "";
+  const header = document.createElement("div");
+  header.className = "picker-header";
+  header.innerHTML = `<span>${sorted.length} voyages on this line \u2014 pick one to follow</span><span class="picker-close" title="Close">&times;</span>`;
+  header.querySelector(".picker-close").addEventListener("click", closeRoutePicker);
+  panel.appendChild(header);
+  sorted.forEach(d => {
+    const row = document.createElement("div");
+    row.className = "picker-row";
+    const V = routeView(d._i); const peopleLine = (V.people||[]).join(", ");
+    const yearLine = V.min===V.max ? V.min : `${V.min}\u2013${V.max}`;
+    row.innerHTML = `<span class="picker-year">${yearLine}</span><span class="picker-dest">\u2192 ${d.to}</span>` +
+                     `<span class="picker-people">${peopleLine}</span>`;
+    row.addEventListener("click", () => {
+      closeRoutePicker();
+      if (d.anchor) focusThread(d.anchor);
+    });
+    panel.appendChild(row);
+  });
+  panel.classList.add("active");
+}
+function closeRoutePicker() {
+  document.getElementById("route-picker").classList.remove("active");
+}
+function showSegTip(event, s) {
+  tooltip.classed("t-multi", false);
+  tooltip.html(
+    `<span class="t-name">${s.from} &rarr; ${s.to}</span>${s.person}<br>` +
+    `<span class="t-year">${s.mil ? "military record, " : "arrived "}${s.year}</span>` +
+    (segVia(s) && segVia(s).n ? `<br><span class="t-note">${segVia(s).n}</span>` : "")
+  );
+  placeTip(event);
+}
+function showMultiSegTip(event, segs) {
+  const sorted = segs.slice().sort((a,b) => a.year - b.year);
+  const CAP = 8;
+  const shown = sorted.slice(0, CAP);
+  const rows = shown.map(s =>
+    `<div class="t-multi-row"><span class="t-multi-dest">\u2192 ${s.to}</span> ` +
+    `<span class="t-year">${s.year}</span><br>${s.person}</div>`
+  ).join("");
+  const more = sorted.length > CAP ? `<div class="t-multi-more">+ ${sorted.length - CAP} more voyage${sorted.length-CAP>1?"s":""} on this line</div>` : "";
+  tooltip.classed("t-multi", true);
+  tooltip.html(`<span class="t-name">${segs.length} voyages bundled on this line</span>` + rows + more);
+  placeTip(event);
+}
+function showClusterTip(event, c) {
+  tooltip.classed("t-multi", false);
+  const years = c._visYears;
+  tooltip.html(
+    `<span class="t-name">${c.from} &rarr; ${c.to}</span>${c._visCount} ancestors made this general journey<br>` +
+    `<span class="t-year">${Math.round(Math.min(...years))}\u2013${Math.round(Math.max(...years))} \u00b7 click to zoom in and see each one</span>`
+  );
+  placeTip(event);
+}
+function showMultiTip(event, matches) {
+  const sorted = matches.slice().sort((a,b) => a.min_year - b.min_year);
+  const CAP = 8;
+  const shown = sorted.slice(0, CAP);
+  const rows = shown.map(d => {
+    const V = routeView(d._i); const peopleLine = (V.people||[]).join(", ");
+    const yearLine = V.min===V.max ? V.min : `${V.min}\u2013${V.max}`;
+    return `<div class="t-multi-row"><span class="t-multi-dest">\u2192 ${d.to}</span> ` +
+           `<span class="t-year">${yearLine}</span><br>${peopleLine}</div>`;
+  }).join("");
+  const more = sorted.length > CAP ? `<div class="t-multi-more">+ ${sorted.length - CAP} more voyage${sorted.length-CAP>1?"s":""} on this line</div>` : "";
+  tooltip.classed("t-multi", true);
+  tooltip.html(
+    `<span class="t-name">${matches.length} voyages bundled on this line</span>` + rows + more
+  );
+  placeTip(event);
+}
+function showCorridorTip(event, band) {
+  const rs = band.routes.slice().sort((a, b) => routeView(a._i).min - routeView(b._i).min);
+  const people = rs.reduce((s, d) => s + routeView(d._i).count, 0);
+  const CAP = 5;
+  const rows = rs.slice(0, CAP).map(d => {
+    const V = routeView(d._i); const peopleLine = (V.people || []).join(", ");
+    const yearLine = V.min === V.max ? V.min : `${V.min}\u2013${V.max}`;
+    return `<div class="t-multi-row"><span class="t-multi-dest">${d.from} \u2192 ${d.to}</span> ` +
+           `<span class="t-year">${yearLine}</span><br>${peopleLine}</div>`;
+  }).join("");
+  const more = rs.length > CAP ? `<div class="t-multi-more">+ ${rs.length - CAP} more</div>` : "";
+  const years = rs.length ? `${routeView(rs[0]._i).min}\u2013${Math.max(...rs.map(d => routeView(d._i).max))}` : "";
+  tooltip.classed("t-multi", true);
+  tooltip.html(`<span class="t-name">${band.edge.name}</span>` +
+    `<span class="t-year">${people} ancestor${people !== 1 ? "s" : ""} \u00b7 ${years} \u00b7 likely route, click to choose one</span>` + rows + more);
+  placeTip(event);
+}
+function showTip(event, d) {
+  tooltip.classed("t-multi", false);
+  const V = routeView(d._i); const peopleLine = (V.people||[]).join(", ");
+  const nameLine = d.oscillation
+    ? `<span class="t-name">${d.from} &harr; ${d.to}</span>${peopleLine}<br>`
+    : `<span class="t-name">${d.from} &rarr; ${d.to}</span>${peopleLine}<br>`;
+  const countLine = d.oscillation
+    ? `${V.min}\u2013${V.max} \u00b7 ${V.count} ancestor${V.count>1?"s":""} moved between these`
+    : `${V.min===V.max?V.min:V.min+"\u2013"+V.max} \u00b7 ${V.count} ancestor${V.count>1?"s":""} on this route`;
+  const v = routeVia(d._i);
+  const approx = (v && v.n ? `<br><span class="t-note">${v.n}</span>` : "") +
+    (v && v.a ? `<br><span class="t-year">route approximate: a place is recorded only as a state or country</span>` : "");
+  const milNames = d.military ? viewNames(d, d.military) : [];
+  const mil = milNames.length ? `<br><span class="t-note">from a military record: ${milNames.join(", ")}</span>` : "";
+  // spouses, or parent and child, with this same move within a few years (from the dates;
+  // the records don't say whether they travelled together)
+  const kinNames = d.family_group ? viewNames(d, d.family_group) : [];
+  const kin = kinNames.length > 1 ? `<br><span class="t-note">relatives with the same move in the same years: ${kinNames.join(" & ")}</span>` : "";
+  tooltip.html(nameLine + `<span class="t-year">${countLine}</span>` + kin + mil + approx);
+  placeTip(event);
+}
+// Above the pointer if it fits, otherwise below it; never past the map's edges.
+function placeTip(event) {
+  const rect = mapWrap.getBoundingClientRect(), node = tooltip.node();
+  const x = event.clientX - rect.left, y = event.clientY - rect.top;
+  const w = node.offsetWidth, h = node.offsetHeight, pad = 6;
+  const left = Math.max(pad, Math.min(rect.width - w - pad, x - w / 2));
+  const top = y - 12 - h >= pad ? y - 12 - h : Math.min(rect.height - h - pad, y + 16);
+  tooltip.style("left", left + "px").style("top", Math.max(pad, top) + "px").style("opacity", 1);
+}
+function hideTip() { tooltip.style("opacity",0); }
+
+recomputeClusterVisibility();
+
+// Direct lines / Likely routes
+// ---- the four layers (legend checkboxes; each remembered per browser; URL overrides) ----
+// Likely routes and Known movements are the same moves drawn two ways: with
+// both on, the likely routes draw as usual and the known lines faintly under
+// them; with both off, no moves are drawn (the other layers still are).
+let showLikely = likelyRoutes, showKnown = !likelyRoutes, showNotable = true;   // notable events on by default (James)
+try { const v = localStorage.getItem("hm-known"); if (v !== null) showKnown = v === "1"; } catch (e) {}
+try { const v = localStorage.getItem("hm-notable"); if (v !== null) showNotable = v === "1"; } catch (e) {}
+{ const q = new URLSearchParams(location.search);
+  if (q.get("lines")) { showLikely = q.get("lines") !== "direct"; showKnown = q.get("lines") !== "likely"; }
+  if (q.get("known")) showKnown = q.get("known") === "1";
+  if (q.get("notable")) showNotable = q.get("notable") === "1"; }
+function setMoveLayers(likely, known) {
+  showLikely = likely; showKnown = known;
+  likelyRoutes = likely;                 // what the route data is built from (direct lines when off)
+  try { localStorage.setItem("hm-likely-routes", likely ? "1" : "0"); localStorage.setItem("hm-known", known ? "1" : "0"); } catch (e) {}
+  document.getElementById("legend").classList.toggle("likely", likely);
+  document.getElementById("legend").classList.toggle("likely-known", likely && known);
+  document.getElementById("layer-likely").setAttribute("aria-pressed", likely);
+  document.getElementById("layer-known").setAttribute("aria-pressed", known);
+  recomputeClusterVisibility();
+  hideTip();
+  applyAggregation(true);
+  redrawAll();
+}
+document.getElementById("layer-likely").onclick = () => setMoveLayers(!showLikely, showKnown);
+document.getElementById("layer-known").onclick = () => setMoveLayers(showLikely, !showKnown);
+setMoveLayers(showLikely, showKnown);
+const setLikelyRoutes = on => setMoveLayers(on, !on);   // kept for older tools
+
+// ---- military service (MILITARY in data.js, from pipeline/military/itineraries.py) ----
+// Off by default; the legend's toggle shows the service of the target's
+// ancestors, and Life journey always shows the chosen person's own.
+const MIL_DATA = typeof MILITARY !== "undefined" ? MILITARY : {};   // tolerate a stale cached data.js
+const MIL_BASIS = { record: "documented for him", unit: "his regiment's movements",
+                    family: "family account or secondary history", conjecture: "a guess" };
+function militaryPeople() {
+  const ids = new Set();
+  if (lifePerson) { if (MIL_DATA[lifePerson]) ids.add(lifePerson); return [...ids]; }   // Life journey: only theirs
+  if (SURNAME_SET) { if (showMilitary) for (const id in MIL_DATA) if (SURNAME_SET.has(id)) ids.add(id); return [...ids]; }
+  if (showMilitary) for (const id in MIL_DATA) if (TARGET_ANCESTOR_SET.has(id)) ids.add(id);
+  return [...ids];
+}
+// each stop's year: the first year in its date text, or the stop before's
+function stopYears(e) {
+  if (e._yrs) return e._yrs;
+  let y = null;
+  return e._yrs = e.stops.map(s => { const m = /1[5-9]\d\d/.exec(s.d); if (m) y = +m[0]; return y; });
+}
+let BATTLES_SHOWN = {};
+function militaryFeatures() {
+  const lines = [], arrows = [], stops = [], battles = {};
+  for (const pid of militaryPeople()) MIL_DATA[pid].forEach((e, k) => {
+    const yrs = stopYears(e);
+    for (const l of e.legs) {
+      if (!inEra(yrs[l.i])) continue;
+      const ll = l.p.map(q => toLL(q[0], q[1])), n = ll.length;
+      const color = colorForYear(yrs[l.i] || yrs.find(y => y) || 1800);
+      lines.push({ type: "Feature", properties: { pid, k, i: l.i, c: l.c, color },
+                   geometry: { type: "LineString", coordinates: ll } });
+      if (n > 1) arrows.push({ type: "Feature", properties: { color, rot: bearingDeg(ll[n-2], ll[n-1]), size: 8 / ARROW_LEN },
+                               geometry: { type: "Point", coordinates: ll[n-1] } });
+    }
+    e.stops.forEach((s, i) => {
+      if (!inEra(yrs[i])) return;
+      if (s.b) {                               // a battle: one symbol for everyone there
+        const b = battles[s.b] || (battles[s.b] = { name: s.b, date: s.bd, year: yrs[i], x: s.x, y: s.y, men: [] });
+        b.men.push({ pid, k, i });
+        return;
+      }
+      stops.push({ type: "Feature", properties: { pid, k, i, c: s.c }, geometry: { type: "Point", coordinates: toLL(s.x, s.y) } });
+    });
+  });
+  BATTLES_SHOWN = battles;
+  const battleFeatures = Object.values(battles).map(b => ({ type: "Feature", properties: { b: b.name, color: colorForYear(b.year) },
+    geometry: { type: "Point", coordinates: toLL(b.x, b.y) } }));
+  return { lines, arrows, stops, battles: battleFeatures };
+}
+function showMilTip(event, f, isStop) {
+  const e = MIL_DATA[f.pid][f.k], s = e.stops[f.i], name = (GRAPH.people[f.pid] || {}).name || "";
+  const leg = isStop ? null : e.legs.find(l => l.i === f.i);
+  const head = isStop || !f.i ? s.l : `${e.stops[f.i - 1].l} &rarr; ${s.l}`;
+  tooltip.classed("t-multi", false);
+  tooltip.html(`<span class="t-name">${head}</span>${name} &middot; ${e.war}<br>` +
+    `<span class="t-year">${s.d} &middot; ${MIL_BASIS[s.c]}</span>` +
+    (s.n ? `<br><span class="t-note">${s.n}</span>` : "") +
+    `<br><span class="t-note">${e.unit}</span>` +
+    (leg && leg.via ? `<br><span class="t-year">the way is inferred: ${leg.via}</span>` : "") +
+    `<br><span class="t-year">source: ${e.sources.join("; ")}</span>`);
+  placeTip(event);
+}
+try { const v = localStorage.getItem("hm-military"); if (v !== null) showMilitary = v === "1"; } catch (e) {}
+{ const q = new URLSearchParams(location.search).get("military"); if (q) showMilitary = q === "1"; }   // ?military=1|0
+function setMilitary(on) {
+  showMilitary = on;
+  try { localStorage.setItem("hm-military", on ? "1" : "0"); } catch (e) {}
+  document.getElementById("mil-toggle").setAttribute("aria-pressed", on);
+  redrawAll();
+}
+document.getElementById("mil-toggle").onclick = () => setMilitary(!showMilitary);
+setMilitary(showMilitary);
+
+// ---- notable events (NOTABLE in data.js, from pipeline/notable/events.py + every ocean arrival) ----
+const NB = typeof NOTABLE !== "undefined" ? NOTABLE : { sex: {}, events: [] };   // tolerate a stale cached data.js
+const NB_EVENTS = NB.events;
+// the point a fraction f of the way along a lon/lat polyline
+function pointAlongLL(ll, f) {
+  const d = (a, b) => Math.hypot((b[0] - a[0]) * Math.cos((a[1] + b[1]) * Math.PI / 360), b[1] - a[1]);
+  let total = 0; for (let i = 1; i < ll.length; i++) total += d(ll[i - 1], ll[i]);
+  let goal = f * total;
+  for (let i = 1; i < ll.length; i++) {
+    const s = d(ll[i - 1], ll[i]);
+    if (goal <= s) { const u = s ? goal / s : 0; return [ll[i-1][0] + (ll[i][0] - ll[i-1][0]) * u, ll[i-1][1] + (ll[i][1] - ll[i-1][1]) * u]; }
+    goal -= s;
+  }
+  return ll[ll.length - 1];
+}
+function notableFeatures() {
+  const out = [];
+  NB_EVENTS.forEach((e, n) => {
+    if (!inEra(e.y)) return;
+    if (lifePerson) { if (!e.p.includes(lifePerson)) return; }            // Life journey: only theirs
+    else if (!(showNotable && e.p.some(id => (SURNAME_SET || TARGET_ANCESTOR_SET).has(id)))) return;
+    const at = e.r != null ? pointAlongLL(routeVia(e.r) ? viaLL(routeVia(e.r)) : ROUTE_LL[e.r], e.f) : toLL(e.x, e.y2);
+    out.push({ type: "Feature", properties: { n, k: e.k, color: colorForYear(e.y) }, geometry: { type: "Point", coordinates: at } });
+  });
+  return out;
+}
+// how someone is related to the current target: "11th great-grandfather"
+let genCache = null, genTarget = null;
+function generationOf(pid) {
+  if (genTarget !== CURRENT_TARGET) {
+    genTarget = CURRENT_TARGET; genCache = new Map([[CURRENT_TARGET, 0]]);
+    let frontier = [CURRENT_TARGET];
+    for (let g = 1; frontier.length; g++) {
+      const next = [];
+      for (const id of frontier) for (const q of ((GRAPH.people[id] || {}).parents || []))
+        if (!genCache.has(q)) { genCache.set(q, g); next.push(q); }
+      frontier = next;
+    }
+  }
+  return genCache.get(pid);
+}
+const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+function relationOf(pid) {
+  const g = generationOf(pid);
+  if (g == null || g === 0) return "";
+  const s = NB.sex[pid], base = s === "M" ? ["father", "grandfather"] : s === "F" ? ["mother", "grandmother"] : ["parent", "grandparent"];
+  const rel = g === 1 ? base[0] : g === 2 ? base[1] : g === 3 ? "great-" + base[1] : ordinal(g - 2) + " great-" + base[1];
+  const t = (GRAPH.people[CURRENT_TARGET] || {}).name || "";
+  return t && t !== "Private" ? `${t.split(" ")[0]}'s ${rel}` : rel;
+}
+function showNotableTip(event, ns) {
+  tooltip.classed("t-multi", new Set(ns).size > 1);
+  tooltip.html(notableHTML(ns, false));
+  placeTip(event);
+}
+function notableHTML(ns, links) {
+  const list = [...new Set(ns)].map(n => NB_EVENTS[n]).sort((a, b) => a.y - b.y).slice(0, 4);
+  const one = e => {
+    const who = e.p.filter(id => generationOf(id) != null || links).map(id => {
+      const r = relationOf(id), nm = (GRAPH.people[id] || {}).name || "";
+      return `${links ? personLink(id, nm) : nm}${r ? ` (${r})` : ""}`; }).join("; ");
+    const kind = e.k === "arrival" ? "arrival" : e.k === "story" ? "family story" : "";
+    return `<span class="t-name">${e.d} &middot; ${e.l}</span>${e.t}` +
+      (e.sh ? `<br><span class="t-year">ship: ${e.sh}</span>` : "") +
+      (who ? `<br><span class="t-note">${who}</span>` : "") +
+      `<br><span class="t-year">${kind ? kind + " &middot; " : ""}source: ${e.s}</span>`;
+  };
+  return list.map(one).join('<div class="t-multi-row"></div>');
+}
+function setNotable(on) {
+  showNotable = on;
+  try { localStorage.setItem("hm-notable", on ? "1" : "0"); } catch (e) {}
+  document.getElementById("layer-notable").setAttribute("aria-pressed", on);
+  redrawAll();
+}
+document.getElementById("layer-notable").onclick = () => setNotable(!showNotable);
+setNotable(showNotable);
+
+// ---- profiles: one person's life, in a panel over the map ----
+// profiles.js (build_profiles.py via write_data_js.py) is loaded the first time a
+// profile opens. Living people's profiles, and living children named in others',
+// come from PRIVATE once the family password has been given.
+let PROFILES_LOADED = null, PRIVATE_PROFILES = {}, PRIVATE_PFAM = {}, PRIVATE_PSIB = {};
+function loadProfiles() {
+  if (!PROFILES_LOADED) PROFILES_LOADED = new Promise((ok, fail) => {
+    const s = document.createElement("script"); s.src = "profiles.js"; s.onload = ok; s.onerror = fail; document.head.appendChild(s);
+  });
+  return PROFILES_LOADED;
+}
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const personLink = (pid, name) => `<a class="plink" data-pid="${esc(pid)}">${esc(name)}</a>`;
+document.addEventListener("click", ev => {
+  const a = ev.target.closest && ev.target.closest("a.plink[data-pid]");
+  if (a) { ev.preventDefault(); openProfile(a.dataset.pid); }
+});
+const profileEl = document.getElementById("profile");
+profileEl.querySelector(".pf-close").onclick = () => closeProfile();
+// the whole portrait, over everything; click or Esc closes it
+function showPhoto(src, name) {
+  const o = document.createElement("div");
+  o.className = "photo-view";
+  o.innerHTML = `<figure><img src="${src}" alt=""><figcaption>${esc(name)}</figcaption></figure>`;
+  const close = () => { o.remove(); document.removeEventListener("keydown", key); };
+  const key = e => { if (e.key === "Escape") close(); };
+  o.onclick = close; document.addEventListener("keydown", key);
+  document.body.appendChild(o);
+}
+function closeProfile() {
+  profileEl.classList.remove("open");
+  if (location.hash.startsWith("#p=")) history.replaceState(null, "", location.pathname + location.search);
+}
+const MONTHS = { Jan: "January", Feb: "February", Mar: "March", Apr: "April", Jun: "June", Jul: "July", Aug: "August",
+                 Sep: "September", Sept: "September", Oct: "October", Nov: "November", Dec: "December" };
+const longDate = d => (d || "").replace(/\b(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)\b\.?/g, m => MONTHS[m.replace(".", "")] || m);
+function when(d) {        // "on 1 May 1761", "about 1783", "in 1790", "in June 1848"
+  d = longDate(d); if (!d) return "";
+  if (/^(about|before|after|between)\b/i.test(d)) return d;
+  return /^\d{1,2} /.test(d) ? "on " + d : "in " + d;
+}
+function childrenOf(pid) {
+  if (!childrenOf.map) {
+    childrenOf.map = new Map();
+    for (const [id, q] of Object.entries(GRAPH.people)) for (const par of q.parents || [])
+      (childrenOf.map.get(par) || childrenOf.map.set(par, []).get(par)).push(id);
+  }
+  return childrenOf.map.get(pid) || [];
+}
+function descentChain(pid) {       // pid -> ... -> the current target, through the target's ancestors
+  if (generationOf(pid) == null) return null;
+  const chain = [pid];
+  let cur = pid;
+  while (cur !== CURRENT_TARGET) {
+    const g = generationOf(cur);
+    const next = childrenOf(cur).find(c => generationOf(c) === g - 1);
+    if (!next) return null;
+    chain.push(cur = next);
+  }
+  return chain;
+}
+// living people's portraits (private_photos.js, encrypted), once the family password is given
+let PRIVATE_SHOTS = null;
+async function privatePhoto(pid) {
+  if (!familyKM) return null;
+  if (!PRIVATE_SHOTS) PRIVATE_SHOTS = new Promise(ok => {
+    const s = document.createElement("script"); s.src = "private_photos.js";
+    s.onload = () => openPrivate(familyKM, typeof PRIVATE_PHOTOS !== "undefined" ? PRIVATE_PHOTOS : null).then(d => ok(d || {})).catch(() => ok({}));
+    s.onerror = () => ok({}); document.head.appendChild(s);
+  });
+  const shots = await PRIVATE_SHOTS;
+  return shots[pid] ? "data:image/jpeg;base64," + shots[pid] : null;
+}
+function profileOf(pid) {
+  const pr = PRIVATE_PROFILES[pid] || (typeof PROFILES !== "undefined" && PROFILES.people[pid]);
+  if (!pr) return null;
+  const o = Object.assign({}, pr);
+  if (PRIVATE_PFAM[pid]) o.f = PRIVATE_PFAM[pid];
+  if (PRIVATE_PSIB[pid]) o.sb = PRIVATE_PSIB[pid];
+  return o;
+}
+// the summary for anyone without a written story, from the facts
+function autoSummary(pid, pr) {
+  const g = GRAPH.people[pid] || {}, nick = (g.name || "").match(/"([^"]+)"/);
+  const first = nick ? nick[1] : (g.name || "").replace(/^(Dr|Rev|Capt|Col)\.? /, "").split(" ")[0];   // "Jean", not Mary (James)
+  const sex = NB.sex[pid], He = sex === "F" ? "She" : sex === "M" ? "He" : first, his = sex === "F" ? "her" : "his";
+  const out = [];
+  const par = (g.parents || []).map(id => (GRAPH.people[id] || {}).name).filter(n => n && n !== "Private");
+  if (pr.b[0] || pr.b[1]) out.push(`${first} was born ${[when(pr.b[0]), pr.b[1] ? "in " + pr.b[1] : ""].filter(Boolean).join(" ")}` +
+    (par.length ? `, the ${sex === "F" ? "daughter" : sex === "M" ? "son" : "child"} of ${par.join(" and ")}.` : "."));
+  let kids = 0;
+  for (const f of pr.f) {
+    kids += f.k.length;
+    if (f.sp && !f.sp.lv) out.push(`${He} married ${f.sp.n}${f.m && f.m[0] ? " " + when(f.m[0]) : ""}${f.m && f.m[1] ? " in " + f.m[1] : ""}.`);
+  }
+  if (kids) out.push(`The tree records ${kids} ${kids === 1 ? "child" : "children"}.`);
+  const lived = [];
+  for (const r of pr.t) if (r[2] === "lived" && r[3] && !lived.some(x => x[0] === r[3])) lived.push([r[3], r[1]]);
+  if (lived.length > 1) {
+    const L = lived.slice(0, 5).map(([pl, y]) => `${pl} (${y})`);
+    out.push(`The records place ${sex === "F" ? "her" : sex === "M" ? "him" : first} in ${L.length > 1 ? L.slice(0, -1).join(", ") + " and " + L[L.length - 1] : L[0]}${lived.length > 5 ? ", among other places" : ""}.`);
+  }
+  for (const e of (MIL_DATA[pid] || [])) out.push(`${He} served in the ${e.war.replace(/, \d.*$/, "")}${e.unit ? " (" + e.unit.split(";")[0] + ")" : ""}.`);
+  if (pr.d[0] || pr.d[1]) out.push(`${He} died ${[when(pr.d[0]), pr.d[1] ? "in " + pr.d[1] : ""].filter(Boolean).join(" ")}` +
+    (pr.bu ? ` and was buried at ${pr.bu}.` : "."));
+  return out.join(" ");
+}
+async function openProfile(pid) {
+  if (!GRAPH.people[pid]) return;
+  const box = profileEl.querySelector(".pf-in");
+  profileEl.classList.add("open");
+  history.replaceState(null, "", "#p=" + encodeURIComponent(pid));
+  const g = GRAPH.people[pid];
+  if (g.name === "Private" && !familyShown) {
+    box.innerHTML = `<h2>Private</h2><p>A living member of the family. Their details are shown only with the family password
+      (the lock at the top right).</p>`;
+    return;
+  }
+  box.innerHTML = '<p class="pf-auto">Loading\u2026</p>';
+  try { await loadProfiles(); } catch (e) { box.innerHTML = "<p>The profiles couldn't be loaded.</p>"; return; }
+  const pr = profileOf(pid);
+  if (!pr) { box.innerHTML = `<h2>${esc(g.name)}</h2><p>No profile.</p>`; return; }
+  const sex = NB.sex[pid], his = sex === "F" ? "her" : sex === "M" ? "his" : "their";
+  const yrs = [pr.b[0] && pr.b[0].match(/\d{4}/), pr.d[0] && pr.d[0].match(/\d{4}/)].map(m => m ? m[0] : "");
+  const rel = pid === CURRENT_TARGET ? "" : relationOf(pid);
+  const H = [];
+  const pv = pr.ph ? null : await privatePhoto(pid);
+  const photo = pr.ph ? `<img src="${esc(pr.ph[0])}" alt="${esc(g.name)}" title="${esc(pr.ph[1])}">`
+    : pv ? `<img src="${pv}" alt="${esc(g.name)}" title="private: shown with the family password">` : null;
+  H.push(`<div class="pf-head"><div class="pf-photo${photo ? " has" : ""}">${photo || `<div><svg viewBox="0 0 64 64"><circle cx="32" cy="22" r="12" fill="currentColor"/><path d="M8 60c2-14 12-22 24-22s22 8 24 22z" fill="currentColor"/></svg>No photo yet</div>`}</div>
+    <div><h2>${esc(g.name)}</h2><div class="pf-years">${yrs[0] || "?"} &ndash; ${yrs[1] || (g.name === "Private" || familyShown && PRIVATE_PROFILES[pid] ? "" : "?")}</div>
+    ${rel ? `<div class="pf-rel">${esc(rel.charAt(0).toUpperCase() + rel.slice(1))}</div>` : ""}</div></div>`);
+  H.push(`<div class="pf-btns"><button class="solid" data-act="life">Life journey</button><button data-act="family">Family journey</button><a class="pf-tree" href="tree.html#root=${encodeURIComponent(pid)}">View on tree</a></div>`);
+  // facts
+  const facts = [];
+  if (pr.b[0] || pr.b[1]) facts.push(["Born", [longDate(pr.b[0]), pr.b[1]].filter(Boolean).join("<br>")]);
+  for (const f of pr.f) if (f.sp && !f.sp.lv) facts.push(["Married", [f.m && longDate(f.m[0]), f.sp.i ? personLink(f.sp.i, f.sp.n) : esc(f.sp.n), f.m && f.m[1]].filter(Boolean).join(", ")]);
+  if (pr.d[0] || pr.d[1]) facts.push(["Died", [longDate(pr.d[0]), pr.d[1]].filter(Boolean).join("<br>")]);
+  if (pr.bu) facts.push(["Buried", esc(pr.bu)]);
+  for (const e of (MIL_DATA[pid] || [])) facts.push(["Served", esc(e.war) + (e.unit ? "<br>" + esc(e.unit) : "")]);
+  if (facts.length) H.push(`<div class="pf-sec"><dl>${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl></div>`);
+  // story
+  if (pr.st) H.push(`<div class="pf-sec pf-story"><div class="pf-eyebrow">Life story</div><div class="pf-title">${esc(pr.st.title)}</div>` +
+    pr.st.text.map(x => `<p>${esc(x)}</p>`).join("") + (pr.st.note ? `<div class="pf-note">${esc(pr.st.note)}</div>` : "") + `</div>`);
+  else H.push(`<div class="pf-sec pf-story"><div class="pf-eyebrow">In brief</div><p>${esc(autoSummary(pid, pr))}</p><div class="pf-auto">Written from the tree's facts.</div></div>`);
+  for (const n of pr.nt || []) H.push(`<div class="pf-note">Research note: ${esc(n)}</div>`);
+  // timeline
+  const KIND = { born: "Born", lived: "Lived in", married: "Married", died: "Died", buried: "Buried", military: "Military record" };
+  if (pr.t.length) H.push(`<div class="pf-sec"><div class="pf-eyebrow">Timeline</div><ul class="pf-tl">` + pr.t.map(r => {
+    const [y, d, k, pl, note, url] = r, label = KIND[k] || k;
+    const full = d && d !== String(y) ? longDate(d) : "";
+    return `<li><span class="y">${esc(y ? (/^about/.test(d || "") ? "c. " : "") + y : "")}</span><span class="dot" style="background:${y ? colorForYear(y) : "#bbb"}"></span>` +
+      `<span>${k === "lived" ? esc(pl) + (full ? `<span class="where">${esc(full)}</span>` : "")
+        : `<b>${esc(label)}</b>${pl || full ? `<span class="where">${esc([full, pl].filter(Boolean).join(" \u00b7 "))}</span>` : ""}`}` +
+      (note ? `<span class="where">${esc(note)}</span>` : "") + (url ? `<a href="${esc(url)}" target="_blank" rel="noopener">record</a>` : "") + `</span></li>`;
+  }).join("") + `</ul></div>`);
+  // service and events
+  for (const e of (MIL_DATA[pid] || [])) H.push(`<div class="pf-sec"><div class="pf-eyebrow">Military service</div><b>${esc(e.war)}</b> &middot; ${esc(e.unit)}` +
+    `<p style="margin:4px 0">${esc(e.summary)}</p>` + (e.stops.length ? `<span class="sub">${e.stops.map(s => (s.b ? "\u2694 " : "") + esc(s.l)).join(" \u2192 ")}</span>` : "") +
+    `<span class="sub">${e.sources.map(esc).join("; ")}</span></div>`);
+  const evs = NB_EVENTS.filter(e => e.p.includes(pid));
+  if (evs.length) H.push(`<div class="pf-sec"><div class="pf-eyebrow">Moments in history</div>` + evs.map(e =>
+    `<p style="margin:0 0 6px"><b>${esc(e.d)}</b> &middot; ${esc(e.t)}<span class="sub">${esc(e.l)}${e.sh ? " &middot; ship: " + esc(e.sh) : ""}</span></p>`).join("") + `</div>`);
+  // family
+  const F = [];
+  const parents = (g.parents || []).filter(id => GRAPH.people[id]);
+  if (parents.length) F.push(`<div class="pf-eyebrow">Parents</div>` + parents.map(id => `<div>${personLink(id, GRAPH.people[id].name)}</div>`).join(""));
+  const kidRow = c => c.lv && !c.n ? `<li>Private</li>` :
+    `<li>${c.i ? personLink(c.i, c.n) : esc(c.n)}${c.r ? ` <span class="rel">(${esc(c.r === "step" ? "stepchild" : c.r)})</span>` : ""}` +
+    `${c.i && TARGET_ANCESTOR_SET.has(c.i) ? '<span class="pf-tag">line</span>' : ""}` +
+    `<span class="sub">${[c.y, c.bp && "b. " + c.bp, c.dp && "d. " + c.dp].filter(Boolean).map(esc).join(" · ")}</span></li>`;
+  for (const f of pr.f) {
+    const sp = f.sp ? (f.sp.lv ? "Private" : f.sp.i ? personLink(f.sp.i, f.sp.n) : esc(f.sp.n)) : "unknown";
+    F.push(`<div class="pf-fam">${f.sp ? "Children with " + sp : "Children"}${f.sp && f.sp.y && !f.sp.lv ? ` (${esc(f.sp.y)})` : ""}</div>` +
+      (f.k.length ? `<ul class="pf-kids">` + f.k.map(kidRow).join("") + `</ul>` : `<span class="sub">no children recorded</span>`));
+  }
+  if (pr.sb && pr.sb.length) F.push(`<div class="pf-eyebrow" style="margin-top:10px">Siblings</div><ul class="pf-kids">` + pr.sb.map(kidRow).join("") + `</ul>`);
+  const chain = pid !== CURRENT_TARGET && descentChain(pid);
+  if (chain) F.push(`<div class="pf-eyebrow" style="margin-top:10px">Line of descent</div><div class="pf-descent">` +
+    chain.map(id => personLink(id, GRAPH.people[id].name)).join('<span class="arr">\u2192</span>') + `</div>`);
+  if (F.length) H.push(`<div class="pf-sec">${F.join("")}</div>`);
+  if (pr.r.length) H.push(`<div class="pf-sec"><details><summary>${pr.r.length} record${pr.r.length === 1 ? "" : "s"} attached in the tree</summary><ul class="pf-recs">` +
+    pr.r.map(i => `<li>${esc(PROFILES.sources[i])}</li>`).join("") + `</ul></details></div>`);
+  box.innerHTML = H.join("");
+  const ph = box.querySelector(".pf-photo.has");
+  if (ph) ph.onclick = () => showPhoto(ph.querySelector("img").src, g.name);   // click the portrait to see it whole
+  box.querySelector('[data-act="life"]').onclick = () => { document.querySelector('.mode-btn[data-mode="life"]').click(); searchResults.classList.remove("active"); showLifeJourney(pid); };
+  box.querySelector('[data-act="family"]').onclick = () => { document.querySelector('.mode-btn[data-mode="target"]').click(); searchResults.classList.remove("active"); setTarget(pid); openProfile(pid); };
+  profileEl.scrollTop = 0;
+}
+// a link to a profile: #p=<id>
+function openFromHash() {
+  const m = location.hash.match(/^#p=(.+)$/);
+  if (m) { const pid = decodeURIComponent(m[1]); const go = () => mapReady ? openProfile(pid) : setTimeout(go, 150); go(); }
+}
+window.addEventListener("hashchange", openFromHash);
+openFromHash();
+{ const q = new URLSearchParams(location.search), t = q.get("target"), l = q.get("life");
+  const go = () => {
+    if (!mapReady) return setTimeout(go, 150);
+    if (t && GRAPH.people[t]) { setTarget(t); openProfile(t); }
+    if (l && GRAPH.people[l]) { document.querySelector('.mode-btn[data-mode="life"]').click(); searchResults.classList.remove("active"); showLifeJourney(l); openProfile(l); }
+  };
+  if (t || l) go(); }
+
+// ---- living family: hidden in the public data, shown with the family password ----
+// PRIVATE (pipeline/project/privacy.py) holds their details, AES-CTR encrypted with
+// a key from PBKDF2 of the password, HMAC-checked. Decrypted here, never sent anywhere;
+// the derived key (not the password) is remembered on this device.
+const PRIV = typeof PRIVATE !== "undefined" ? PRIVATE : null;
+const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const b64e = a => btoa(String.fromCharCode(...a));
+let familyShown = false;
+async function keyMaterial(pw) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: b64d(PRIV.salt), iterations: PRIV.iter }, base, 512));
+}
+let familyKM = null;
+async function openPrivate(km, blob) {
+  const B = blob || PRIV;
+  const ek = await crypto.subtle.importKey("raw", km.slice(0, 32), "AES-CTR", false, ["decrypt"]);
+  const mk = await crypto.subtle.importKey("raw", km.slice(32), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+  const iv = b64d(B.iv), ct = b64d(B.ct), signed = new Uint8Array(iv.length + ct.length);
+  signed.set(iv); signed.set(ct, iv.length);
+  if (!await crypto.subtle.verify("HMAC", mk, b64d(B.mac), signed)) return null;
+  return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-CTR", counter: iv, length: 64 }, ek, ct)));
+}
+function showFamily(d) {
+  for (const [pid, p] of Object.entries(d.graph)) GRAPH.people[pid] = p;
+  for (const [i, s] of d.search) { s.nameLower = s.name.toLowerCase(); SEARCH_INDEX.splice(i, 0, s); }
+  for (const [i, r] of Object.entries(d.routes)) Object.assign(ROUTES[+i], r);
+  PRIVATE_PROFILES = d.profiles || {}; PRIVATE_PFAM = d.pfam || {}; PRIVATE_PSIB = d.psib || {};
+  childrenOf.map = null;
+  familyShown = true;
+  routeViewCache = new Map(); genTarget = null;
+  const go = () => { if (mapReady) setTarget(CURRENT_TARGET); else setTimeout(go, 150); };
+  go();
+  lockUI();
+}
+function lockUI() {
+  const btn = document.getElementById("lock-btn");
+  btn.innerHTML = familyShown ? "&#x1F513; Living family shown" : "&#x1F512; Living family hidden";
+  btn.classList.toggle("open", familyShown);
+  document.getElementById("lock-text").innerHTML = familyShown
+    ? "Living family members are shown on this device."
+    : "Living family members appear as &ldquo;Private&rdquo;. Enter the family password to show them on this device.";
+  document.getElementById("lock-form").style.display = familyShown ? "none" : "flex";
+  document.getElementById("lock-msg").innerHTML = familyShown ? '<a href="#" id="lock-forget">Hide them again on this device</a>' : "";
+  const f = document.getElementById("lock-forget");
+  if (f) f.onclick = ev => { ev.preventDefault(); try { localStorage.removeItem("hm-family-key"); } catch (e) {} location.reload(); };
+}
+if (!PRIV) document.getElementById("lock").style.display = "none";
+else {
+  const pop = document.getElementById("lock-pop"), btn = document.getElementById("lock-btn");
+  btn.onclick = () => { const on = !pop.classList.contains("show"); pop.classList.toggle("show", on); btn.setAttribute("aria-expanded", on);
+                        if (on && !familyShown) document.getElementById("lock-pw").focus(); };
+  document.getElementById("lock-form").onsubmit = async ev => {
+    ev.preventDefault();
+    const msg = document.getElementById("lock-msg"), pw = document.getElementById("lock-pw").value;
+    if (!pw) return;
+    msg.textContent = "Checking\u2026";
+    const km = await keyMaterial(pw), d = await openPrivate(km);
+    if (!d) { msg.textContent = "That isn't the family password."; return; }
+    familyKM = km;
+    try { localStorage.setItem("hm-family-key", b64e(km)); } catch (e) {}
+    document.getElementById("lock-pw").value = "";
+    showFamily(d);
+    pop.classList.remove("show");
+  };
+  let saved = null;
+  try { saved = localStorage.getItem("hm-family-key"); } catch (e) {}
+  if (saved) { const km = b64d(saved); openPrivate(km).then(d => { if (d) { familyKM = km; showFamily(d); } }).catch(() => {}); }
+  lockUI();
+}
+</script>
+</body>
+</html>

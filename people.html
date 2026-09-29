@@ -41,7 +41,7 @@ h1 { font-family: var(--font-display); font-weight: normal; font-size: 28px; mar
 <body>
 <header class="site-head">
   <a class="brand" href="index.html">Family History, Visualized</a>
-  <nav class="site-nav"><a href="index.html">Map</a><a href="tree.html">Tree</a><a href="people.html" class="on">People</a><a href="about.html">About</a></nav>
+  <nav class="site-nav"><a href="index.html">Ask</a><a href="map.html">Map</a><a href="tree.html">Tree</a><a href="people.html" class="on">People</a><a href="about.html">About</a></nav>
   <span class="spacer"></span><div id="lock-slot"></div>
 </header>
 <main>
@@ -120,7 +120,7 @@ function draw() {
   r.sort(cmp);
   document.getElementById("count").textContent = `${r.length.toLocaleString()} shown`;
   const E = Family.esc, root = P[ROOT].name === "Private" ? "" : Family.firstName(ROOT) + "'s ";
-  document.getElementById("list").innerHTML = r.length ? r.map(x => `<a class="row ${x.side}" href="index.html#p=${encodeURIComponent(x.pid)}" data-pid="${E(x.pid)}">
+  document.getElementById("list").innerHTML = r.length ? r.map(x => `<a class="row ${x.side}" href="map.html#p=${encodeURIComponent(x.pid)}" data-pid="${E(x.pid)}">
     ${x.ph ? `<img class="avatar" loading="lazy" src="${E(x.ph)}" alt="">` : `<span class="avatar none">${E(x.name[0])}</span>`}
     <span class="nm">${E(x.name)}</span><span class="yr">${E(x.years)}</span><span class="pl">${E(x.born)}</span>
     <span class="rel">${x.rel ? E((x.g != null ? root : "") + x.rel) : x.pid === ROOT ? "(viewing from here)" : ""}</span>

@@ -52,6 +52,42 @@ def living_ids(graph, indi):
     return out
 
 
+def living_relatives(indi, fam, map_living, on_map):
+    """Ids treated as living among everyone in the GEDCOM (the Ask page's relatives
+    index, build_relatives.py). On the map: exactly living_ids(). Off it: no death
+    record, and born from LIVING_BORN_FROM -- or, with no birth year, not shown
+    to have been born earlier by a relative's dates (a parent's birth + 55, a
+    child's - 13, a spouse's + 30; propagated, so a 1700s cousin with no dates
+    of her own is still known to be long dead). Anyone left undated is living."""
+    by = {i: _year(v.get('birt_date')) for i, v in indi.items()}
+    dead = {i for i, v in indi.items() if v.get('deat_date') or v.get('deat_plac')}
+    latest = {i: y for i, y in by.items() if y}              # latest possible birth year
+    for _ in range(6):
+        changed = False
+        for f in fam.values():
+            par = [p for p in (f.get('husb'), f.get('wife')) if p]
+            kids = f.get('chil', [])
+            cand = []
+            for p in par:                                     # spouses: within 30 years of each other
+                for q in par:
+                    if p != q and q in latest: cand.append((p, latest[q] + 30))
+                for c in kids:                                # a parent was born 13+ years before a child
+                    if c in latest: cand.append((p, latest[c] - 13))
+            for c in kids:                                    # a child was born within 55 years of a parent
+                for p in par:
+                    if p in latest: cand.append((c, latest[p] + 55))
+            for i, y in cand:
+                if i in indi and by.get(i) is None and (i not in latest or y < latest[i]):
+                    latest[i] = y; changed = True
+        if not changed: break
+    out = set(map_living)
+    for i in indi:
+        if i in on_map or i in dead: continue
+        if i not in latest or latest[i] >= LIVING_BORN_FROM:
+            out.add(i)
+    return out
+
+
 def redact(arrays, living):
     """Blank the living in the arrays, in place. Returns what was taken out."""
     P = arrays['GRAPH']['people']

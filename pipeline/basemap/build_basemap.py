@@ -592,7 +592,7 @@ def main():
     # be loaded: land (rings, nonzero), lakes (rings), state/province and
     # national borders, major rivers -- all [lon0, lat0, dlon, dlat, ...].
     (OUT / 'fallback.js').write_text(
-        HEADER + '// Fallback basemap for index.html when OpenFreeMap is unreachable.\n'
+        HEADER + '// Fallback basemap for map.html when OpenFreeMap is unreachable.\n'
         'window.FALLBACK_MAP = ' + json.dumps({'quant': QUANT, **fallback}, separators=(',', ':')) + ';\n',
         encoding='utf-8', newline='\n')
     log(f'fallback.js {(OUT / "fallback.js").stat().st_size // 1024} KB, ' +

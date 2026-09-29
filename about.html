@@ -31,7 +31,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
 <body>
 <header class="site-head">
   <a class="brand" href="index.html">Family History, Visualized</a>
-  <nav class="site-nav"><a href="index.html">Map</a><a href="tree.html">Tree</a><a href="people.html">People</a><a href="about.html" class="on">About</a></nav>
+  <nav class="site-nav"><a href="index.html">Ask</a><a href="map.html">Map</a><a href="tree.html">Tree</a><a href="people.html">People</a><a href="about.html" class="on">About</a></nav>
   <span class="spacer"></span><div id="lock-slot"></div>
 </header>
 <main>
@@ -41,7 +41,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
     <p>Nearly five centuries of one family&rsquo;s direct ancestors, traced from England, Ireland, Scotland, Germany,
       Switzerland and Sweden through colonial New England and Virginia to the South and Midwest: every documented move
       drawn on a map, the wars they served in, the moments of history they lived through, and a profile for each person.</p>
-    <div class="acts"><a class="btn solid" href="index.html">Open the map</a><a class="btn" href="tree.html">Browse the tree</a><a class="btn" href="people.html">Find a person</a></div>
+    <div class="acts"><a class="btn solid" href="map.html">Open the map</a><a class="btn" href="tree.html">Browse the tree</a><a class="btn" href="people.html">Find a person</a></div>
     <div class="faces" id="faces"></div>
   </section>
   <div class="stats" id="stats"></div>
@@ -51,7 +51,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
 
   <h2>How to use the site</h2>
   <div class="cards">
-    <a class="card" href="index.html"><h3>The map</h3><p>Every move the records show, coloured by year. Choose anyone to see the journeys of their ancestors
+    <a class="card" href="map.html"><h3>The map</h3><p>Every move the records show, coloured by year. Choose anyone to see the journeys of their ancestors
       converge on them; turn on military service (dotted lines, crossed swords for battles) and notable events (stars and anchors).
       Time period and Surname filter everything.</p></a>
     <a class="card" href="tree.html"><h3>The tree</h3><p>A pedigree you can start from anyone: open generations one at a time, drag and zoom,
@@ -102,12 +102,12 @@ function draw() {
   const faces = shuffle(Object.entries(PROFILES.people).filter(([id, p]) => p.ph && P[id] && P[id].name !== "Private")).slice(0, 14)
     .sort((a, b) => (+Family.yearOf(a[1].b[0]) || 3000) - (+Family.yearOf(b[1].b[0]) || 3000));
   document.getElementById("faces").innerHTML = faces
-    .map(([id, p]) => `<a href="index.html#p=${encodeURIComponent(id)}" title="${E(P[id].name)}"><img src="${E(p.ph[0])}" alt="${E(P[id].name)}" loading="lazy"></a>`).join("");
+    .map(([id, p]) => `<a href="map.html#p=${encodeURIComponent(id)}" title="${E(P[id].name)}"><img src="${E(p.ph[0])}" alt="${E(P[id].name)}" loading="lazy"></a>`).join("");
   // stories: written life stories, and the hand-written notable events (not the automatic arrivals)
   const written = Object.entries(PROFILES.people).filter(([id, p]) => p.st && P[id]).map(([id, p]) =>
-    `<a class="card" href="index.html#p=${encodeURIComponent(id)}"><div class="when">${E(Family.years(id))} &middot; ${E(P[id].name)}</div><h3>${E(p.st.title)}</h3><p>${E(p.st.text[0])}</p></a>`);
+    `<a class="card" href="map.html#p=${encodeURIComponent(id)}"><div class="when">${E(Family.years(id))} &middot; ${E(P[id].name)}</div><h3>${E(p.st.title)}</h3><p>${E(p.st.text[0])}</p></a>`);
   const events = NOTABLE.events.filter(e => e.s !== "the migration records in the tree" && e.t.length > 60 && e.p.some(id => P[id] && P[id].name !== "Private")).map(e =>
-    `<a class="card" href="index.html#p=${encodeURIComponent(e.p[0])}"><div class="when">${E(e.d)} &middot; ${E(e.l)}</div><p>${E(e.t)}</p></a>`);
+    `<a class="card" href="map.html#p=${encodeURIComponent(e.p[0])}"><div class="when">${E(e.d)} &middot; ${E(e.l)}</div><p>${E(e.t)}</p></a>`);
   const cards = shuffle(shuffle(written).slice(0, 1).concat(shuffle(events).slice(0, 6 - Math.min(1, written.length))));
   document.getElementById("stories").innerHTML = cards.join("");
 }

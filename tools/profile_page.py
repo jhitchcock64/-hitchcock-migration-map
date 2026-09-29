@@ -9,7 +9,7 @@ Serve first:   python -m http.server 8000     (from the repo root)
 Usage:         python tools/profile_page.py [URL] [--headed] [--dpr 1.5]
                    [--ablate] [--json out.json] [--shots DIR]
 
-  URL        default http://localhost:8000/index.html
+  URL        default http://localhost:8000/map.html
   --headed   real window with the real GPU (closer to what a person feels);
              default is headless
   --dpr N    device pixel ratio (a laptop at 150% scaling is 1.5)
@@ -34,7 +34,7 @@ from playwright.sync_api import sync_playwright
 args = [a for a in sys.argv[1:] if not a.startswith('--')]
 def opt(name, default=None):
     return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else default
-URL = next((a for a in args if a.startswith('http') or a.endswith('.html')), 'http://localhost:8000/index.html')
+URL = next((a for a in args if a.startswith('http') or a.endswith('.html')), 'http://localhost:8000/map.html')
 if URL.endswith('.html') and not URL.startswith('http'):
     URL = pathlib.Path(URL).resolve().as_uri()
 HEADED = '--headed' in sys.argv

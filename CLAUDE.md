@@ -10,7 +10,7 @@ Switzerland and Sweden through colonial New England and Virginia to the
 South and Midwest.
 
 - Live: https://jhitchcock64.github.io/-hitchcock-migration-map/
-- Hosting: GitHub Pages, serving the root of `main` (`index.html`, `data.js`,
+- Hosting: GitHub Pages, serving the root of `main` (`index.html`, `map.html`, `data.js`,
   `basemap/`, `vendor/`). Pushing to `main` deploys, usually within a minute or two.
 - Source of truth for the family data: James's Ancestry tree, exported as a
   GEDCOM. The GEDCOM is NOT in the repo and must never be committed (it
@@ -43,7 +43,10 @@ South and Midwest.
 ## Repo layout
 
 ```
-index.html                 the map page (the site's root): inline CSS and JS; MapLibre GL + data.js
+index.html                 the Ask page (the site's front door since 2026-09-29): questions answered from the data; ask.js
+                           (forwards old map links, ?target= ?life= #p= etc., to map.html)
+map.html                   the map page: inline CSS and JS; MapLibre GL + data.js (was index.html until 2026-09-29)
+relatives.js               everyone in the GEDCOM (~16k): names, years, family links; the living encrypted (stage 12)
 tree.html                  interactive pedigree (d3), rooted at anyone (#root=<id>), generations opened one at a time;
                            birth parents by default, with a switch where GRAPH has psets (below)
 people.html                searchable directory of everyone, filters (side, photo, story, served, in history)
@@ -92,7 +95,7 @@ a small note. Routes, places, search and all modes work the same either way.
 GEDCOM="/path/to/export.ged" bash pipeline/project/run_pipeline.sh   # rebuild arrays (Git Bash)
 python pipeline/project/diff_shipped.py data.js                      # compare with the live data
 python pipeline/project/write_data_js.py data.js                     # write the arrays into data.js
-python tools/check_page.py index.html                                # smoke test
+python tools/check_page.py map.html                                  # smoke test
 ```
 
 Pure Python 3 standard library. It runs from any folder, detects the
@@ -128,6 +131,10 @@ Stages:
 10. `build2/build_notable.py` writes the notable events
    (`pipeline/notable/events.py`) plus an arrival for every ocean crossing
    into the Americas in PERSON_LEGS -> `notable_prepared.json` -> NOTABLE.
+12. `build2/build_relatives.py` indexes everyone in the GEDCOM for the Ask page -> `relatives_prepared.json`
+   -> `relatives.js` (names, birth/death years, parents, couples; no places or notes; James, 2026-09-29).
+   Living: `privacy.living_relatives` (off the map: no death record and born from 1926, or undated and not
+   shown older by a parent's, child's or spouse's dates; anyone undated with no dated relatives counts as living).
 11. `write_data_js.py` writes them into `data.js` (it replaced `graft.py`
    when the data moved out of `index.html`), keeping VB byte for byte.
 
@@ -230,8 +237,8 @@ Ancestry profile picture (matched to Family Tree Maker's downloaded file by
 size): tools used are scratchpad scripts; only portraits of the person are
 kept (no gravestones, arms, maps, houses or record pages; James).
 
-The site (2026-09-27): every page has the same nav (Map, Tree, People, About);
-the map stays the root URL so old links keep working. Other pages link into
+The site (2026-09-27): every page has the same nav (Ask, Map, Tree, People, About; Ask added 2026-09-29).
+The map moved to map.html on 2026-09-29; index.html forwards any old map link (map parameters or #p=) there. Other pages link into
 it with `index.html#p=<id>` (profile), `?target=<id>` (family history of) and
 `?life=<id>` (life journey). Profiles live only on the map page.
 
@@ -257,7 +264,7 @@ The data is in projected units: `x = lon + 35` (wrapped to [-180,180)),
 view spans `VB = {x0:-70, y0:0, w:123, h:58}`). The page converts to lon/lat
 with `toLL(x, y)` when it builds GeoJSON; MapLibre draws in Web Mercator.
 
-## Rendering (index.html: MapLibre GL, since 2026-09-25)
+## Rendering (map.html: MapLibre GL, since 2026-09-25)
 
 The map is a MapLibre GL JS map (`map`, in `#map`) on the OpenFreeMap
 Liberty style, with a hillshade layer added. Our data is GeoJSON sources and
@@ -577,3 +584,18 @@ Daniel Baskett and Mary Godbey. The long-assumed "Thomas Baskett Sr.
 (b. 1716)" was removed from the tree; `tools/check_page.py` checks that he
 stays gone. The Godbey line runs back to Thomas Godbey Sr., who sailed on the
 Sea Venture: Plymouth → Bermuda (wrecked 1609) → Jamestown (1610).
+
+## Ask page (index.html, ask.js; 2026-09-29, James's idea, modelled on america.gov)
+
+A big serif greeting, one question box with rotating examples, a random wall of 16 portraits. No AI
+model (James chose "A": answers only from the data; a Claude-backed version would need a server holding
+an API key, e.g. a Cloudflare Worker, and was left for later). ask.js matches each question against
+patterns (relationship, born/died/where, served in a war, which ancestors served / were born in X /
+came on a ship, parents/spouse/children, earliest ancestor, how many ancestors, who is X) and answers
+from GRAPH, PROFILES, MILITARY, NOTABLE and RELATIVES (loaded on first use). Names match by words,
+prefixes and common nicknames; namesakes get a "which one?" choice. "Who are you" is remembered per
+browser (`hm-ask-me`: {k, g, s?}): yourself (living people only after the family password), or a
+descendant of someone (g generations down; a chosen parent counts with their spouse). Answers say when
+they count through one line only. Relationship terms: Ancestry style (2nd great-grandfather, 1st cousin
+twice removed, grandnephew, half-); no blood link: spouse of a relative, a spouse's relative, or the
+shortest chain through marriages. Without an identity, "my ancestors" questions count from Margaret.

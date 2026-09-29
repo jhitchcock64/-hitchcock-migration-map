@@ -21,6 +21,6 @@ run() { echo "  $1"; $PY "$1" > "$LOG/${1%.py}.log" 2>&1; }
 echo "Stage 1-4 (pipeline/project):"; cd "$HERE"
 run 01_extract_ancestors.py; run 02_extract_events.py; run 03_build_legs.py; run 04_build_routes.py
 echo "Stage 5-11 (pipeline/build2):"; cd "$HERE/../build2"
-run build_anchors.py; run build_family_tags.py; run rebuild_all_data.py; run build_corridor_routes.py; run build_military.py; run build_notable.py; run build_profiles.py
+run build_anchors.py; run build_family_tags.py; run rebuild_all_data.py; run build_corridor_routes.py; run build_military.py; run build_notable.py; run build_profiles.py; run build_relatives.py
 grep -m1 "James+Jennie family record" "$LOG/01_extract_ancestors.log" || true
 tail -6 "$LOG/rebuild_all_data.log"

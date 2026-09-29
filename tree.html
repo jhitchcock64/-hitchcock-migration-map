@@ -57,7 +57,7 @@ svg:active { cursor: grabbing; }
 <body>
 <header class="site-head">
   <a class="brand" href="index.html">Family History, Visualized</a>
-  <nav class="site-nav"><a href="index.html">Map</a><a href="tree.html" class="on">Tree</a><a href="people.html">People</a><a href="about.html">About</a></nav>
+  <nav class="site-nav"><a href="index.html">Ask</a><a href="map.html">Map</a><a href="tree.html" class="on">Tree</a><a href="people.html">People</a><a href="about.html">About</a></nav>
   <span class="spacer"></span><div id="lock-slot"></div>
 </header>
 <div id="bar">
@@ -167,9 +167,9 @@ async function show(pid) {
     ${relM && root !== GRAPH.james_id && P[GRAPH.james_id].name !== "Private" ? `<div class="sub">${Family.esc(Family.firstName(GRAPH.james_id))}'s ${relM}</div>` : ""}</div></div>
     ${born ? `<div class="sub" style="margin-top:8px">${born}</div>` : ""}${died ? `<div class="sub">${died}</div>` : ""}
     ${p.name === "Private" ? `<p class="sub">A living member of the family.</p>` : `<div class="acts">
-      <a class="btn solid" href="index.html#p=${id}">Open profile</a>
-      <a class="btn" href="index.html?life=${id}">Life journey on the map</a>
-      <a class="btn" href="index.html?target=${id}">Family history on the map</a>
+      <a class="btn solid" href="map.html#p=${id}">Open profile</a>
+      <a class="btn" href="map.html?life=${id}">Life journey on the map</a>
+      <a class="btn" href="map.html?target=${id}">Family history on the map</a>
       ${pid !== root ? `<button class="btn" id="reroot">Start the tree from ${Family.esc(Family.firstName(pid))}</button>` : ""}</div>`}`;
   panel.classList.add("show");
   panel.querySelector(".x").onclick = () => { panel.classList.remove("show"); selected = null; render(true); };

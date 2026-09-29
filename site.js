@@ -1,6 +1,6 @@
 // Shared by the site's pages other than the map (tree.html, people.html, about.html):
 // the family-password lock, the living family's details and portraits, and small helpers.
-// The map (index.html) has its own copy of the lock; both use the key remembered in this
+// The map (map.html) has its own copy of the lock; both use the key remembered in this
 // browser ("hm-family-key"), so unlocking on any page unlocks all of them.
 // Needs data.js (GRAPH, SEARCH_INDEX, NOTABLE, MILITARY, PRIVATE) and profiles.js (PROFILES).
 const Family = (() => {
@@ -118,6 +118,9 @@ const Family = (() => {
   }
   const firstName = pid => { const n = (GRAPH.people[pid] || {}).name || ""; const m = /"([^"]+)"/.exec(n); return m ? m[1] : n.split(" ")[0]; };
 
-  return { ready, mountLock, onChange: f => listeners.push(f), get shown() { return shown; }, photo,
+  // another encrypted blob (relatives.js's living names), with the key this device unlocked with
+  const openBlob = async blob => (km && blob ? open(km, blob).catch(() => null) : null);
+
+  return { ready, mountLock, onChange: f => listeners.push(f), get shown() { return shown; }, photo, openBlob, script,
            esc, years, generations, relation, firstName, sex, yearOf };
 })();
