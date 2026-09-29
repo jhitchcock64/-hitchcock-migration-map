@@ -23,6 +23,7 @@ TOWN_COORDS = {
     # New England
     "plymouth|massachusetts": (41.958, -70.667),
     "guilford|connecticut": (41.289, -72.682),  # the town (New Haven Co.): the Leetes
+    "woodbury|connecticut": (41.545, -73.209),  # the town (Litchfield Co.); Samuel Sherman 1670
     "duxbury|massachusetts": (42.047, -70.673),
     "south duxbury|massachusetts": (42.030, -70.690),
     "braintree|massachusetts": (42.222, -71.003),
@@ -1183,6 +1184,9 @@ def _build_bare_indices(town_d, county_d):
     return town_bare, county_bare
 
 TOWN_COORDS_BARE, COUNTY_COORDS_BARE = _build_bare_indices(TOWN_COORDS, COUNTY_COORDS)
+# the region each bare name came from (for the same-state guard in normalize_and_geocode)
+TOWN_BARE_REGION = {k.split("|")[0]: k.split("|")[1] for k in TOWN_COORDS}
+COUNTY_BARE_REGION = {k.split("|")[0]: k.split("|")[1] for k in COUNTY_COORDS}
 # A few explicit bare additions not derivable automatically (verified unambiguous)
 TOWN_COORDS_BARE.setdefault("waterbury", (41.558, -73.037))
 TOWN_COORDS_BARE.setdefault("paducah", (37.083, -88.600))
@@ -1432,14 +1436,24 @@ def normalize_and_geocode(raw):
         if not country: return True
         return (lon < -25) == (country in ("usa", "canada"))
 
+    # Nor in another US state than the one the place names: "Woodbury,
+    # Gloucester, New Jersey" fell through to Gloucester Co., Virginia, and
+    # "Sioux City, Woodbury County, Iowa" would reach Woodbury, CT (2026-09-29).
+    named_states = {c for c in low_nosuffix if c in US_STATE_NAMES and c not in AMBIGUOUS_STATE_NAMES}
+    def same_state(loc, bare_region):
+        reg = bare_region.get(loc)
+        return not named_states or reg not in US_STATE_NAMES or reg in named_states
+
     # --- town-level bare fallback (unambiguous single-name lookup) ---
     for loc in low_nosuffix:
-        if loc in TOWN_COORDS_BARE and loc not in AMBIGUOUS_STATE_NAMES and same_side(TOWN_COORDS_BARE[loc][1]):
+        if loc in TOWN_COORDS_BARE and loc not in AMBIGUOUS_STATE_NAMES and same_side(TOWN_COORDS_BARE[loc][1]) \
+                and same_state(loc, TOWN_BARE_REGION):
             lat, lon = TOWN_COORDS_BARE[loc]
             return (_title(loc), lat, lon, "town")
 
     for loc in low_nosuffix:
-        if loc in COUNTY_COORDS_BARE and loc not in AMBIGUOUS_STATE_NAMES and same_side(COUNTY_COORDS_BARE[loc][1]):
+        if loc in COUNTY_COORDS_BARE and loc not in AMBIGUOUS_STATE_NAMES and same_side(COUNTY_COORDS_BARE[loc][1]) \
+                and same_state(loc, COUNTY_BARE_REGION):
             lat, lon = COUNTY_COORDS_BARE[loc]
             return (f"{_title(loc)} Co.", lat, lon, "county")
 
