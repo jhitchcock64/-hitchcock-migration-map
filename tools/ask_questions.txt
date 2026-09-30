@@ -1,0 +1,396 @@
+# Questions the Ask page (index.html) should handle. tools/check_ask.py runs every one and
+# reports which were answered, not understood, or named someone not found.
+# Lines starting with # are headings. Written 2026-09-29 (James: "a LOT of questions").
+
+# relationships to me
+How am I related to John Coe?
+how am i related to sudie clay
+How am I related to Jared Hitchcock?
+How am I related to Thomas Godbey Sr.?
+How is William Worthington related to me?
+What is my relationship to Daniel Baskett?
+Is John Coe my ancestor?
+Is Mehitable Leete related to me?
+Who is Sudie Clay to me?
+What relation is Albert Lucius Hitchcock to me?
+How am I related to Tommy Baskett?
+How am I related to Jean Speer Mehrle?
+Am I related to William Leete?
+Am I descended from Thomas Green?
+Am I a descendant of John Coe?
+Am I related to royalty?
+Am I related to anyone famous?
+Am I related to George Washington?
+Am I related to Lawrence Washington?
+Am I related to Brian Tuke?
+How many generations back is John Coe?
+How many generations separate me from Reginald Scott?
+Who is my closest relative who served in the Civil War?
+Who is my most recent immigrant ancestor?
+Which of my ancestors came to America most recently?
+Who are my grandparents?
+Who are my great-grandparents?
+Who were my 2nd great-grandparents?
+Who are my parents?
+Who were my great-great-grandparents?
+Who are my 3rd great-grandparents?
+Show me my great-grandparents
+What was my grandmother's maiden name?
+Who was my father's father?
+Who was my mother's mother?
+Who was my father's mother's father?
+What is my paternal line?
+What is my direct male line?
+What is my maternal line?
+Trace my Hitchcock line
+Trace my Baskett line
+How far back does my family tree go?
+How far back can I trace the Hitchcocks?
+How many ancestors do I have?
+How many ancestors do I have in the 1700s?
+How many of my ancestors are named in the tree?
+
+# relationships between two people
+How is John Coe related to Sudie Clay?
+How is Jared Hitchcock related to Albert Lucius Hitchcock?
+How was Daniel Baskett related to Thomas Baskett?
+Are Sudie Clay and Mary Gene Baskett related?
+Are William Leete and Mehitable Leete related?
+What is the relationship between Thomas Green and Lucy Marston Green?
+Who is the common ancestor of Tommy Baskett and Mary Gene Baskett?
+How is Thomas Godbey Sr. related to Daniel Baskett?
+Were John Coe and Andrew Coe related?
+
+# births
+When was Sudie Clay born?
+When was Jared Hitchcock born?
+What year was William Worthington born?
+Where was Sudie Clay born?
+Where was Thomas Green born?
+Where was Jared Hitchcock born?
+Where was John Coe born?
+When is Albert Lucius Hitchcock's birthday?
+What was Mehitable Leete's birth date?
+Who was born first, John Coe or Jared Hitchcock?
+Which ancestors were born in Ireland?
+Which ancestors were born in Germany?
+Which ancestors were born in England?
+Which ancestors were born in Switzerland?
+Which ancestors were born in Sweden?
+Which ancestors were born in Scotland?
+Which ancestors were born in Wales?
+Which ancestors were born in Kentucky?
+Which ancestors were born in Virginia?
+Which ancestors were born in Connecticut?
+Who was born in Guilford?
+Who was born at sea?
+Which ancestors were born in the 1600s?
+Which ancestors were born in the 1800s?
+Who was born in 1776?
+Which ancestors were born before 1600?
+Who was the first of my ancestors born in America?
+Who was the first Hitchcock born in America?
+Who was born on Christmas?
+Were any of my ancestors twins?
+
+# deaths
+When did Sudie Clay die?
+When did Jared Hitchcock die?
+Where did Thomas Green die?
+Where is Sudie Clay buried?
+Where is Jared Hitchcock buried?
+How old was Daniel Baskett when he died?
+How long did William Worthington live?
+What was William Worthington's lifespan?
+How did Robert Jesse Baskett die?
+Who lived the longest?
+Which of my ancestors lived the longest?
+Who died the youngest?
+Which ancestors died young?
+Which ancestors lived to be 90?
+Who died in the Civil War?
+Who died in 1863?
+Which ancestors died in Kentucky?
+
+# places and migration
+Where did William Worthington live?
+Where did Sudie Clay live?
+Where did Jared Hitchcock live?
+Where did the Hitchcocks come from?
+Where did the Basketts come from?
+Where did the Askews come from?
+Where did the Mehrles come from?
+Which ancestors lived in Kentucky?
+Which ancestors lived in Virginia?
+Which ancestors lived in Georgia?
+Which ancestors lived in New York?
+Which ancestors lived in Connecticut?
+Which ancestors lived in Massachusetts?
+Who lived in Brooklyn?
+Who lived in Jamestown?
+Who lived in Stratford, Connecticut?
+Which of my ancestors lived in Alabama?
+What states did my ancestors live in?
+Which countries did my ancestors come from?
+Who were my immigrant ancestors?
+Which ancestors immigrated to America?
+Who came to America first?
+Who was the first of my ancestors to arrive in America?
+When did my family come to America?
+When did the Hitchcocks come to America?
+When did the Mehrles come to America?
+Which ancestors came from Germany?
+Which ancestors came from Ireland?
+Who came from Switzerland?
+Which ancestors came on the Speedwell?
+Which ancestors came on the Mayflower?
+Which ancestors came on the Sea Venture?
+Which ancestors came on a ship?
+What ships did my ancestors come on?
+Who came over with Winthrop?
+Who arrived at Jamestown?
+Who moved the most?
+Which ancestor moved the most times?
+Who traveled the farthest?
+Who moved west?
+Who went to Kentucky?
+Show me William Worthington's journey
+Show me Sudie Clay on the map
+Show me the Basketts on the map
+Where is Guilford?
+
+# military
+Did Jared Hitchcock serve in the Revolutionary War?
+Did William Worthington fight in the Revolution?
+Did Albert Carl Hitchcock serve?
+Was Merriwether Snow a soldier?
+Did Henry Bruce Floyd serve in the Revolution?
+Was Robert Jesse Baskett in the Civil War?
+Did any of my ancestors fight in the Civil War?
+Which of my ancestors fought in the Revolutionary War?
+Which ancestors fought in the Civil War?
+Which ancestors fought in the War of 1812?
+Which ancestors served in the French and Indian War?
+Which ancestors served in World War I?
+Who fought in King Philip's War?
+Who fought in the Pequot War?
+Who was in Bacon's Rebellion?
+Who served in the military?
+List the veterans in my family
+List all the soldiers
+How many of my ancestors were soldiers?
+How many of my ancestors fought in the Revolution?
+Who fought on the Confederate side?
+Who fought for the Union?
+Which ancestors were Confederates?
+Which ancestors were officers?
+Who was a captain?
+Who was at Valley Forge?
+Who fought at Monmouth?
+Who fought at Gettysburg?
+Who fought at Brandywine?
+Who was at Yorktown?
+Which battles did my ancestors fight in?
+What battles did Jared Hitchcock fight in?
+What battles was William Worthington in?
+Was anyone a prisoner of war?
+Who was captured?
+Who got a military pension?
+What unit was Jared Hitchcock in?
+What regiment did Merriwether Snow serve in?
+What wars did my ancestors fight in?
+
+# history and notable events
+What historic events did my ancestors witness?
+Which ancestors were part of notable events?
+Tell me a family story
+Tell me an interesting story about my family
+What is the most interesting thing about my family?
+Who was born aboard the Speedwell?
+Who survived the Sea Venture shipwreck?
+Who was at Jamestown?
+Who founded a town?
+Who founded New Haven?
+Which ancestors were governors?
+Who was a governor?
+Which ancestors were in the House of Burgesses?
+Who was a legislator?
+Who sheltered the regicides?
+Who knew Audubon?
+Who was knighted?
+Who had a connection to the Salem witch trials?
+Which ancestors were accused of witchcraft?
+Which of my relatives had a connection to royalty?
+Am I descended from royalty?
+Who was related to a king?
+Did any of my ancestors have a title?
+Who was a knight?
+Were any of my ancestors nobility?
+Which of my ancestors owned slaves?
+Did my ancestors own slaves?
+Which ancestors had contact with Native Americans?
+Who fought the Indians?
+Who was killed by Indians?
+Which ancestors were Quakers?
+Which ancestors were ministers?
+Who was a minister?
+Who was a reverend?
+Who went to Harvard?
+Who went to Yale?
+Who went to college?
+Which ancestors were doctors?
+Who was a farmer?
+Who was a planter?
+Who ran a newspaper?
+Who was a printer?
+Who was a sheriff?
+Who was a lawyer?
+Who was a judge?
+Who was a teacher?
+What did Albert D. Hitchcock do for a living?
+What did Jared Hitchcock do for a living?
+What was Sudie Clay's occupation?
+Who left a will?
+Whose obituaries do we have?
+Who was in the newspaper?
+Who was in the Boy Scouts?
+Who went through Ellis Island?
+What happened to the family in 1776?
+What was happening in my family in 1850?
+What was my family doing during the Civil War?
+Where was my family in 1776?
+Who was alive in 1776?
+Which ancestors were alive during the Revolution?
+Which ancestors were alive in 1900?
+Who was alive when Columbus sailed?
+Who lived through the Civil War?
+Who lived during the Great Depression?
+
+# family structure
+Who were Thomas Baskett's parents?
+Who were Sudie Clay's parents?
+Who were the parents of John Coe?
+Who was Jared Hitchcock's father?
+Who was Sudie Clay's mother?
+Who was Albert Lucius Hitchcock's wife?
+Who did Sudie Clay marry?
+Who did William Worthington marry?
+Who was Daniel Baskett's wife?
+Was Daniel Baskett married more than once?
+Who married more than once?
+Which ancestors married twice?
+How many children did Sudie Clay have?
+Who were Sudie Clay's children?
+How many children did John Coe have?
+Who had the most children?
+Which ancestor had the biggest family?
+Who were Jared Hitchcock's siblings?
+Did Sudie Clay have brothers or sisters?
+How many siblings did William Worthington have?
+Who were Sudie Clay's grandparents?
+Who were Albert Lucius Hitchcock's grandparents?
+Who were Daniel Baskett's grandchildren?
+Who are John Coe's descendants?
+Were any of my ancestors adopted?
+Who was adopted?
+Did any of my ancestors marry their cousins?
+Did any cousins marry in my family?
+Who married the youngest?
+Which ancestors had step-parents?
+Who was Bonnie Shiflett's mother?
+Who raised Bonnie Shiflett?
+
+# surnames and names
+What surnames are in my family tree?
+What are the most common surnames in my tree?
+How many Hitchcocks are in the tree?
+How many Basketts are there?
+Tell me about the Basketts
+Tell me about the Hitchcock family
+Who was the first Hitchcock?
+Who is the earliest Baskett?
+Which surnames come from Germany?
+Is there anyone named Mehitable?
+Who has the nickname Sudie?
+Who was called the Seagull?
+Who was named after their father?
+What does Hitchcock mean?
+Which names repeat in the family?
+
+# people
+Who was Sudie Clay?
+Who is John Coe?
+Tell me about Jared Hitchcock
+Tell me about William Worthington
+Tell me about Thomas "the Seagull" Green
+Tell me about Mehitable Leete
+Who was Brian Tuke?
+Who was Thomas Godbey?
+Who was Merriwether Snow?
+What do we know about Daniel Baskett?
+Tell me Sudie Clay's story
+What is William Worthington's life story?
+Sudie Clay
+John Coe
+Jared Hitchcock
+Tommy Baskett
+Do we have a photo of Sudie Clay?
+Is there a picture of Jared Hitchcock?
+Show me a picture of Albert Lucius Hitchcock
+Which ancestors have photos?
+Show me pictures of my great-grandparents
+What did William Worthington look like?
+
+# records and sources
+What sources are there for Sudie Clay?
+What records mention Jared Hitchcock?
+Where does this information come from?
+How accurate is this?
+Who made this site?
+What is this site?
+What can I ask?
+Help
+What questions can I ask?
+
+# eras and counts
+Who is my earliest ancestor?
+Who is my oldest ancestor?
+Who is the oldest person in the tree?
+Who was born earliest?
+Who is the most recent ancestor to die?
+How many people are in the tree?
+How many people are on the map?
+How many ancestors served in the military?
+How many immigrants are in my family?
+How many generations are in the tree?
+What is the earliest date in the tree?
+Which ancestor was born in the 1500s?
+How many ancestors were born in Ireland?
+How many ancestors lived in Kentucky?
+
+# misspellings and casual phrasing
+when was sudie clay born
+wher was sudie clay born
+how am i related to jon coe
+jared hitchcock revolutionary war
+sudie clay birthday
+john coe parents
+who was jared hitchcocks father
+did jared hitchcock serve
+civil war ancestors
+revolutionary war ancestors
+irish ancestors
+german ancestors
+my immigrant ancestors
+ancestors in kentucky
+basketts
+hitchcock family
+tell me something interesting
+surprise me
+random ancestor
+who should i know about
+
+# James's own tries (2026-09-29)
+how many of ancestors lived in the hudson valley
+which of my ancestors were farmers
+which of my ancestors may have met george washington

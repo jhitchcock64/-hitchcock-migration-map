@@ -72,6 +72,8 @@ pipeline/RUNBOOK.md        how to update the map from a new GEDCOM (read this fo
 tools/check_page.py        headless smoke test (key people, errors, counts, routes drawn)
 tools/profile_gestures.py  frame-time profile under real wheel/drag gestures (any page)
 tools/profile_page.py      internals profile of the pre-MapLibre renderer (legacy.html only)
+tools/check_ask.py         runs every question in tools/ask_questions.txt through the Ask page and sorts the answers
+                           (answered / which-one / not found / not understood); HM_PASSPHRASE set = asks as James
 tools/compare_views.py     pixel comparison of two versions at identical views
 tools/parity_check.py      drives the same searches/modes/clicks on two versions and compares
                            (--content-only when the two use different renderers)
@@ -599,3 +601,19 @@ descendant of someone (g generations down; a chosen parent counts with their spo
 they count through one line only. Relationship terms: Ancestry style (2nd great-grandfather, 1st cousin
 twice removed, grandnephew, half-); no blood link: spouse of a relative, a spouse's relative, or the
 shortest chain through marriages. Without an identity, "my ancestors" questions count from Margaret.
+
+Ask engine, second pass (2026-09-29, James: "a LOT of questions"): tools/ask_questions.txt holds ~365
+questions (all answered or "which one?" as of that date); run tools/check_ask.py after any change and read
+the answers, not just the counts. Order of handlers in answer(): help/about, relationships, your own lines
+(grandparents, father's father, paternal/maternal line, "for how many generations has my family been in X"),
+superlatives and eras, names and surnames, casual noun phrases ("irish ancestors"), group questions
+(groupQuestion: met/knew someone, wars, battles, born/died/lived/came from/alive, ships, immigrants, topics),
+then one named person in any word order (personIntent). Regions (REGIONS) are county/town lists per state
+and say which counties they count; countries carry their regions (COUNTRY: "Siselen, Bern" is Switzerland).
+Topic searches (TOPICS) look through notes, stories, the tree's events, service and notable events, show the
+matching passage, and say they're mentions, not proof; source titles count only where the title is evidence
+(Magna Carta/Plantagenet genealogies, Quaker meeting records, probate files, obituaries). James's context
+lines in notes ("X was President ... Y was Governor", "Born in reign of ...") are ignored. "May have met
+George Washington": military stops at places and years he commanded in person, or records naming the
+general or service under him. Lessons: a mention isn't an event (John Speer Jr.'s record names the Pigeon
+Roost massacre; he wasn't killed), and a word inside a name isn't a topic (King Philip's War, Prince George's Co.).

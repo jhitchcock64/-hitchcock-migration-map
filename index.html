@@ -64,6 +64,10 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 16px 60px; }
 .line li { position: relative; padding: 3px 0 3px 4px; font-size: 14px; }
 .line li::before { content: ""; position: absolute; left: -20px; top: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .line li.gap { color: var(--muted); font-style: italic; }
+.answer mark { background: #f3dfa6; color: inherit; padding: 0 2px; border-radius: 2px; }
+.photos { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.photos img { height: 220px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+.photos.small img { height: 76px; width: 61px; object-fit: cover; border-radius: 5px; }
 .picker input { width: 100%; font: inherit; font-size: 16px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(156,122,46,0.5); margin: 4px 0 10px; }
 .me-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
 .me-acts { display: flex; flex-wrap: wrap; gap: 5px; }
