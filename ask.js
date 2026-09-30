@@ -599,7 +599,7 @@ const Ask = (() => {
     const l = s.toLowerCase();
     for (const [re, r, label] of PERIODS) if (re.test(l)) return { r, label };
     let m;
-    if ((m = /\b(1[0-9])00s\b/.exec(l)) || (m = /\b(1[0-9])th century\b/.exec(l)))
+    if ((m = /\b(1[0-9])00s\b/.exec(l)) || (m = /\b(1[0-9]|2[01])(?:st|nd|rd|th) century\b/.exec(l)))
       { const c = /century/.test(m[0]) ? +m[1] - 1 : +m[1]; return { r: [c * 100, c * 100 + 99], label: `the ${c * 100}s` }; }
     if ((m = /\b(1[5-9]\d|20[0-2])0s\b/.exec(l))) return { r: [+m[1] * 10, +m[1] * 10 + 9], label: `the ${m[1]}0s` };
     if ((m = /\bbetween (1[5-9]\d\d|20[0-2]\d) and (1[5-9]\d\d|20[0-2]\d)\b/.exec(l))) return { r: [+m[1], +m[2]], label: `${m[1]}–${m[2]}` };
@@ -871,6 +871,8 @@ const Ask = (() => {
       return groupAnswer(S, group(S, k => { const t = mentions(k, re); return t && t.html; }, "", byYear), `have records that mention ${E(m[1])}`, count);
     }
     if ((m = /^(?:arrived|landed|came ashore|first arrived) (?:at|in) (.+)$/.exec(r))) {
+      const pe = period(m[1]);
+      if (pe && /^(the )?\d|century/.test(m[1])) return immigrants(S, count, false, null, pe);
       const pt = placeTest(m[1]);
       if (pt) return immigrants(S, count, false, pt);
     }
@@ -976,7 +978,8 @@ const Ask = (() => {
       if (pt) return groupAnswer(S, group(S, k => { const h = placesOf(k, ["born", "lived"]).filter(([, pl]) => pt.test(pl)); return h.length && E([...new Set(h.map(x => x[1]))].slice(0, 2).join("; ")); }, "", byYear), `came from ${E(pt.label)}`, count);
     }
     if (/\b(ship|ships|mayflower|speedwell|sea venture|sailed|voyage|aboard|came over on|came on)\b/.test(r)) return ships(q);
-    if (/\b(immigra\w*|emigra\w*|came to america|arrived|came over|crossed the (ocean|atlantic)|ellis island)/.test(r) || /^immigrants?$/.test(r)) return immigrants(S, count, /ellis/.test(r));
+    if (/\b(immigra\w*|emigra\w*|(came|got|made it|went|moved|sailed) (over )?to (america|the us|the united states|the colonies)|reached america|arrived|came over|crossed the (ocean|atlantic)|ellis island)/.test(r) || /^immigrants?$/.test(r))
+      return immigrants(S, count, /ellis/.test(r), null, period(r.replace(/\b(america|the us|the united states)\b/g, "")));
     if ((m = /^(?:alive|living|lived) (?:in|during|through|when|at the time of) (.+)$/.exec(r)) || (m = /^(?:lived through|were alive for|were around (?:for|during|in)) (.+)$/.exec(r))) {
       const pe = period(m[1]); if (pe) return aliveGroup(S, pe, count);
     }
@@ -1029,13 +1032,22 @@ const Ask = (() => {
     return card(`${S.whose === "your" ? "Your" : "Margaret&rsquo;s"} ancestors fought in ${rows.length} battles.`, `<ul class="list">${rows.map(([b, [d, ks]]) => `<li><b>${E(b)}</b> <span class="yrs">${E(d || "")}</span><div class="sub">${[...ks].map(who).join(", ")}</div></li>`).join("")}</ul>` +
       scopeNote(S) + `<div class="acts"><a class="btn" href="map.html?military=1">See the battles on the map</a></div>`);
   }
-  function immigrants(S, count, ellis, pt = null) {
-    const ev = NOTABLE.events.filter(e => e.k === "arrival" && e.p.some(x => S.set.has(at.get(x))) && (!ellis || /ellis/i.test(e.t + e.l)) && (!pt || pt.test(e.l) || pt.test(e.t)));
+  function immigrants(S, count, ellis, pt = null, pe = null) {
+    const ev = NOTABLE.events.filter(e => e.k === "arrival" && e.p.some(x => S.set.has(at.get(x))) && (!ellis || /ellis/i.test(e.t + e.l)) && (!pt || pt.test(e.l) || pt.test(e.t))
+      && (!pe || (e.y >= pe.r[0] && e.y <= pe.r[1])));
     if (pt && !ev.length) return card(`None of ${S.whose} ancestors is recorded arriving at ${E(pt.label)}.`, scopeNote(S));
-    const rows = [];
-    for (const e of ev.sort((a, b) => a.y - b.y)) for (const x of e.p) { const k = at.get(x); if (S.set.has(k) && !rows.some(r => r[0] === k)) rows.push([k, `${E(e.d)}, ${E(e.l)}${e.sh ? ", the " + E(e.sh) : ""}`]); }
+    if (pe && !ev.length) return card(`None of ${S.whose} ancestors is recorded arriving in America in ${E(pe.label)}.`, scopeNote(S));
+    // automatic arrivals (build_notable.py) are dated by the first record of the person in America: the crossing may be earlier
+    const auto = e => e.s === "the migration records in the tree";
+    const rows = []; let nAuto = 0;
+    for (const e of ev.sort((a, b) => a.y - b.y)) for (const x of e.p) { const k = at.get(x); if (S.set.has(k) && !rows.some(r => r[0] === k)) {
+      if (auto(e)) nAuto++;
+      rows.push([k, `${E(e.d)}, ${E(e.l)}${e.sh ? ", the " + E(e.sh) : ""}${auto(e) ? " <i>(first record in America; the crossing may be earlier)</i>" : ""}`]); } }
     if (!rows.length) return card(ellis ? `None of ${S.whose} ancestors is recorded passing through Ellis Island.` : `No arrivals recorded.`, scopeNote(S));
-    return listCard(`${rows.length} of ${S.whose} ancestors crossed the ocean to America${ellis ? " through Ellis Island" : pt ? ", arriving at " + E(pt.label) : ""}, earliest first.`, rows, S);
+    const nDoc = rows.length - nAuto;
+    const split = nAuto ? `<p class="note">${nDoc === 0 ? "None of these crossings is documented" : nDoc === 1 ? "One of these crossings is documented" : nDoc + " of these crossings are documented"} (a ship, a passenger list, a history). ` +
+      `For ${nDoc === 0 ? (nAuto === 1 ? "it" : "all " + nAuto) : "the other " + nAuto}, the year is the first time the tree places the person in America, so the crossing may have been earlier${pe ? ", in an earlier period" : ""}.</p>` : "";
+    return listCard(`${rows.length} of ${S.whose} ancestors crossed the ocean to America${ellis ? " through Ellis Island" : pt ? ", arriving at " + E(pt.label) : ""}${pe ? " in " + E(pe.label) : ""}, earliest first.`, rows, S, split);
   }
   function firstBornAmerica(S, sn) {
     const rows = [...S.set].filter(k => (!sn || (GRAPH.people[pid(k)] || {}).surname === sn) && prof(k) && AMERICA.test(prof(k).b[1] || "") && R.b[k]).sort((a, b) => R.b[a] - R.b[b]);
@@ -1244,7 +1256,7 @@ const Ask = (() => {
     if (/(traveled|travelled|went|moved) (the )?(farthest|furthest)|longest journey/.test(l)) return superlative("distance");
     if (/most recent(ly)? (ancestor )?to die|last (ancestor )?to die/.test(l)) return superlative("recentdeath");
     if (/most recent(ly)? (immigrant|to (arrive|immigrate|come))|came to america most recently|latest immigrant|last to (arrive|immigrate|come over)/.test(l)) return superlative("recentimm");
-    if (/first (of my ancestors |ancestor |one |person )?to (arrive|come|reach|land|immigrate)|came to america first|earliest (immigrant|arrival)|first (immigrant|arrival)|when did (my|our) family (first )?come to america/.test(l)) return superlative("firstimm");
+    if (/(first|earliest)( known| recorded| documented)? (of my ancestors |ancestors? |one |person |immigrant )?(to (arrive|come|reach|land|immigrate|get|set foot)|to america|in america|to the (colonies|new world))|came to america first|earliest (immigrant|arrival)|first (immigrant|arrival)|when did (my|our) family (first )?come to america/.test(l)) return superlative("firstimm");
     if ((m = /first (\w+ )?(?:of my ancestors |ancestor |one |person )?(?:to be )?born in (?:america|the colonies|the united states|the us)/.exec(l))) { const sn = m[1] && surnameOf(m[1].trim()); return firstBornAmerica(scope(), sn); }
     if ((m = /^when did the (\w+?)s? (?:first )?(?:come|arrive|get) (?:to|in) america$/.exec(l))) { const sn = surnameOf(m[1]); if (sn) return surnameAbout(sn); }
     if ((m = /(?:what (?:was )?happen(?:ed|ing)|what was going on|what were .+ doing) (?:to |in |with )?(?:my |our |the )?family(?: doing)? (?:in|during|around) (.+)$/.exec(l)) || (m = /^(?:what was )?(?:my|our) family (?:doing )?(?:in|during) (.+)$/.exec(l)) || (m = /^where was (?:my|our) family (?:in|during) (.+)$/.exec(l))) {
