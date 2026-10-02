@@ -54,9 +54,6 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
   </section>
   <div class="stats" id="stats"></div>
 
-  <h2>A few of their stories</h2>
-  <div class="cards" id="stories"></div>
-
   <h2>How to use the site</h2>
   <div class="cards">
     <a class="card" href="index.html"><h3>Ask</h3><p>Type a question in plain words: who someone was, when and where they lived, who fought in
@@ -155,19 +152,12 @@ function draw() {
     [people.toLocaleString(), "people"], [gens, "generations"], [`${Math.min(...years)}&ndash;2026`, "years of moves"],
     [moves.toLocaleString(), "documented moves"], [arrivals, "arrivals in America"], [services, "military services"],
     [battles, "battles"], [portraits, "portraits"]].map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join("");
-  // a different selection on every visit: 14 random portraits (shown oldest first), and 6 stories
+  // a different selection on every visit: 14 random portraits (shown oldest first)
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const faces = shuffle(Object.entries(PROFILES.people).filter(([id, p]) => p.ph && P[id] && P[id].name !== "Private")).slice(0, 14)
     .sort((a, b) => (+Family.yearOf(a[1].b[0]) || 3000) - (+Family.yearOf(b[1].b[0]) || 3000));
   document.getElementById("faces").innerHTML = faces
     .map(([id, p]) => `<a href="map.html#p=${encodeURIComponent(id)}" title="${E(P[id].name)}"><img src="${E(p.ph[0])}" alt="${E(P[id].name)}" loading="lazy"></a>`).join("");
-  // stories: written life stories, and the hand-written notable events (not the automatic arrivals)
-  const written = Object.entries(PROFILES.people).filter(([id, p]) => p.st && P[id]).map(([id, p]) =>
-    `<a class="card" href="map.html#p=${encodeURIComponent(id)}"><div class="when">${E(Family.years(id))} &middot; ${E(P[id].name)}</div><h3>${E(p.st.title)}</h3><p>${E(p.st.text[0])}</p></a>`);
-  const events = NOTABLE.events.filter(e => e.s !== "the migration records in the tree" && e.t.length > 60 && e.p.some(id => P[id] && P[id].name !== "Private")).map(e =>
-    `<a class="card" href="map.html#p=${encodeURIComponent(e.p[0])}"><div class="when">${E(e.d)} &middot; ${E(e.l)}</div><p>${E(e.t)}</p></a>`);
-  const cards = shuffle(shuffle(written).slice(0, 1).concat(shuffle(events).slice(0, 6 - Math.min(1, written.length))));
-  document.getElementById("stories").innerHTML = cards.join("");
 }
 Family.mountLock("lock-slot");
 Viewer.mount("viewer-slot");
