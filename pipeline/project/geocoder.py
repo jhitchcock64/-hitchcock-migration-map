@@ -98,6 +98,10 @@ TOWN_COORDS = {
     "flushing|new york": (40.759, -73.830),
     "new york|new york": (40.713, -74.006),
     "new york city|new york": (40.713, -74.006),
+    "klenová|slovakia": (48.944, 22.330), "klenova|slovakia": (48.944, 22.330), "snina|slovakia": (48.988, 22.150),
+    "sporysz|poland": (49.683, 19.217), "zywiec|poland": (49.685, 19.192), "żywiec|poland": (49.685, 19.192),
+    "munkacs|hungary": (48.440, 22.720),      # now Mukachevo, Ukraine
+    "dupont|pennsylvania": (41.325, -75.745),
     "bronx|new york": (40.845, -73.865),
     "rockville centre|new york": (40.658, -73.641),
     "hempstead|new york": (40.706, -73.619),
@@ -1132,6 +1136,10 @@ COUNTRY_COORDS = {
     "sweden": (60.128, 18.643), "sverige": (60.128, 18.643),
     "switzerland": (46.818, 8.228), "netherlands": (52.133, 5.291),
     "canada": (56.130, -106.347), "new england": (42.407, -71.382),
+    # names the tree uses that no modern map does (2026-10-02, the cousins' lines from central Europe)
+    "czechoslovakia": (49.6, 17.2), "bohemia": (49.9, 14.6), "moravia": (49.3, 17.0), "czech republic": (49.8, 15.5),
+    "galicia": (49.8, 22.3), "prussia": (53.2, 17.8), "austria-hungary": (47.8, 17.0), "austria - poland": (49.8, 22.3),
+    "holland": (52.133, 5.291), "russia": (55.75, 37.6), "yugoslavia": (44.2, 19.0), "ussr": (55.75, 37.6),
 }
 
 US_STATE_NAMES = {
@@ -1290,6 +1298,9 @@ def parse_place(raw):
                       "mcdowell", "daviess", "henderson", "owensboro", "toronto",
                       "simsbury", "branford", "scotland?"):
         pass  # short/ambiguous forms handled by fallback tiers below anyway
+    m = re.match(r"^([A-Za-z][A-Za-z .'-]+?)\s+([A-Z]{2})\.?$", s)
+    if m and "," not in s and m.group(2).lower() in STATE_ABBREV:
+        s = f"{m.group(1)}, {m.group(2)}"                 # "Dupont PA" -> "Dupont, PA"
     comps = [clean_component(c) for c in s.split(",")]
     comps = [re.sub(r"^([A-Za-z][A-Za-z .'-]+?)\s+Ward\s+\d+$", r"\1", c) for c in comps]      # "Manhattan Ward 12" -> "Manhattan"
     comps = [c for c in comps if c and not STREET_ADDR_RE.match(c)]
@@ -1559,6 +1570,11 @@ def normalize_and_geocode(raw):
         if c in COUNTRY_COORDS:
             lat, lon = COUNTRY_COORDS[c]
             return (_title(c), lat, lon, "country")
+    # any other country (gazetteer.json.gz), the last component first: "Klenova, Snina, Slovakia" is at least Slovakia
+    for c in reversed(low):
+        hit = _gaz().get("country", {}).get(gaz_norm(c))
+        if hit:
+            return (_title(c), hit[0], hit[1], "country")
 
     return None
 

@@ -14,7 +14,8 @@ Sources, in pipeline/basemap/cache/ (git-ignored; all public domain):
 Output (committed, so a rebuild gives the same map on any machine):
   { town:   {"name|state": [[lat, lon, land area km2], ...]}   several where a state has namesakes
     county: {"name|state": [lat, lon]}                         centre of the largest part
-    world:  {"name|country or province": [lat, lon]} }         outside the US
+    world:  {"name|country or province": [lat, lon]}           outside the US
+    country: {"name": [lat, lon]} }                            every country, by its usual names
 Names are normalised by norm() (lower case, no periods, "saint" -> "st").
 """
 import gzip, json, pathlib, re, sys, zipfile
@@ -82,8 +83,16 @@ for ft in sorted(feats, key=lambda f: -(f['properties'].get('pop_max') or 0)):  
     for region in (p.get('adm0name'), p.get('adm1name')):
         if region: world.setdefault(f"{norm(p['name'])}|{norm(region)}", ll)
 
-out = {'town': dict(sorted(towns.items())), 'county': dict(sorted(counties.items())), 'world': dict(sorted(world.items()))}
+countries = {}
+for ft in json.load(open(CACHE / 'ne_10m_admin_0_countries.geojson', encoding='utf-8'))['features']:
+    p = ft['properties']
+    if p.get('LABEL_Y') is None or p.get('ADMIN') == 'United States of America': continue
+    for k in ('NAME', 'NAME_LONG', 'ADMIN', 'NAME_EN'):
+        if p.get(k): countries.setdefault(norm(p[k]), [round(p['LABEL_Y'], 3), round(p['LABEL_X'], 3)])
+
+out = {'town': dict(sorted(towns.items())), 'county': dict(sorted(counties.items())), 'world': dict(sorted(world.items())),
+       'country': dict(sorted(countries.items()))}
 raw = json.dumps(out, separators=(',', ':'), ensure_ascii=False, sort_keys=True).encode('utf-8')
 with open(HERE / 'gazetteer.json.gz', 'wb') as fh:
     with gzip.GzipFile(fileobj=fh, mode='wb', mtime=0) as g: g.write(raw)       # mtime=0: the same bytes every run
-print(f'{len(towns)} US town names, {len(counties)} counties, {len(world)} places elsewhere; {(HERE / "gazetteer.json.gz").stat().st_size // 1024} KB')
+print(f'{len(towns)} US town names, {len(counties)} counties, {len(world)} places elsewhere, {len(countries)} country names; {(HERE / "gazetteer.json.gz").stat().st_size // 1024} KB')
