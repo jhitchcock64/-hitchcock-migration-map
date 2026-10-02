@@ -639,3 +639,7 @@ NCGenWeb Jones County article, not seen; "under Gen. Anthony Wayne" is family ac
 from his great-grandson's 1926 account (the picket swimming the river; the captured camp and its Jamaica rum).
 
 Arrowheads are capped at 17 px (2026-10-02): 21 people between Birmingham and Jefferson Co. drew 32 px heads.
+
+Site name (2026-10-02, James): "Hitchcock Family History" in every page's header (top left, links to the Ask page), the tab
+titles, the About footer and the contact form's sender name. It replaced "Family History, Visualized". The map's tab title is
+"Family History of X" when someone is chosen; its hidden h1 (#page-title) is kept for setTarget() and screen readers.

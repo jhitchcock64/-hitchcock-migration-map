@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>About Family History, Visualized</title>
+<title>About | Hitchcock Family History</title>
 <link rel="stylesheet" href="site.css">
 <style>
 main { max-width: 980px; margin: 0 auto; padding: 26px 16px 70px; }
@@ -38,6 +38,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
 </head>
 <body>
 <header class="site-head">
+  <a class="brand" href="index.html">Hitchcock Family History</a>
   <nav class="site-nav"><a href="index.html">Ask</a><a href="map.html">Map</a><a href="tree.html">Tree</a><a href="people.html">People</a><a href="about.html" class="on">About</a></nav>
   <span class="spacer"></span><div id="viewer-slot"></div><div id="lock-slot"></div>
 </header>
@@ -69,7 +70,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
       service and moments in history, parents, spouses and children, and the line of descent.</p></div>
   </div>
 
-  <h2>With thanks to those who did it before us</h2>
+  <h2>With thanks to those who came before us</h2>
   <div class="prose">
     <p>None of this began at a computer. Long before any record could be searched on a web browser, grandparents, great-aunts, and others
       passionate about their family history did this work the slow way: writing to county clerks and cold-calling distant cousins, waiting
@@ -107,7 +108,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
       <div class="wide"><button class="btn solid" type="submit">Send</button> <span id="contact-msg" role="status"></span></div>
     </form>
   </section>
-  <footer>Family History, Visualized</footer>
+  <footer>Hitchcock Family History</footer>
 </main>
 <script src="data.js"></script>
 <script src="viewer.js"></script>
@@ -129,7 +130,7 @@ const CONTACT_KEY = "1b7e4bbc-448b-4897-83e1-a8b966753fc3";
     btn.disabled = true; msg.textContent = "Sending\u2026";
     try {
       const r = await fetch("https://api.web3forms.com/submit", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ access_key: CONTACT_KEY, subject: "Family history site: message from " + f.get("name"), from_name: "Family History, Visualized",
+        body: JSON.stringify({ access_key: CONTACT_KEY, subject: "Family history site: message from " + f.get("name"), from_name: "Hitchcock Family History",
                                name: f.get("name"), email: f.get("email"), message: f.get("message") }) });
       const j = await r.json();
       if (!j.success) throw new Error(j.message || "not sent");

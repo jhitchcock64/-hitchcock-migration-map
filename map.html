@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Family History, Visualized</title>
+<title>Hitchcock Family History</title>
 <link rel="stylesheet" href="vendor/maplibre-gl-4.7.1/maplibre-gl.css">
 <style>
 :root {
@@ -21,6 +21,7 @@ body { display:flex; flex-direction:column; height:100vh; }
 header { display:flex; align-items:center; flex-wrap:wrap; gap:6px 18px; padding:7px 16px;
   border-bottom:1px solid rgba(156,122,46,0.3); flex-shrink:0; background:var(--panel-bg); }
 header h1 { font-family:var(--font-display); font-weight:600; font-size:18px; margin:0; }
+header .brand { font-family:var(--font-display); font-weight:600; font-size:18px; color:inherit; text-decoration:none; }
 header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); }
 /* ---- the profile panel (one person's life; profiles.js, loaded when first opened) ---- */
 #profile { position:absolute; top:0; right:0; bottom:0; width:min(430px, 100%); z-index:40; background:var(--panel-bg);
@@ -85,7 +86,7 @@ header .eyebrow { font-family:var(--font-mono); font-size:10px; letter-spacing:0
 
 @media (max-width: 700px) { .site-nav { border-left:none; padding-left:0; margin-left:0; } #viewer-slot { margin-left:auto; } }
 /* the site's pages: a tab group, set apart from the title by a rule */
-.site-nav { display:flex; }
+.site-nav { display:flex; padding-left:14px; border-left:1px solid rgba(156,122,46,0.45); }
 #page-title { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }   /* kept for screen readers and setTarget(); not shown (James, 2026-10-02) */
 .site-nav a { font-family:var(--font-body); font-size:12.5px; text-decoration:none; color:var(--ink); padding:3px 11px;
   border:1px solid rgba(156,122,46,0.45); margin-left:-1px; background:rgba(255,255,255,0.45); line-height:normal; }
@@ -407,7 +408,8 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 </head>
 <body>
 <header>
-  <h1 id="page-title">Family History, Visualized</h1>
+  <a class="brand" href="index.html">Hitchcock Family History</a>
+  <h1 id="page-title">Hitchcock Family History</h1>
   <nav class="site-nav"><a href="index.html">Ask</a><a href="map.html" class="on">Map</a><a href="tree.html">Tree</a><a href="people.html">People</a><a href="about.html">About</a></nav>
   <div id="viewer-slot"></div>
   <div id="lock">
@@ -1237,9 +1239,9 @@ function setTarget(pid) {
   CURRENT_TARGET = pid;
   TARGET_ANCESTOR_SET = ancestorSetOf(pid); // includes pid itself
   recomputeClusterVisibility();
-  // the default view says "Family History, Visualized"; a chosen person's, "Family History of X, Visualized"
+  // the tab title: "Hitchcock Family History", or "Family History of X" for a chosen person (the header shows the site name)
   const nm = GRAPH.people[pid].name;
-  const title = pid === GRAPH.james_id || nm === "Private" ? "Family History, Visualized" : `Family History of ${nm}, Visualized`;
+  const title = pid === GRAPH.james_id || nm === "Private" ? "Hitchcock Family History" : `Family History of ${nm}`;
   document.title = title;
   document.getElementById("page-title").textContent = title;
   clearFocus();

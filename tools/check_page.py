@@ -87,7 +87,7 @@ if r['renderer'] == 'maplibre':
         if n['missing_people']: problems.append(f"{n['missing_people']} notable events point at people missing from GRAPH")
         if n['arrivals'] < 50: problems.append(f"only {n['arrivals']} arrivals in NOTABLE")
         if not n['godspeed']: problems.append('the Godspeed landing is missing from NOTABLE')
-    if r.get('title') != 'Family History, Visualized': problems.append(f"page title is {r.get('title')!r}")
+    if r.get('title') != 'Hitchcock Family History': problems.append(f"page title is {r.get('title')!r}")
     pf = r.get('profile')
     if pf is not None:
         if pf['name'] != 'William Worthington' or 'Timeline' not in pf['sections']: problems.append(f'profile panel broken: {pf}')
