@@ -68,7 +68,7 @@ const Ask = (() => {
     if (!el) return;
     const k = me && R ? meIdx() : -1;
     el.innerHTML = k >= 0 ? `Answering for <b>${E(meLabel())}</b> · <a href="#" data-act="me">change</a>`
-      : `<a href="#" data-act="me">Say who you are</a> (&ldquo;Viewing as&rdquo;, top right) for &ldquo;how am I related&rdquo; questions`;
+      : `Family, or think you might be? <a href="#" data-act="me">Say who you are</a> (&ldquo;Viewing as&rdquo;, top right) to ask how you&rsquo;re related`;
   }
 
   // ---------------------------------------------------------------- finding people by name

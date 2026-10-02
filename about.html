@@ -25,6 +25,14 @@ a.card:hover { border-color: rgba(156,60,46,0.5); background: #fffaf1; }
 .faces a img { width: 54px; height: 66px; border-radius: 5px; object-fit: cover; object-position:50% 50%; display: block; }
 .prose p, .prose li { font-size: 14.5px; line-height: 1.6; max-width: 760px; }
 .prose ul { padding-left: 20px; }
+.contact { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; max-width: 760px; }
+.contact label { display: block; font-size: 12.5px; color: var(--muted); }
+.contact .wide { grid-column: 1 / -1; }
+.contact input, .contact textarea { display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 14.5px; color: var(--ink); padding: 8px 10px;
+  border: 1px solid rgba(156,122,46,0.5); border-radius: 6px; background: #fffdf7; }
+.contact .hp { display: none; }
+#contact-msg { font-size: 13.5px; margin-left: 8px; }
+@media (max-width: 640px) { .contact { grid-template-columns: 1fr; } }
 footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 </style>
 </head>
@@ -36,11 +44,14 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
 </header>
 <main>
   <section class="hero">
+    <blockquote class="epigraph" style="margin-left:0">&ldquo;People will not look forward to posterity, who never look backward to their ancestors.&rdquo;<cite>Edmund Burke, <i>Reflections on the Revolution in France</i>, 1790</cite></blockquote>
     <div class="eyebrow">Where the family came from, and how they got here</div>
     <h1>A family history of the Hitchcocks, the Askews and everyone who came before</h1>
     <p>Nearly five centuries of one family&rsquo;s direct ancestors, traced from England, Ireland, Scotland, Germany,
       Switzerland and Sweden through colonial New England and Virginia to the South and Midwest: every documented move
       drawn on a map, the wars they served in, the moments of history they lived through, and a profile for each person.</p>
+    <p>It is one family&rsquo;s story, but an ordinary American one, and it is open to anyone. If you arrived because a name
+      here is also in your own tree, welcome: you may well be a cousin, and you can <a href="#contact">write to say so</a>.</p>
     <div class="acts"><a class="btn solid" href="map.html">Open the map</a><a class="btn" href="tree.html">Browse the tree</a><a class="btn" href="people.html">Find a person</a></div>
     <div class="faces" id="faces"></div>
   </section>
@@ -51,6 +62,8 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
 
   <h2>How to use the site</h2>
   <div class="cards">
+    <a class="card" href="index.html"><h3>Ask</h3><p>Type a question in plain words: who someone was, when and where they lived, who fought in
+      which war, who came from where. Say who you are with <b>Viewing as</b> at the top right and it will tell you how you&rsquo;re related.</p></a>
     <a class="card" href="map.html"><h3>The map</h3><p>Every move the records show, coloured by year. Choose anyone to see the journeys of their ancestors
       converge on them; turn on military service (dotted lines, crossed swords for battles) and notable events (stars and anchors).
       Time period and Surname filter everything.</p></a>
@@ -60,6 +73,17 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
       life stories, military service and notable events marked.</p></a>
     <div class="card"><h3>Profiles</h3><p>Each person&rsquo;s life in brief: a portrait where one survives, dates and places, a timeline,
       service and moments in history, parents, spouses and children, and the line of descent.</p></div>
+  </div>
+
+  <h2>With thanks to those who did it by hand</h2>
+  <div class="prose">
+    <p>None of this began with a computer. Long before any record could be searched from a kitchen table, grandparents, great-aunts,
+      cousins and other keepers of the family&rsquo;s memory did this work the slow way: writing to county clerks and waiting weeks for an
+      answer, copying entries out of courthouse ledgers and church registers, cranking through reels of microfilm, walking cemeteries
+      with a notebook, writing names on the backs of photographs, and typing up what they had found so that it would outlast them.</p>
+    <p>Their letters, charts, Bible pages and typescripts are the foundation of everything here. Nearly every line on the map rests on
+      something one of them found, kept or wrote down, often with no way of knowing who would ever read it. This site is offered in
+      gratitude to them, and to everyone still doing that work.</p>
   </div>
 
   <h2>What&rsquo;s documented, and what&rsquo;s inferred</h2>
@@ -77,6 +101,17 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
     <p>Living family members are private: their names, dates and photos are published only in encrypted form, and appear
       once the family password is entered (the lock at the top right).</p>
   </div>
+  <section id="contact" hidden>
+    <h2>Get in touch</h2>
+    <div class="prose"><p>A correction, a photograph, a branch that connects to yours, or just hello: this goes to James Hitchcock, who keeps the tree.</p></div>
+    <form id="contact-form" class="contact">
+      <label>Your name<input name="name" required maxlength="100" autocomplete="name"></label>
+      <label>Your email, for a reply<input name="email" type="email" required maxlength="200" autocomplete="email"></label>
+      <label class="wide">Message<textarea name="message" required rows="6" maxlength="5000"></textarea></label>
+      <input type="checkbox" name="botcheck" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="wide"><button class="btn solid" type="submit">Send</button> <span id="contact-msg" role="status"></span></div>
+    </form>
+  </section>
   <footer>Family History, Visualized</footer>
 </main>
 <script src="data.js"></script>
@@ -84,6 +119,30 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
 <script src="profiles.js"></script>
 <script src="site.js"></script>
 <script>
+// The contact form posts to Web3Forms (web3forms.com), which forwards the message by email; the address is held by
+// that service and never appears on this page. CONTACT_KEY is the form's public access key (not a password: it can
+// only deliver messages to that inbox). Until it is set, the form stays hidden.
+const CONTACT_KEY = "";
+(function () {
+  const sec = document.getElementById("contact"), form = document.getElementById("contact-form"), msg = document.getElementById("contact-msg");
+  if (!CONTACT_KEY) { document.querySelectorAll('a[href="#contact"]').forEach(a => a.replaceWith("write to say so (a contact form is coming)")); return; }
+  sec.hidden = false;
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const f = new FormData(form), btn = form.querySelector("button");
+    if (f.get("botcheck")) return;                       // a hidden box only a bot would tick
+    btn.disabled = true; msg.textContent = "Sending\u2026";
+    try {
+      const r = await fetch("https://api.web3forms.com/submit", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ access_key: CONTACT_KEY, subject: "Family history site: message from " + f.get("name"), from_name: "Family History, Visualized",
+                               name: f.get("name"), email: f.get("email"), message: f.get("message") }) });
+      const j = await r.json();
+      if (!j.success) throw new Error(j.message || "not sent");
+      form.reset(); msg.textContent = "Thank you. Your message has been sent.";
+    } catch (err) { msg.textContent = "Sorry, that didn\u2019t send. Please try again in a little while."; }
+    btn.disabled = false;
+  });
+})();
 function draw() {
   const P = GRAPH.people, E = Family.esc;
   const people = Object.values(P).filter(p => p.name !== "Private").length;

@@ -38,6 +38,10 @@ a { color: inherit; }
 .lock-pop button { font: inherit; padding: 4px 8px; border-radius: 4px; border: 1px solid #2f3d12; background: #2f3d12; color: #fff; cursor: pointer; }
 .lock-msg { color: var(--accent); margin-top: 6px; min-height: 1em; }
 
+/* a quotation set above a page's opening (index.html, about.html) */
+.epigraph { font-family: var(--font-display); font-style: italic; color: var(--muted); margin: 0 auto 18px; max-width: 620px; line-height: 1.45; }
+.epigraph cite { display: block; font-style: normal; font-family: var(--font-body); font-size: .78em; letter-spacing: .02em; margin-top: 4px; }
+
 .eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
 .btn { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 5px;
   border: 1px solid var(--accent); color: var(--accent); background: #fff8f2; cursor: pointer; text-decoration: none; }
