@@ -15,7 +15,7 @@ a { color: inherit; }
 .site-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 18px; padding: 7px 16px;
   border-bottom: 1px solid var(--line); background: var(--panel-bg); position: sticky; top: 0; z-index: 30; }
 .site-head .brand { font-family: var(--font-display); font-weight: 600; font-size: 18px; text-decoration: none; }
-.site-nav { display: flex; padding-left: 14px; border-left: 1px solid rgba(156,122,46,0.45); }
+.site-nav { display: flex; }
 .site-nav a { font-size: 12.5px; text-decoration: none; color: var(--ink); padding: 3px 11px; border: 1px solid rgba(156,122,46,0.45);
   margin-left: -1px; background: rgba(255,255,255,0.45); }
 .site-nav a:first-child { border-radius: 5px 0 0 5px; margin-left: 0; }
