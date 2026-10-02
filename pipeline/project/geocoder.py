@@ -9,7 +9,7 @@ rule-based with an explicit precision tier recorded per place:
 This keeps the map honest about precision at a glance (map render uses the
 tier to lightly vary marker size/opacity, and the tier is logged in the CSV).
 """
-import re
+import gzip, json, math, os, re
 
 def _title(s):
     """Like str.title(), but doesn't capitalize the letter right after an
@@ -98,6 +98,7 @@ TOWN_COORDS = {
     "flushing|new york": (40.759, -73.830),
     "new york|new york": (40.713, -74.006),
     "new york city|new york": (40.713, -74.006),
+    "bronx|new york": (40.845, -73.865),
     "rockville centre|new york": (40.658, -73.641),
     "hempstead|new york": (40.706, -73.619),
     "new orleans|louisiana": (29.951, -90.071),
@@ -1290,6 +1291,7 @@ def parse_place(raw):
                       "simsbury", "branford", "scotland?"):
         pass  # short/ambiguous forms handled by fallback tiers below anyway
     comps = [clean_component(c) for c in s.split(",")]
+    comps = [re.sub(r"^([A-Za-z][A-Za-z .'-]+?)\s+Ward\s+\d+$", r"\1", c) for c in comps]      # "Manhattan Ward 12" -> "Manhattan"
     comps = [c for c in comps if c and not STREET_ADDR_RE.match(c)]
     sub = [c for c in comps if SUB_TOWN_RE.search(c) and c.lower() != "district of columbia"]
     if sub and len(sub) < len(comps):
@@ -1333,6 +1335,72 @@ RAW_GROUND_TRUTH = {
     "Worcester, Worcester, Massachusetts, USA": ("Worcester Co., Massachusetts", 42.35, -71.86, "county"),
 }
 
+# ---------------------------------------------------------------- the gazetteer fallback (2026-10-02)
+# Places the tables above don't know: US towns and counties (Census Bureau) and larger places abroad
+# (Natural Earth), from gazetteer.json.gz (build_gazetteer.py). The hand tables always come first: they
+# hold the historical places and James's corrections. Added when the map was extended to cousins, who
+# lived all over the country; before, a place like "Phoenix, Arizona" fell back to the middle of the state.
+def gaz_norm(s):
+    s = re.sub(r"\s+", " ", s.lower().replace(".", "").replace("'", "").replace("\u2019", "")).strip()
+    return re.sub(r"^sainte? ", lambda m: "ste " if m.group(0).startswith("sainte") else "st ", s)
+
+_GAZ = None
+def _gaz():
+    global _GAZ
+    if _GAZ is None:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gazetteer.json.gz")
+        _GAZ = json.load(gzip.open(path, "rt", encoding="utf-8")) if os.path.exists(path) else {"town": {}, "county": {}, "world": {}}
+    return _GAZ
+
+def _km(a, b):
+    la1, lo1, la2, lo2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    return 6371 * 2 * math.asin(math.sqrt(math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2))
+
+_UK = {"england", "scotland", "wales", "northern ireland"}
+def _gazetteer(low, low_nosuffix, country):
+    G = _gaz()
+    states = [i for i, c in enumerate(low_nosuffix) if c in US_STATE_NAMES]
+    if states:
+        st = low_nosuffix[states[-1]]                      # the last state named: "Washington, Warren, New Jersey" is New Jersey
+        if st == "district of columbia":
+            return ("Washington, D.C.", 38.9042, -77.0165, "town")
+        parts = [(low[i], low_nosuffix[i]) for i in range(states[-1])
+                 if low_nosuffix[i] not in ("usa", "united states", "united states of america") and low[i] not in STATE_ABBREV]
+        counties = [c for raw, c in parts if f"{gaz_norm(c)}|{st}" in G["county"]]
+        # the county the place names: a "... County" component, or a later component that is a county of the state
+        named = next((c for raw, c in parts if raw != c and c in counties), None) or next((c for raw, c in parts[1:] if c in counties), None)
+        centre = G["county"].get(f"{gaz_norm(named)}|{st}") if named else None
+        for k, (raw, c) in enumerate(parts):
+            if raw != c: continue                          # "Stewart County" is the county, not a town called Stewart
+            if k > 0 and c == named: continue              # "Huff, Spencer, Indiana": Spencer is the county here
+            cands = G["town"].get(f"{gaz_norm(c)}|{st}")
+            if not cands: continue
+            best = min(cands, key=lambda r: _km(r, centre)) if centre else cands[0]
+            if centre and _km(best, centre) > 90: continue  # a namesake elsewhere in the state: keep to the county
+            if (c, st) == ("new york", "new york"): break   # the city: the hand table's label and point, below
+            # a name that is both a county and a town far from it ("Gordon, Georgia", "Morgan, Georgia"), with
+            # nothing else to say which: Ancestry's "County, State" form, so the county
+            own = G["county"].get(f"{gaz_norm(c)}|{st}")
+            if own and not centre and min(_km(r, own) for r in cands) > 60:
+                return (f"{_title(c)} Co., {_title(st)}", own[0], own[1], "county")
+            return (f"{_title(c)}, {_title(st)}", best[0], best[1], "town")
+        if st == "new york" and (named == "new york" or any(c == "new york" for raw, c in parts)):
+            lat, lon = TOWN_COORDS["new york city|new york"]
+            return ("New York City, New York", lat, lon, "town")
+        if centre:
+            return (f"{_title(named)} Co., {_title(st)}", centre[0], centre[1], "county")
+        return None
+    # abroad: a place paired with its country or province ("Toronto, Ontario", "Perth, Western Australia, Australia")
+    regions = [gaz_norm(c) for c in low_nosuffix] + (["united kingdom"] if country in _UK else [])
+    for c in low_nosuffix:
+        for name in (c, re.sub(r"^(north|south|east|west|upper|lower) | (north|south|east|west|centre|center)$", "", c)):
+            for reg in regions:
+                hit = G["world"].get(f"{gaz_norm(name)}|{reg}")
+                if hit and gaz_norm(name) != reg:
+                    return (f"{_title(name)}, {_title(reg if reg != 'united kingdom' else country)}", hit[0], hit[1], "town")
+    return None
+
+
 def normalize_and_geocode(raw):
     """Returns (canonical_label, lat, lon, tier) or None if unresolvable."""
     if not raw:
@@ -1350,7 +1418,7 @@ def normalize_and_geocode(raw):
     # expand bare 2-letter state abbreviations into full names (keep original too)
     expanded = []
     for c in comps:
-        cl = c.lower().strip(".")
+        cl = c.lower().replace(".", "")                # "D.C." as well as "DC"
         if cl in STATE_ABBREV:
             expanded.append(STATE_ABBREV[cl])
         else:
@@ -1457,6 +1525,11 @@ def normalize_and_geocode(raw):
                 and same_state(loc, COUNTY_BARE_REGION):
             lat, lon = COUNTY_COORDS_BARE[loc]
             return (f"{_title(loc)} Co.", lat, lon, "county")
+
+    # --- the gazetteer: US towns and counties in the named state, larger places abroad ---
+    hit = _gazetteer(low, low_nosuffix, country)
+    if hit:
+        return hit
 
     # --- state / region-level ---
     # Position in the string isn't a reliable signal for which state match to

@@ -184,6 +184,11 @@ def person_stops(pid):
                      "year": yr, "type": e["type"], "md": month_day(e["date"], yr)})
         if e["type"] in ("BIRT", "DEAT"):
             seen_types.add(e["type"])
+    # nobody moves after they die: a residence dated after the death is a namesake's record, a widow's
+    # directory entry or a probate (2026-10-02; John Sherwood d. 1894 "moved" to Brooklyn in 1902)
+    died = min((e["year"] for e in evs if e["type"] == "DEAT"), default=None)
+    if died:
+        evs = [e for e in evs if e["type"] in ("BIRT", "DEAT") or e["year"] <= died]
     evs = strip_generic_singletons(evs)
     evs = drop_home_military(evs)
     evs.sort(key=lambda e: (e["year"], 0 if e["type"] == "BIRT" else (2 if e["type"] == "DEAT" else 1), e["md"]))
