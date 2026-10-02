@@ -636,6 +636,5 @@ from Margaret. Limit: someone off the map (Tommy Baskett) starts the map and tre
 Benjamin Askew (b. 1747; 2026-10-02): Revolutionary service (a note: an Aug 1783 pay voucher, cited by the
 NCGenWeb Jones County article, not seen; "under Gen. Anthony Wayne" is family account) and two family stories
 from his great-grandson's 1926 account (the picket swimming the river; the captured camp and its Jamaica rum).
-James also mentioned an anecdote "about the apples": it is not in that article; ask him for its source.
 
 Arrowheads are capped at 17 px (2026-10-02): 21 people between Birmingham and Jefferson Co. drew 32 px heads.
