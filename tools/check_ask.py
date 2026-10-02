@@ -25,9 +25,9 @@ with sync_playwright() as p:
         pg.click('#lock-slot .lock-btn'); pg.fill('#lock-slot input', pw); pg.press('#lock-slot input', 'Enter')
         pg.wait_for_function("Family.shown", timeout=30000)
         pg.wait_for_timeout(1500)
-        who = pg.evaluate("(async () => { await Ask.load(); const k = RELATIVES.n.indexOf('James Albert Hitchcock'); Ask.setMe(k, 0); return RELATIVES.n[k]; })()")
+        who = pg.evaluate("(async () => { await Ask.load(); const k = RELATIVES.n.indexOf('James Albert Hitchcock'); await Ask.setMe(k, 0); return RELATIVES.n[k]; })()")
     else:
-        who = pg.evaluate("(async () => { await Ask.load(); const k = RELATIVES.n.findIndex(n => n.startsWith('Albert Carl Hitchcock')); Ask.setMe(k, 2); return 'a grandchild of ' + RELATIVES.n[k]; })()")
+        who = pg.evaluate("(async () => { await Ask.load(); const k = RELATIVES.n.findIndex(n => n.startsWith('Albert Carl Hitchcock')); await Ask.setMe(k, 2); return 'a grandchild of ' + RELATIVES.n[k]; })()")
     print('asking as', who, '\n')
     rows = []
     for q in QS:

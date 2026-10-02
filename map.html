@@ -528,7 +528,16 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="vendor/maplibre-gl-4.7.1/maplibre-gl.js"></script>
-<script src="data.js"></script>
+<script>
+// The data: data.js (the core map), or data_ext.js (the core plus cousins and their other lines; extset.py)
+// when the "Viewing as" person is outside the core. Ordinary visitors never download the extended file.
+(function () {
+  var x = false;
+  try { var v = JSON.parse(localStorage.getItem("hm-viewer") || "null"); x = !!(v && v.ext); } catch (e) {}
+  window.HM_EXT = x;
+  document.write('<script src="' + (x ? "data_ext.js" : "data.js") + '"><\/script>');
+})();
+</script>
 <script src="viewer.js"></script>
 <script>
 ROUTES.forEach((r,i)=>{ r._i = i; });
@@ -2300,7 +2309,7 @@ setNotable(showNotable);
 let PROFILES_LOADED = null, PRIVATE_PROFILES = {}, PRIVATE_PFAM = {}, PRIVATE_PSIB = {};
 function loadProfiles() {
   if (!PROFILES_LOADED) PROFILES_LOADED = new Promise((ok, fail) => {
-    const s = document.createElement("script"); s.src = "profiles.js"; s.onload = ok; s.onerror = fail; document.head.appendChild(s);
+    const s = document.createElement("script"); s.src = window.HM_EXT ? "profiles_ext.js" : "profiles.js"; s.onload = ok; s.onerror = fail; document.head.appendChild(s);
   });
   return PROFILES_LOADED;
 }

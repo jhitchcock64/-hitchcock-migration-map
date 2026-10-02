@@ -210,6 +210,18 @@ bfs_ancestors(ROOT_ID)
 
 direct_ancestors = [pid for pid in visited if pid != ROOT_ID]
 
+# The extended run (HM_EXT=1, run_extended.sh): the same pipeline over the core plus every cousin
+# (descendants of the root's 3rd great-grandparents) and the cousins' own ancestors; see extset.py.
+# `core` records who was on the map anyway, so later stages can treat the newcomers differently.
+core_ids = sorted(visited)
+if _os.environ.get('HM_EXT'):
+    import sys as _sys; _sys.path.insert(0, PROJECT_DIR)
+    from extset import extended
+    _new, _gen = extended(indi, fam, generation_of)
+    direct_ancestors += _new
+    generation_of.update(_gen)
+    print(f'EXTENDED RUN: {len(_new):,} more people (cousins and their other lines)')
+
 print(f"\n{'='*70}")
 print(f"DIRECT ANCESTORS FOUND: {len(direct_ancestors):,}")
 print(f"{'='*70}")
@@ -253,6 +265,8 @@ with open(_os.path.join(PROJECT_DIR, "ancestors.json"), "w", encoding="utf-8") a
         "james_id": ROOT_ID,  # kept as "james_id" for downstream compatibility -- now holds Margaret's ID, the new root
         "true_james_id": JAMES_ID,  # James himself, for anything that specifically needs him rather than the root
         "direct_ancestors": direct_ancestors,
+        "core": core_ids,
+        "extended": bool(_os.environ.get("HM_EXT")),
         "generation_of": generation_of,
     }, f, ensure_ascii=False)
 

@@ -250,7 +250,22 @@ JAMES_ID = anc_data["james_id"]
 for extra in [JAMES_ID] + SIBLING_IDS:
     generation_of.setdefault(extra, 0)  # same tier as the root -- not an "ancestor" of anyone
 
+# The extended run (extset.py): a living cousin's own moves are not drawn at all (James, 2026-10-02:
+# for the immediate family, lines without names were his choice; for a couple of hundred cousins, nothing).
+# Living here = no death record, and born from 1926 or with no birth year.
+CORE = set(anc_data.get("core", [])) | {JAMES_ID} | set(SIBLING_IDS)
+def living_cousin(pid):
+    if not anc_data.get("extended") or pid in CORE:
+        return False
+    evs = records[pid]["events"]
+    if any(e["type"] == "DEAT" for e in evs):
+        return False
+    by = next((parse_year(e["date"]) for e in evs if e["type"] == "BIRT" and parse_year(e["date"])), None)
+    return by is None or by >= 1926
+
 for pid in sorted(set(direct_ancestors) | {JAMES_ID} | set(SIBLING_IDS), key=lambda p: generation_of[p]):
+    if living_cousin(pid):
+        continue
     name = (records[pid]["name"] or "?").replace("/", "")
     stops = person_stops(pid)
     if not stops:

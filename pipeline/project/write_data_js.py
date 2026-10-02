@@ -26,6 +26,15 @@ import privacy
 if len(sys.argv) != 2:
     raise SystemExit('usage: python pipeline/project/write_data_js.py <path/to/data.js>')
 path = _os.path.join(_ORIG_CWD, sys.argv[1])
+# data_ext.js: the extended run's arrays (core + cousins; extset.py, run_extended.sh). Its profiles go to
+# profiles_ext.js; the living's portraits and the relatives index belong to the core run and are left alone.
+EXT = '_ext' in _os.path.basename(path)
+_anc = json.load(open(_os.path.join(PROJECT_DIR, 'ancestors.json'), encoding='utf-8'))
+if EXT != bool(_anc.get('extended')):
+    raise SystemExit(f'FAIL: the pipeline output on disk is from the {"extended" if _anc.get("extended") else "core"} run; '
+                     f'{_os.path.basename(path)} needs the other one (see run_extended.sh)')
+if EXT and not _os.path.exists(path):
+    import shutil; shutil.copyfile(_os.path.join(_os.path.dirname(path), 'data.js'), path)      # for the header and VB
 
 ORDER = ['ROUTES', 'CLUSTERS', 'PLACES', 'VB', 'SEARCH_INDEX', 'GRAPH', 'PERSON_LEGS', 'CORRIDORS', 'MILITARY', 'NOTABLE', 'PRIVATE']
 GENERATED = {'ROUTES': 'routes_prepared.json', 'CLUSTERS': 'clusters_prepared.json', 'PLACES': 'places_prepared.json',
@@ -46,19 +55,70 @@ missing = [n for n in ORDER if n not in lines and n not in GENERATED and n != 'P
 if missing: raise SystemExit(f'FAIL: {path} lacks {missing}')
 
 arrays = {name: json.load(open(_os.path.join(BUILD_DIR, f), encoding='utf-8')) for name, f in GENERATED.items()}
-living = privacy.living_ids(arrays['GRAPH'], json.load(open(_os.path.join(PROJECT_DIR, 'indi.json'), encoding='utf-8')))
+INDI = json.load(open(_os.path.join(PROJECT_DIR, 'indi.json'), encoding='utf-8'))
+FAM = json.load(open(_os.path.join(PROJECT_DIR, 'fam.json'), encoding='utf-8'))
+living = privacy.living_ids(arrays['GRAPH'], INDI)
 profiles = json.load(open(_os.path.join(BUILD_DIR, 'profiles_prepared.json'), encoding='utf-8'))
 private = privacy.redact_profiles(profiles, living, privacy.redact(arrays, living))
+
+# Living people named in the tree's own text (2026-10-02): a research note on an ancestor read "ancestor of
+# <a living cousin> (through his mother <another>)". Anyone living anywhere in the tree is taken out of the
+# published notes and event titles, by full name or first + last name, unless a dead person bears the same name.
+_name = lambda i: re.sub(r'\s+', ' ', (INDI[i].get('name') or '').replace('/', '')).strip()
+def _variants(n):
+    w = n.split()
+    return {n} | ({w[0] + ' ' + w[-1]} if len(w) > 2 else set())
+all_living = privacy.living_relatives(INDI, FAM, living, set(arrays['GRAPH']['people']))
+dead_names = {v for i in INDI if i not in all_living for v in _variants(_name(i))}
+# only people with a birth date in the living range: an undated person the cautious rule calls living may be
+# an 18th-century name in a quotation ("Katherine Kelly, aged 73 ... 1838")
+live_names = {v for i in all_living if (privacy._year(INDI[i].get('birt_date')) or 0) >= privacy.LIVING_BORN_FROM
+              for v in _variants(_name(i)) if len(v.split()) >= 2 and len(v) >= 8} - dead_names
+_scrub = re.compile('|'.join(re.escape(n) for n in sorted(live_names, key=len, reverse=True))) if live_names else None
+scrubbed = 0
+def _clean(s):
+    global scrubbed
+    if not _scrub or not isinstance(s, str): return s
+    # ... unless the sentence is plainly about the past ("Katherine Kelly, aged 73 ... on 7 Mar 1838"): a namesake
+    def sub(m):
+        global scrubbed
+        a = max(s.rfind('.', 0, m.start()), s.rfind(chr(10), 0, m.start())) + 1
+        b = min([x for x in (s.find('. ', m.end()), s.find(chr(10), m.end())) if x >= 0] or [len(s)])
+        if re.search(r'\b1[5-8]\d\d\b', s[a:b]): return m.group(0)
+        scrubbed += 1
+        return 'a living relative'
+    return _scrub.sub(sub, s)
+for pr in profiles['people'].values():
+    if pr.get('nt'): pr['nt'] = [_clean(x) for x in pr['nt']]
+    for e in pr.get('t', []):
+        for k in (2, 4):
+            if len(e) > k: e[k] = _clean(e[k])
+print(f'{scrubbed} mentions of living people taken out of published notes and event titles')
+
 off_map = [c['n'] for p in private['pfam'].values() for f in p for c in f['k'] + ([f['sp']] if 'sp' in f else []) if c.get('lv')] + \
           [c['n'] for s in private['psib'].values() for c in s if c.get('lv')]
 arrays['PRIVATE'] = privacy.encrypt(private, privacy.password())
 print(f'{len(living)} living people hidden; their details encrypted in PRIVATE')
 public = json.dumps({k: v for k, v in arrays.items() if k != 'PRIVATE'}, ensure_ascii=False) + json.dumps(profiles, ensure_ascii=False)
-leak = [n for n in {v['name'] for v in privacy.decrypt(arrays['PRIVATE'], privacy.password())['graph'].values()} | set(off_map)
-        if n and n in public]
-if leak: raise SystemExit(f'FAIL: living names still in the public data: {len(leak)}')
+hidden_graph = privacy.decrypt(arrays['PRIVATE'], privacy.password())['graph']
+core_ids = set(_anc.get('core') or hidden_graph)
+# the core's living (the immediate family): their names must not appear anywhere, as before
+strict = {v['name'] for pid, v in hidden_graph.items() if pid in core_ids} | (set() if EXT else set(off_map))
+leak = [n for n in strict if n and n in public]
+# the extended run's living cousins: a name counts as leaked unless every appearance is a dead namesake's
+# (a Benjamin Askew born 2001 and the one born 1747), and one-word names can't be told apart at all
+def _leaks(n):
+    if len(n.split()) < 2 or n not in public: return False
+    rest = public
+    for d in sorted((d for d in dead_names if n in d), key=len, reverse=True): rest = rest.replace(d, '')
+    return n in rest
+if EXT:
+    all_dead_full = {_name(i) for i in INDI if i not in all_living}
+    dead_names |= all_dead_full
+    leak += [n for n in {v['name'] for pid, v in hidden_graph.items() if pid not in core_ids} | set(off_map) if n and _leaks(n)]
+if leak: raise SystemExit(f'FAIL: living names still in the public data: {len(leak)}: ' + '; '.join(sorted(n.split()[0] + ' ...' for n in leak)[:8]))
 # the profiles, loaded by the page only when one is opened
-ppath = _os.path.join(_os.path.dirname(path), 'profiles.js')
+ppath = _os.path.join(_os.path.dirname(path), 'profiles_ext.js' if EXT else 'profiles.js')
 with open(ppath + '.tmp', 'w', encoding='utf-8', newline='\n') as fh:
     fh.write('// generated by pipeline/project/write_data_js.py from build2/profiles_prepared.json; living people hidden (privacy.py)\n')
     fh.write('const PROFILES = ' + json.dumps(profiles, separators=(',', ':'), ensure_ascii=False) + ';\n')
@@ -68,7 +128,9 @@ print('wrote', ppath, _os.path.getsize(ppath), 'bytes')
 # encrypted like PRIVATE into private_photos.js, which the page loads only once unlocked
 import base64
 pdir = _os.path.join(_os.path.dirname(path), 'photos_private')
-if _os.path.isdir(pdir) and _os.listdir(pdir):
+if EXT:
+    pass
+elif _os.path.isdir(pdir) and _os.listdir(pdir):
     shots = {'@' + f[:-4] + '@': base64.b64encode(open(_os.path.join(pdir, f), 'rb').read()).decode()
              for f in sorted(_os.listdir(pdir)) if f.endswith('.jpg')}
     stray = [k for k in shots if k not in living]
@@ -83,21 +145,23 @@ else:
     print('photos_private/ is empty or missing: private_photos.js left as it was')
 # everyone in the GEDCOM, for the Ask page (build_relatives.py): the living's names and
 # years blanked and encrypted like PRIVATE; loaded by the page only when someone asks
-rel = json.load(open(_os.path.join(BUILD_DIR, 'relatives_prepared.json'), encoding='utf-8'))
-hidden = {}
-for k in rel.pop('lv'):
-    hidden[str(k)] = [rel['n'][k], rel['b'][k], rel['d'][k]]
-    rel['n'][k], rel['b'][k], rel['d'][k] = '', 0, 0
-map_living = {pid.strip('@') for pid in living}
-if any(rel['n'][k] for k, i in enumerate(rel['id']) if i in map_living):
-    raise SystemExit('FAIL: a living person on the map is named in relatives.js')
-rel['lv'] = privacy.encrypt(hidden, privacy.password())
-rpath = _os.path.join(_os.path.dirname(path), 'relatives.js')
-with open(rpath + '.tmp', 'w', encoding='utf-8', newline='\n') as fh:
-    fh.write('// generated by pipeline/project/write_data_js.py from build2/relatives_prepared.json; living people encrypted (privacy.py)\n')
-    fh.write('const RELATIVES = ' + json.dumps(rel, separators=(',', ':'), ensure_ascii=False) + ';\n')
-_os.replace(rpath + '.tmp', rpath)
-print(f'{len(hidden)} living relatives hidden ->', rpath, _os.path.getsize(rpath), 'bytes')
+rel = json.load(open(_os.path.join(BUILD_DIR, 'relatives_prepared.json'), encoding='utf-8')) if not EXT else None
+while rel is not None:
+    hidden = {}
+    for k in rel.pop('lv'):
+        hidden[str(k)] = [rel['n'][k], rel['b'][k], rel['d'][k]]
+        rel['n'][k], rel['b'][k], rel['d'][k] = '', 0, 0
+    map_living = {pid.strip('@') for pid in living}
+    if any(rel['n'][k] for k, i in enumerate(rel['id']) if i in map_living):
+        raise SystemExit('FAIL: a living person on the map is named in relatives.js')
+    rel['lv'] = privacy.encrypt(hidden, privacy.password())
+    rpath = _os.path.join(_os.path.dirname(path), 'relatives.js')
+    with open(rpath + '.tmp', 'w', encoding='utf-8', newline='\n') as fh:
+        fh.write('// generated by pipeline/project/write_data_js.py from build2/relatives_prepared.json; living people encrypted (privacy.py)\n')
+        fh.write('const RELATIVES = ' + json.dumps(rel, separators=(',', ':'), ensure_ascii=False) + ';\n')
+    _os.replace(rpath + '.tmp', rpath)
+    print(f'{len(hidden)} living relatives hidden ->', rpath, _os.path.getsize(rpath), 'bytes')
+    break
 for name, data in arrays.items():
     new = f'const {name} = ' + json.dumps(data, separators=(',', ':'), ensure_ascii=False) + ';'
     was = lines.get(name, '')

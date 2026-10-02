@@ -12,7 +12,7 @@ const Ask = (() => {
     if (loading) return loading;
     loading = (async () => {
       if (typeof RELATIVES === "undefined") await Family.script("relatives.js");
-      if (typeof PROFILES === "undefined") await Family.script("profiles.js");
+      if (typeof PROFILES === "undefined") await Family.script(window.HM_EXT ? "profiles_ext.js" : "profiles.js");
       await Family.ready;
       R = RELATIVES;
       R.id.forEach((id, k) => at.set("@" + id + "@", k));
@@ -49,13 +49,10 @@ const Ask = (() => {
   let me = Viewer.get();
   function meIdx() { return me && at.has(me.k) ? at.get(me.k) : -1; }
   // set it from here (tools/check_ask.py does): g > 0 = a descendant of k, and of k's spouse s (if chosen, or k had only one)
-  function setMe(k, g, s) {
+  async function setMe(k, g, s) {
     if (k == null) return Viewer.set(null);
-    if (g > 0 && s == null && spouses[k].length === 1) s = spouses[k][0];
-    // the closest person on the map at or above the viewer, for the pages that only know the map's people
-    const M = up(k, g); if (g > 0 && s != null && s >= 0) for (const [x, v] of up(s, g)) if (!M.has(x)) M.set(x, v);
-    const near = [...M].filter(([x]) => onMap(x)).sort((a, b) => a[1].d - b[1].d)[0];
-    Viewer.set(Object.assign({ k: pid(k), g, n: R.n[k], m: near ? pid(near[0]) : null, o: near ? near[1].d : 0 }, s != null && s >= 0 ? { s: pid(s) } : {}));
+    await Viewer.load();                  // the same index, so the same person numbers
+    Viewer.choose(k, g, s);
   }
   function meLabel() {
     const k = meIdx();

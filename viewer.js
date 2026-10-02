@@ -5,7 +5,8 @@
 //
 //   {k: pid chosen, g: 0 = that person is the viewer, n = the viewer is n generations below them,
 //    s?: the spouse counted with k when g > 0, n: k's name, lv?: 1 if k is living,
-//    m: the person on the map (GRAPH) the pages start from, o: generations from the viewer up to m}
+//    m: the person on the map (GRAPH) the pages start from, o: generations from the viewer up to m,
+//    ext?: 1 when m is a cousin or one of a cousin's other lines: the pages then load data_ext.js}
 //
 // Needs data.js (GRAPH). relatives.js (everyone in the tree) loads when the picker first opens.
 const Viewer = (() => {
@@ -18,12 +19,15 @@ const Viewer = (() => {
 
   const unlocked = () => { try { return !!localStorage.getItem("hm-family-key"); } catch (e) { return false; } };
   const get = () => v;
-  const mapId = () => (v && v.m && GRAPH.people[v.m] ? v.m : GRAPH.james_id);
+  const mapId = () => (v && v.m && GRAPH.people[v.m] ? v.m : GRAPH.james_id);      // v.m is in GRAPH once the right data file is loaded
   const offset = () => (v && v.m && GRAPH.people[v.m] ? v.o || 0 : 0);
   const isSet = () => !!(v && v.m && GRAPH.people[v.m]);
   function set(nv) {
+    const was = !!(v && v.ext);
     v = nv;
     try { v ? localStorage.setItem(KEY, JSON.stringify(v)) : localStorage.removeItem(KEY); localStorage.removeItem("hm-ask-me"); } catch (e) {}
+    // the extended data is a different file: load the page again with it (or without it)
+    if (!!(v && v.ext) !== was || !!(v && v.ext) !== !!window.HM_EXT) { location.reload(); return; }
     render();
     listeners.forEach(f => f(v));
   }
@@ -68,6 +72,7 @@ const Viewer = (() => {
       spouses = R.id.map(() => []);
       for (let i = 0; i < R.sp.length; i += 2) { spouses[R.sp[i]].push(R.sp[i + 1]); spouses[R.sp[i + 1]].push(R.sp[i]); }
       toks = R.n.map(n => new Set(words(n)));
+      R._x = new Set(R.x || []);
     })();
     return loading;
   }
@@ -95,18 +100,24 @@ const Viewer = (() => {
   function onMapFrom(starts, depth) {
     let fr = starts.filter(x => x >= 0), seen = new Set(fr);
     for (let d = depth; fr.length && d < 40; d++) {
-      const hit = fr.find(x => GRAPH.people[pid(x)]);
-      if (hit != null) return [pid(hit), d];
+      const hit = fr.find(x => GRAPH.people[pid(x)] || R._x.has(x));      // on the core map, or in the extended data
+      if (hit != null) return [pid(hit), d, R._x.has(hit)];
       const nx = [];
       for (const x of fr) for (const p of [R.f[x], R.m[x]]) if (p >= 0 && !seen.has(p)) { seen.add(p); nx.push(p); }
       fr = nx;
     }
-    return [null, 0];
+    return [null, 0, false];
   }
   function choose(k, g, s) {
     if (g > 0 && s == null && spouses[k].length === 1) s = spouses[k][0];
-    const [m, o] = onMapFrom(g > 0 ? [k, s != null && s >= 0 ? s : -1] : [k], g);
-    set(Object.assign({ k: pid(k), g, n: R.n[k], m, o }, s != null && s >= 0 ? { s: pid(s) } : {}, R._lv.has(k) ? { lv: 1 } : {}));
+    let [m, o, ext] = onMapFrom(g > 0 ? [k, s != null && s >= 0 ? s : -1] : [k], g);
+    // "a child of X and Y": any child of that couple in the data has exactly the viewer's ancestors, so start from one
+    if (g === 1 && s != null && s >= 0) {
+      const inData = x => GRAPH.people[pid(x)] || R._x.has(x);
+      const child = R.id.findIndex((_, c) => ((R.f[c] === k && R.m[c] === s) || (R.f[c] === s && R.m[c] === k)) && inData(c));
+      if (child >= 0) { m = pid(child); o = 0; ext = R._x.has(child); }
+    }
+    set(Object.assign({ k: pid(k), g, n: R.n[k], m, o }, s != null && s >= 0 ? { s: pid(s) } : {}, R._lv.has(k) ? { lv: 1 } : {}, ext ? { ext: 1 } : {}));
   }
 
   // ---------------------------------------------------------------- the header button
@@ -194,5 +205,5 @@ const Viewer = (() => {
     document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
     render();
   }
-  return { get, set, mapId, offset, isSet, label, mount, open, refresh: render, onChange: f => listeners.push(f) };
+  return { get, set, mapId, offset, isSet, label, mount, open, load, choose, refresh: render, onChange: f => listeners.push(f) };
 })();

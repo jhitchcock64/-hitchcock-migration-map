@@ -52,7 +52,13 @@ for f in sorted(FAM):
     h, w = FAM[f].get('husb'), FAM[f].get('wife')
     if h in at and w in at: out['sp'] += [at[h], at[w]]
 
-on_map = set(GRAPH['people'])
+# x: who is in the extended data (data_ext.js) but not the core map, so the Viewing-as button knows to load it
+from extset import extended
+_anc = json.load(open(PROJECT / 'ancestors.json', encoding='utf-8'))
+_core = set(_anc.get('core') or [_anc['james_id']] + _anc['direct_ancestors'])
+_ext, _ = extended(INDI, FAM, {i: g for i, g in _anc['generation_of'].items() if i in _core})
+out['x'] = sorted(at[i] for i in _ext if i in at)
+on_map = set(GRAPH['people']) if not _anc.get('extended') else _core & set(GRAPH['people'])
 living = privacy.living_relatives(INDI, FAM, privacy.living_ids(GRAPH, INDI), on_map)
 out['lv'] = sorted(at[i] for i in living if i in at)
 json.dump(out, open(HERE / 'relatives_prepared.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))

@@ -205,3 +205,16 @@ python tools/check_page.py map.html
 
 Write event text without "your": the page adds each person's relationship to
 whoever is the target.
+
+## The extended data (cousins), since 2026-10-02
+
+After the usual diff against the live data.js, build everything with one command (about a minute):
+
+```
+GEDCOM="/path/to/export.ged" HM_PASSPHRASE=... bash pipeline/project/run_extended.sh
+python tools/check_page.py map.html
+python tools/check_ext.py
+```
+
+It writes data_ext.js and profiles_ext.js (the extended pass) and then data.js, profiles.js, relatives.js and
+private_photos.js (the core pass). Commit all of them. See "Cousins' maps" in CLAUDE.md.

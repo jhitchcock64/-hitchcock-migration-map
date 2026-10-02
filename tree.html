@@ -73,9 +73,18 @@ svg:active { cursor: grabbing; }
   <div id="hint">drag to move &middot; scroll to zoom &middot; &#x25B8; opens a person's parents &middot; click a person for more</div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script src="data.js"></script>
+<script>
+// The data: data.js (the core map), or data_ext.js (the core plus cousins and their other lines; extset.py)
+// when the "Viewing as" person is outside the core. Ordinary visitors never download the extended file.
+(function () {
+  var x = false;
+  try { var v = JSON.parse(localStorage.getItem("hm-viewer") || "null"); x = !!(v && v.ext); } catch (e) {}
+  window.HM_EXT = x;
+  document.write('<script src="' + (x ? "data_ext.js" : "data.js") + '"><\/script>');
+})();
+</script>
 <script src="viewer.js"></script>
-<script src="profiles.js"></script>
+<script>document.write('<script src="' + (window.HM_EXT ? "profiles_ext.js" : "profiles.js") + '"><\/script>');</script>
 <script src="site.js"></script>
 <script>
 // A pedigree: the root on the left, each generation of parents to the right. A person
