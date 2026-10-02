@@ -8,7 +8,9 @@ the country; before that every place was one a direct ancestor had lived in).
 Sources, in pipeline/basemap/cache/ (git-ignored; all public domain):
   2024_Gaz_place_national.zip   US Census Bureau Gazetteer of places
       https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_place_national.zip
-  cb_2023_us_county_500k.zip    US Census county boundaries (already used by build_basemap.py)
+  2024_Gaz_cousubs_national.zip   US Census Bureau Gazetteer of county subdivisions (towns and townships)
+      https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_cousubs_national.zip
+  cb_2023_us_county_500k.zip   US Census county boundaries (already used by build_basemap.py)
   ne_10m_populated_places_simple.geojson   Natural Earth populated places (the world's larger towns)
 
 Output (committed, so a rebuild gives the same map on any machine):
@@ -50,6 +52,25 @@ for line in rows[1:]:
     for n in names:
         towns.setdefault(f'{norm(n)}|{st}', []).append(rec)
 for k in towns: towns[k].sort(key=lambda r: -r[2])      # the largest first
+
+# New England, New York, New Jersey and Pennsylvania: the town or township is the unit people lived in, and many
+# are not Census "places" (Weston MA, Strafford VT, Wayne NJ). Added only where the state has no place of the name.
+TOWN_STATES = {'CT', 'ME', 'MA', 'NH', 'RI', 'VT', 'NY', 'NJ', 'PA'}
+SUBDIV = re.compile(r'\s+(town|township|borough|city|village|plantation|gore|grant|location|purchase)$')
+subs = {}
+with zipfile.ZipFile(CACHE / '2024_Gaz_cousubs_national.zip') as z:
+    rows = z.read('2024_Gaz_cousubs_national.txt').decode('utf-8', 'replace').split('\n')
+head = [h.strip() for h in rows[0].split('\t')]
+ix = {h: i for i, h in enumerate(head)}
+for line in rows[1:]:
+    c = [x.strip() for x in line.split('\t')]
+    if len(c) < len(head) or c[ix['USPS']] not in TOWN_STATES or c[ix['FUNCSTAT']] != 'A': continue
+    name = c[ix['NAME']]
+    if not SUBDIV.search(name): continue
+    key = f"{norm(SUBDIV.sub('', name))}|{STATE_ABBREV[c[ix['USPS']].lower()]}"
+    if key in towns: continue
+    subs.setdefault(key, []).append([round(float(c[ix['INTPTLAT']]), 4), round(float(c[ix['INTPTLONG']]), 4), round(int(c[ix['ALAND']]) / 1e6, 1)])
+for k, v in subs.items(): towns[k] = sorted(v, key=lambda r: -r[2])
 
 def centre(ring):
     a = cx = cy = 0.0
