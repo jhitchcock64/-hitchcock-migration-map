@@ -27,6 +27,8 @@ const Viewer = (() => {
     render();
     listeners.forEach(f => f(v));
   }
+  // the site's root person is living: named only once the family password has put her name back
+  const rootLabel = () => { const r = GRAPH.people[GRAPH.james_id]; return r && r.name && r.name !== "Private" ? r.name.split(" ")[0] : "the whole family"; };
   const DOWN = ["", "child", "grandchild", "great-grandchild"];
   function label() {
     if (!v) { const r = GRAPH.people[GRAPH.james_id]; return r && r.name !== "Private" ? r.name.split(" ")[0] : "the family"; }
@@ -146,7 +148,7 @@ const Viewer = (() => {
       ? ` The map, tree and People page start from ${esc(GRAPH.people[v.m].name)}, the closest of your ancestors on the map.` : ""}</p>` : "";
     body(who + `<p>Search for yourself${unlocked() ? "" : " (living family appear once the family password is entered)"}, or for a parent or grandparent who has died.</p>` +
       `<input class="viewer-q" type="search" placeholder="A name&hellip;" autocomplete="off" aria-label="Search for a person"><div class="viewer-list"></div>` +
-      `<div class="vfoot">${v ? `<a href="#" class="viewer-reset">Back to the default (Margaret)</a>` : "Until you choose, every page counts from Margaret."}</div>`);
+      `<div class="vfoot">${v ? `<a href="#" class="viewer-reset">Back to the default (${esc(rootLabel())})</a>` : `Until you choose, every page shows ${rootLabel() === "the whole family" ? "the whole family" : "the family from " + esc(rootLabel())}.`}</div>`);
     const q = slot.querySelector(".viewer-q"), list = slot.querySelector(".viewer-list");
     q.focus();
     q.oninput = async () => {

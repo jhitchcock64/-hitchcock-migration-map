@@ -279,8 +279,9 @@ const Ask = (() => {
       const other = fromK == null ? "you" : E(name(fromK)), M = up(at.get(GRAPH.james_id));
       let lead = "";
       if (fromK != null && M.has(t) && M.has(fromK) && M.get(t).d && M.get(fromK).d)
-        lead = `<p>Both are Margaret&rsquo;s ancestors, on different sides of her family: ${E(name(t))} is her ${E(term(M.get(t).d, 0, t))}, ` +
-          `${E(name(fromK))} her ${E(term(M.get(fromK).d, 0, fromK))}.</p>`;
+        lead = rootName() ? `<p>Both are ${E(rootName())}&rsquo;s ancestors, on different sides of her family: ${E(name(t))} is her ${E(term(M.get(t).d, 0, t))}, ` +
+          `${E(name(fromK))} her ${E(term(M.get(fromK).d, 0, fromK))}.</p>`
+          : `<p>Both are ancestors of the family this site follows, on different sides of it.</p>`;
       const steps = `<ol class="line"><li>${r.start === ME ? "you" : who(r.start)}</li>` + r.steps.map(([y, w], i) =>
         `<li>${/husband|wife|spouse/.test(w) ? "married " : i === 0 && r.start === ME && me.g > 1 ? (me.g === 2 ? "grandchild of " : "descendant of ")
           : `${w === "father" || w === "mother" || w === "parent" ? "child of" : "parent of"} `}${who(y)}</li>`).join("") + `</ol>`;
@@ -309,11 +310,19 @@ const Ask = (() => {
   function scope() {
     const A = upMe();
     if (A) return { set: new Set([...A.keys()].filter(x => x !== ME && A.get(x).d > 0)), A, whose: "your", who: "you" };
-    const root = at.get(GRAPH.james_id), M = up(root);
-    return { set: new Set([...M.keys()].filter(x => M.get(x).d > 0)), A: M, whose: "Margaret&rsquo;s", who: "Margaret", note: true };
+    return rootScope();
+  }
+  // the whole site's family: counted from the root (Margaret), who is living, so she is named only once the
+  // family password has been entered; otherwise "the family", and generations back instead of "her 6th great-grandfather"
+  const rootName = () => { const n = R.n[at.get(GRAPH.james_id)]; return n ? n.split(" ")[0] : ""; };
+  function rootScope() {
+    const root = at.get(GRAPH.james_id), M = up(root), rn = rootName();
+    return { set: new Set([...M.keys()].filter(x => M.get(x).d > 0)), A: M, whose: rn ? E(rn) + "&rsquo;s" : "the family&rsquo;s", who: rn || "the family", note: true, anon: !rn };
   }
   const relTo = (S, k) => { const d = S.A.get(k); return d ? term(d.d, 0, k) : ""; };
-  const scopeNote = S => S.note ? `<p class="note">Counting from Margaret. <a href="#" data-act="me">Tell me who you are</a> to count from you.</p>` : partial();
+  // "your 5th great-grandfather" / "Margaret's 6th great-grandfather" / "8 generations back"
+  const rel = (S, k) => { const d = S.A.get(k); return !d ? "" : S.anon ? `${d.d} generation${d.d === 1 ? "" : "s"} back` : `${S.whose} ${E(term(d.d, 0, k))}`; };
+  const scopeNote = S => S.note ? `<p class="note">${S.anon ? "Counting the whole family on this site." : "Counting from " + E(S.who) + "."} <a href="#" data-act="me">Say who you are</a> to count from you.</p>` : partial();
 
   function veterans(w, q) {
     const S = scope(), rows = [];
@@ -327,7 +336,7 @@ const Ask = (() => {
     const label = w ? w.label : "any war";
     if (!rows.length) return card(`None of ${S.whose} ancestors on the map is recorded as serving in ${E(label)}.`, scopeNote(S));
     return card(`${rows.length} of ${S.whose} ancestors served in ${E(label)}.`,
-      `<ul class="list">${rows.map(([k, ss]) => `<li>${who(k)}, ${S.whose} ${E(relTo(S, k))}` +
+      `<ul class="list">${rows.map(([k, ss]) => `<li>${who(k)}, ${rel(S, k)}` +
         `<div class="sub">${ss.map(s => E(s.war + (s.unit ? ": " + s.unit : ""))).join("<br>")}</div></li>`).join("")}</ul>` + scopeNote(S) +
       `<div class="acts"><a class="btn" href="map.html?military=1">See their service on the map</a></div>`);
   }
@@ -396,7 +405,7 @@ const Ask = (() => {
       if (p.b[0] || p.b[1]) bits.push(`Born ${E([p.b[0], p.b[1]].filter(Boolean).join(", "))}.`);
       if (p.d[0] || p.d[1]) bits.push(`Died ${E([p.d[0], p.d[1]].filter(Boolean).join(", "))}.`);
       if (MILITARY[pid(k)]) bits.push(`Served in ${E(MILITARY[pid(k)].map(s => s.war).join("; "))}.`);
-    } else if (!onMap(k)) bits.push(`${cap(he(k))} isn&rsquo;t one of Margaret&rsquo;s direct ancestors, so the map doesn&rsquo;t follow ${his(k) === "their" ? "them" : sx(k, "him", "her", "them")}.`);
+    } else if (!onMap(k)) bits.push(`${cap(he(k))} isn&rsquo;t ${rootName() ? "one of " + E(rootName()) + "&rsquo;s direct ancestors" : "a direct ancestor of the family this site follows"}, so the map doesn&rsquo;t follow ${his(k) === "their" ? "them" : sx(k, "him", "her", "them")}.`);
     const story = p && p.st ? `<p class="story"><i>${E(p.st.title || "")}</i> — ${E((p.st.text || [])[0] || "").slice(0, 400)}${((p.st.text || [])[0] || "").length > 400 ? "…" : ""}</p>` : "";
     return card(who(k), `<p>${bits.join(" ")}</p>${story}`, k);
   }
@@ -562,7 +571,7 @@ const Ask = (() => {
   // ---------------------------------------------------------------- lists of people
   function listCard(head, rows, S, extra = "") {
     const MAX = 60;
-    return card(head, `<ul class="list">${rows.slice(0, MAX).map(([k, sub]) => `<li>${who(k)}${S && S.A.get(k) ? `, ${S.whose} ${E(relTo(S, k))}` : ""}` +
+    return card(head, `<ul class="list">${rows.slice(0, MAX).map(([k, sub]) => `<li>${who(k)}${S && S.A.get(k) ? `, ${rel(S, k)}` : ""}` +
       (sub ? `<div class="sub">${sub}</div>` : "") + `</li>`).join("")}</ul>` +
       (rows.length > MAX ? `<p class="note">Showing ${MAX} of ${rows.length}.</p>` : "") + extra + (S ? scopeNote(S) : ""));
   }
@@ -764,9 +773,8 @@ const Ask = (() => {
     const inTree = R.n.filter(n => n && new RegExp("\\b" + sn + "$", "i").test(n)).length;
     let other = "";
     if (!rows.length && !S.note) {          // not your line; perhaps Margaret's (the Askews, for James)
-      const root = at.get(GRAPH.james_id), M = up(root);
-      const S2 = { set: new Set([...M.keys()].filter(x => M.get(x).d > 0)), A: M, whose: "Margaret&rsquo;s", who: "Margaret", note: true };
-      if (withSurname(S2, sn).length) { other = `<p class="note">None of your ancestors are ${E(sn)}s; these are Margaret&rsquo;s.</p>`; S = S2; rows = withSurname(S2, sn); }
+      const S2 = rootScope();
+      if (withSurname(S2, sn).length) { other = `<p class="note">None of your ancestors are ${E(sn)}s; these are ${S2.anon ? "on the other side of the family" : S2.whose}.</p>`; S = S2; rows = withSurname(S2, sn); }
     }
     rows.sort((a, b) => (R.b[a] || 9999) - (R.b[b] || 9999));
     if (!rows.length) return card(`None of ${S.whose} ancestors on the map are ${E(sn)}s.`, `<p>The whole tree has ${inTree} people named ${E(sn)}.</p>` + scopeNote(S));
@@ -785,7 +793,7 @@ const Ask = (() => {
     else if (firstUS != null) bits.push(`The first born in America: ${who(firstUS)}, in ${E(prof(firstUS).b[1])}.`);
     if (where.length) bits.push(`They lived in ${E(where.join(", "))}.`);
     if (vets.length) bits.push(`${vets.length} served in the military: ${vets.map(who).join(", ")}.`);
-    return card(`The ${E(sn)}s`, other + `<p>${bits.join(" ")}</p><ul class="list">${rows.slice(0, 40).map(k => `<li>${who(k)}, ${S.whose} ${E(relTo(S, k))}</li>`).join("")}</ul>` + (other ? "" : scopeNote(S)));
+    return card(`The ${E(sn)}s`, other + `<p>${bits.join(" ")}</p><ul class="list">${rows.slice(0, 40).map(k => `<li>${who(k)}, ${rel(S, k)}</li>`).join("")}</ul>` + (other ? "" : scopeNote(S)));
   }
   function surnames() {
     const S = scope(), c = new Map();
@@ -834,10 +842,10 @@ const Ask = (() => {
     const deepest = rows.sort((a, b) => S.A.get(b[0]).d - S.A.get(a[0]).d)[0], d = S.A.get(deepest[0]).d;
     const firstYear = Math.min(...rows.flatMap(([, h]) => h.map(x => x[0]).filter(Boolean)));
     const firstBy = rows.find(([, h]) => h.some(x => x[0] === firstYear));
-    return card(`${cap(S.whose)} family has been in ${E(pt.label)} for ${d} generation${d === 1 ? "" : "s"}.`,
-      `<p>The earliest there on the deepest line is ${who(deepest[0])}, ${S.whose} ${E(relTo(S, deepest[0]))} (${E(deepest[1].map(x => x[1]).filter((v, i, a) => a.indexOf(v) === i).slice(0, 3).join("; "))}).` +
+    return card(`${S.anon ? "The family" : cap(S.whose) + " family"} has been in ${E(pt.label)} for ${d} generation${d === 1 ? "" : "s"}.`,
+      `<p>The earliest there on the deepest line is ${who(deepest[0])}, ${rel(S, deepest[0])} (${E(deepest[1].map(x => x[1]).filter((v, i, a) => a.indexOf(v) === i).slice(0, 3).join("; "))}).` +
       (firstBy ? ` The earliest record there is ${firstYear}: ${who(firstBy[0])}.` : "") + `</p>` +
-      (pt.note ? `<p class="note">${E(pt.note)}</p>` : "") + `<p class="lead">${rows.length} of ${S.whose} ancestors lived there:</p><ul class="list">${rows.sort(byGen(S)).slice(0, 50).map(([k, h]) => `<li>${who(k)}, ${S.whose} ${E(relTo(S, k))}<div class="sub">${E([...new Set(h.map(x => x[1]))].slice(0, 3).join("; "))}</div></li>`).join("")}</ul>` + scopeNote(S));
+      (pt.note ? `<p class="note">${E(pt.note)}</p>` : "") + `<p class="lead">${rows.length} of ${S.whose} ancestors lived there:</p><ul class="list">${rows.sort(byGen(S)).slice(0, 50).map(([k, h]) => `<li>${who(k)}, ${rel(S, k)}<div class="sub">${E([...new Set(h.map(x => x[1]))].slice(0, 3).join("; "))}</div></li>`).join("")}</ul>` + scopeNote(S));
   }
 
   // ---------------------------------------------------------------- group questions
@@ -1009,7 +1017,7 @@ const Ask = (() => {
     const S = scope();
     const k = [...S.set].filter(x => R.b[x] > 0).sort((a, b) => R.b[a] - R.b[b])[0];
     return k == null ? null : card(`${cap(S.whose)} earliest-born ancestor in the tree is ${who(k)}.`,
-      `<p>${cap(he(k))} is ${S.whose} ${E(relTo(S, k))}. ${vitalText(k, "born")}</p>` + scopeNote(S), k);
+      `<p>${cap(he(k))} is ${rel(S, k)}. ${vitalText(k, "born")}</p>` + scopeNote(S), k);
   }
   function count() {
     const S = scope(), named = [...S.set].filter(k => R.n[k]);
@@ -1032,7 +1040,7 @@ const Ask = (() => {
     const c = new Map();
     for (const k of S.set) for (const sv of MILITARY[pid(k)] || []) for (const st of sv.stops || []) if (st.b) { if (!c.has(st.b)) c.set(st.b, [st.bd || st.d, new Set()]); c.get(st.b)[1].add(k); }
     const rows = [...c].sort((a, b) => ((/\d{4}/.exec(a[1][0]) || [0])[0]) - ((/\d{4}/.exec(b[1][0]) || [0])[0]));
-    return card(`${S.whose === "your" ? "Your" : "Margaret&rsquo;s"} ancestors fought in ${rows.length} battles.`, `<ul class="list">${rows.map(([b, [d, ks]]) => `<li><b>${E(b)}</b> <span class="yrs">${E(d || "")}</span><div class="sub">${[...ks].map(who).join(", ")}</div></li>`).join("")}</ul>` +
+    return card(`${cap(S.whose)} ancestors fought in ${rows.length} battles.`, `<ul class="list">${rows.map(([b, [d, ks]]) => `<li><b>${E(b)}</b> <span class="yrs">${E(d || "")}</span><div class="sub">${[...ks].map(who).join(", ")}</div></li>`).join("")}</ul>` +
       scopeNote(S) + `<div class="acts"><a class="btn" href="map.html?military=1">See the battles on the map</a></div>`);
   }
   function immigrants(S, count, ellis, pt = null, pe = null) {
@@ -1056,7 +1064,7 @@ const Ask = (() => {
     const rows = [...S.set].filter(k => (!sn || (GRAPH.people[pid(k)] || {}).surname === sn) && prof(k) && AMERICA.test(prof(k).b[1] || "") && R.b[k]).sort((a, b) => R.b[a] - R.b[b]);
     if (!rows.length) return card(`I can&rsquo;t tell who was first born in America${sn ? " among the " + E(sn) + "s" : ""}.`, scopeNote(S));
     const k = rows[0];
-    return card(`The earliest-born ${sn ? E(sn) + " " : ""}ancestor born in America is ${who(k)}.`, `<p>${vitalText(k, "born")} ${cap(he(k))} is ${S.whose} ${E(relTo(S, k))}.</p>` + scopeNote(S), k);
+    return card(`The earliest-born ${sn ? E(sn) + " " : ""}ancestor born in America is ${who(k)}.`, `<p>${vitalText(k, "born")} ${cap(he(k))} is ${rel(S, k)}.</p>` + scopeNote(S), k);
   }
   function cousinMarriages(S) {
     const rows = [], seen = new Set();
@@ -1084,7 +1092,7 @@ const Ask = (() => {
   }
   function superlative(kind) {
     const S = scope(); let rows, head;
-    if (kind === "longest") { rows = [...S.set].filter(k => age(k) != null && age(k) < 115).sort((a, b) => age(b) - age(a)).slice(0, 12).map(k => [k, `${age(k)} years`]); head = `${S.whose === "your" ? "Your" : "Margaret&rsquo;s"} longest-lived ancestor was ${who(rows[0][0])}, at about ${age(rows[0][0])}.`; }
+    if (kind === "longest") { rows = [...S.set].filter(k => age(k) != null && age(k) < 115).sort((a, b) => age(b) - age(a)).slice(0, 12).map(k => [k, `${age(k)} years`]); head = `${cap(S.whose)} longest-lived ancestor was ${who(rows[0][0])}, at about ${age(rows[0][0])}.`; }
     if (kind === "youngest") { rows = [...S.set].filter(k => age(k) != null && age(k) >= 10).sort((a, b) => age(a) - age(b)).slice(0, 12).map(k => [k, `${age(k)} years`]); head = `The youngest to die among ${S.whose} ancestors was ${who(rows[0][0])}, at about ${age(rows[0][0])}.`; }
     if (kind === "children") { rows = [...S.set].filter(k => kids[k].length).sort((a, b) => kids[b].length - kids[a].length).slice(0, 12).map(k => [k, `${kids[k].length} children in the tree`]); head = `${who(rows[0][0])} had the most children in the tree: ${kids[rows[0][0]].length}.`; }
     if (kind === "moves") { rows = [...S.set].filter(k => (PERSON_LEGS[pid(k)] || []).length).sort((a, b) => PERSON_LEGS[pid(b)].length - PERSON_LEGS[pid(a)].length).slice(0, 12).map(k => [k, `${PERSON_LEGS[pid(k)].length} moves`]); head = `${who(rows[0][0])} moved the most: ${PERSON_LEGS[pid(rows[0][0])].length} moves.`; }
@@ -1103,7 +1111,7 @@ const Ask = (() => {
     if (kind === "recentimm") { const ev = NOTABLE.events.filter(e => e.k === "arrival" && e.p.some(x => S.set.has(at.get(x)))).sort((a, b) => b.y - a.y); rows = ev.slice(0, 6).map(e => [at.get(e.p.find(x => S.set.has(at.get(x)))), `${E(e.d)}, ${E(e.l)}`]); head = `${cap(S.whose)} most recent immigrant ancestor${ev[0] && ev[0].p.length > 1 ? "s" : ""}: ${ev[0].p.filter(x => S.set.has(at.get(x))).map(x => who(at.get(x))).join(", ")}, ${E(ev[0].d)}.`; }
     if (kind === "firstimm") { const ev = NOTABLE.events.filter(e => e.k === "arrival" && e.p.some(x => S.set.has(at.get(x)))).sort((a, b) => a.y - b.y); rows = ev.slice(0, 8).map(e => [at.get(e.p.find(x => S.set.has(at.get(x)))), `${E(e.d)}, ${E(e.l)}${e.sh ? ", the " + E(e.sh) : ""}`]); head = `The first of ${S.whose} ancestors to reach America: ${ev[0].p.filter(x => S.set.has(at.get(x))).map(x => who(at.get(x))).join(", ")}, ${E(ev[0].d)}${ev[0].sh ? " on the " + E(ev[0].sh) : ""}.`; }
     if (!rows || !rows.length) return null;
-    return card(head, `<ul class="list">${rows.map(([k, s]) => `<li>${who(k)}, ${S.whose} ${E(relTo(S, k))}<div class="sub">${s}</div></li>`).join("")}</ul>` + scopeNote(S));
+    return card(head, `<ul class="list">${rows.map(([k, s]) => `<li>${who(k)}, ${rel(S, k)}<div class="sub">${s}</div></li>`).join("")}</ul>` + scopeNote(S));
   }
   function inYear(y0, y1, label) {
     const S = scope(), ev = [];
@@ -1181,8 +1189,8 @@ const Ask = (() => {
     // help and the site itself
     if (/^(help|\?|what can i ask|what (questions|kinds? of questions|sorts? of things) can i ask|how does this work|examples?|what do you know)/.test(l)) return help();
     if (/^(who made|who built|who created|what is this|how accurate|where does (this|the) (information|data)|is this (accurate|true|reliable)|what are your sources|how do you know)/.test(l)) return about();
-    if (/^how many (people|persons|names) (are )?(in|on) the (tree|site|family tree)/.test(l)) return card(`The tree has ${R.n.length.toLocaleString()} people.`, `<p>${Object.keys(GRAPH.people).length.toLocaleString()} of them are Margaret&rsquo;s direct ancestors (and her close family), on the map with full profiles.</p>`);
-    if (/^how many (people|persons) (are )?on the map/.test(l)) return card(`${Object.keys(GRAPH.people).length.toLocaleString()} people are on the map.`, `<p>Margaret&rsquo;s direct ancestors and her close family; the whole tree has ${R.n.length.toLocaleString()}.</p>`);
+    if (/^how many (people|persons|names) (are )?(in|on) the (tree|site|family tree)/.test(l)) return card(`The tree has ${R.n.length.toLocaleString()} people.`, `<p>${Object.keys(GRAPH.people).length.toLocaleString()} of them are the direct ancestors this site follows, with their close family: they are on the map, with full profiles.</p>`);
+    if (/^how many (people|persons) (are )?on the map/.test(l)) return card(`${Object.keys(GRAPH.people).length.toLocaleString()} people are on the map.`, `<p>The direct ancestors this site follows and their close family; the whole tree has ${R.n.length.toLocaleString()}.</p>`);
     if (/^who am i$/.test(l)) { pending = null; return card("Who are you?", pickerHTML()); }
     if (/(tell me|share)( me)? (a|another|an interesting|something interesting|a random)\b(?! about)|surprise me|something interesting|interesting (story|thing|fact)|random (ancestor|story|fact)|who should i know about|family story/.test(l)) return story() || help();
     if (/what does .+ mean|meaning of (the )?(name|surname)|origin of the (name|surname)/.test(l)) return card("I can only answer from the family tree.", `<p>The tree doesn&rsquo;t record the meanings of names. <button class="chip" data-ask="Where did the ${E((/(?:does|of) (?:the )?(?:name |surname )?(\w+)/.exec(l) || [, "Hitchcock"])[1].replace(/^\w/, c => c.toUpperCase()))}s come from">Where did they come from?</button></p>`);
