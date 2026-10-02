@@ -44,14 +44,12 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
 </header>
 <main>
   <section class="hero">
-    <blockquote class="epigraph" style="margin-left:0">&ldquo;People will not look forward to posterity, who never look backward to their ancestors.&rdquo;<cite>Edmund Burke, <i>Reflections on the Revolution in France</i>, 1790</cite></blockquote>
     <div class="eyebrow">Where the family came from, and how they got here</div>
     <h1>A family history of the Hitchcocks, the Askews and everyone who came before</h1>
-    <p>Nearly five centuries of one family&rsquo;s direct ancestors, traced from England, Ireland, Scotland, Germany,
-      Switzerland and Sweden through colonial New England and Virginia to the South and Midwest: every documented move
+    <p>&ldquo;People will not look forward to posterity who never look backward to their ancestors,&rdquo; Edmund Burke wrote.
+      This is one family&rsquo;s look backward: nearly five centuries of direct ancestors, traced from England, Ireland, Scotland, Germany,
+      Switzerland and Sweden through colonial New England and Virginia to the South and Midwest, with every documented move
       drawn on a map, the wars they served in, the moments of history they lived through, and a profile for each person.</p>
-    <p>It is one family&rsquo;s story, but an ordinary American one, and it is open to anyone. If you arrived because a name
-      here is also in your own tree, welcome: you may well be a cousin, and you can <a href="#contact">write to say so</a>.</p>
     <div class="acts"><a class="btn solid" href="map.html">Open the map</a><a class="btn" href="tree.html">Browse the tree</a><a class="btn" href="people.html">Find a person</a></div>
     <div class="faces" id="faces"></div>
   </section>
@@ -77,13 +75,14 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
 
   <h2>With thanks to those who did it by hand</h2>
   <div class="prose">
-    <p>None of this began with a computer. Long before any record could be searched from a kitchen table, grandparents, great-aunts,
-      cousins and other keepers of the family&rsquo;s memory did this work the slow way: writing to county clerks and waiting weeks for an
-      answer, copying entries out of courthouse ledgers and church registers, cranking through reels of microfilm, walking cemeteries
-      with a notebook, writing names on the backs of photographs, and typing up what they had found so that it would outlast them.</p>
-    <p>Their letters, charts, Bible pages and typescripts are the foundation of everything here. Nearly every line on the map rests on
-      something one of them found, kept or wrote down, often with no way of knowing who would ever read it. This site is offered in
-      gratitude to them, and to everyone still doing that work.</p>
+    <p>None of this began at a computer. Long before any record could be searched on a web browser, grandparents, great-aunts, and others
+      passionate about their family history did this work the slow way: writing to county clerks and cold-calling distant cousins, waiting
+      weeks for an answer; copying entries out of courthouse ledgers and church registers; cranking through reels and reels of microfilm;
+      prowling cemeteries with crayons and construction paper; scrawling names on the backs of photographs; and writing down what
+      they&rsquo;d found for themselves and their posterity.</p>
+    <p>It is their work at the foundation of everything you can enjoy here. Nearly every line on the map rests on something one of them
+      discovered and documented, often with no way of knowing who would ever read it. This site is offered in gratitude to them and to
+      everyone who remains committed to that labor of love.</p>
   </div>
 
   <h2>What&rsquo;s documented, and what&rsquo;s inferred</h2>
@@ -125,7 +124,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px
 const CONTACT_KEY = "";
 (function () {
   const sec = document.getElementById("contact"), form = document.getElementById("contact-form"), msg = document.getElementById("contact-msg");
-  if (!CONTACT_KEY) { document.querySelectorAll('a[href="#contact"]').forEach(a => a.replaceWith("write to say so (a contact form is coming)")); return; }
+  if (!CONTACT_KEY) return;
   sec.hidden = false;
   form.addEventListener("submit", async e => {
     e.preventDefault();
