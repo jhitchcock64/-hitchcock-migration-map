@@ -91,6 +91,7 @@ TOWN_COORDS = {
     "binghamton|new york": (42.098, -75.918),
     "greene|new york": (42.130, -73.865),  # Greene Co. seat Catskill -- verified against every affected record (all real towns within Greene Co.)
     "greenville|new york": (42.417, -74.041),
+    "greenville|texas": (33.138, -96.111),      # Hunt Co.; J. E. Askew, 1947
     "ithaca|new york": (42.443, -76.501),
     "brooklyn|new york": (40.678, -73.944),
     "queens|new york": (40.728, -73.794),

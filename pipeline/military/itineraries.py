@@ -774,12 +774,13 @@ SERVICE += [
 SERVICE += [
     dict(pid="@I242611466983@", name="Benjamin Askew", war="Revolution",
          unit="North Carolina; by family account, part of his service under Gen. Anthony Wayne",
-         summary="A voucher for payment for service in the Revolution was issued to Benjamin Askew in August 1783; "
-                 "descendants used it to join the Daughters of the American Revolution. His great-grandson James Henry "
-                 "Askew wrote in 1926 that he served part of his time under General Anthony Wayne, once stood picket "
-                 "across a river from the American camp, and was with the troops who captured a British camp and its "
-                 "supplies. The account names no places or dates, and the voucher itself has not been seen for this map.",
-         sources=["North Carolina Revolutionary pay voucher to Benjamin Askew, Aug 1783 (as cited in the article below; not seen)",
-                  "James Henry Askew, family account written at Waldo, Arkansas, 11 Nov 1926, in \"Benjamin Askew Family\" (contributed by Margarette Stout), NCGenWeb, Jones County"],
-         stops=[]),
+         summary="A voucher for payment for his service in the Revolution was issued to Benjamin Askew at New Bern on "
+                 "30 August 1783; descendants used it to join the Daughters of the American Revolution. His "
+                 "great-grandson James Henry Askew wrote in 1926 that he served part of his time under General Anthony "
+                 "Wayne, once stood picket across a river from the American camp, and was with the troops who captured "
+                 "a British camp and its supplies. The account names no places or dates for the service itself.",
+         sources=["North Carolina Revolutionary pay voucher, New Bern, 30 Aug 1783 (military record in James's tree)",
+                  "James Henry Askew, family account written at Waldo, Arkansas, 11 Nov 1926, in \"Benjamin Askew Family\" "
+                  "(contributed by Margarette Stout), NCGenWeb, Jones County"],
+         stops=[S("New Bern, NC", 35.108, -77.044, "30 Aug 1783", "record", "pay voucher issued for his service")]),
 ]
