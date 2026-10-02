@@ -331,3 +331,17 @@ EVENTS += [
       'John James Audubon had built at Henderson before his bankruptcy in 1819.',
       'Henderson, KY', 37.836, -87.590, source='Filson Historical Society; WikiTree (Clay-1726); confirmed by James'),
 ]
+
+# ------------------------------------------------ Benjamin Askew's Revolution, as his great-grandson told it (James, 2026-10-02)
+EVENTS += [
+    E("@I242611466983@", "during the Revolution", 1781,
+      "Benjamin Askew is posted as a picket with a few others across a river from the American camp, with orders to "
+      "fire if the redcoats appear, throw their guns in the river and swim back. They do; British bullets strike the "
+      "water around them as they swim, and none of them is hit. So his great-grandson told it in 1926; the account "
+      "gives no place or date.",
+      "Jones County, NC (his home; the river is not named)", 35.067, -77.353, "story", source="James Henry Askew, family account written at Waldo, Arkansas, 11 Nov 1926, in \"Benjamin Askew Family\" (contributed by Margarette Stout), NCGenWeb, Jones County"),
+    E("@I242611466983@", "during the Revolution", 1781,
+      "Benjamin Askew is with the American troops who capture a British camp and a good store of supplies, among them "
+      "a supply of Jamaica rum. A family story, written down by his great-grandson in 1926.",
+      "Jones County, NC (his home; the camp is not named)", 35.067, -77.353, "story", source="James Henry Askew, family account written at Waldo, Arkansas, 11 Nov 1926, in \"Benjamin Askew Family\" (contributed by Margarette Stout), NCGenWeb, Jones County"),
+]

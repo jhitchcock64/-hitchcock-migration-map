@@ -769,3 +769,17 @@ SERVICE += [
          unit='Kentucky', summary='A War of 1812 pension file exists for him; its contents are not yet read.',
          sources=['U.S., War of 1812 Pension Application Files Index (in James\'s tree)'], stops=[]),
 ]
+
+# ======================== Benjamin Askew (James, 2026-10-02; NCGenWeb, Jones County) ========================
+SERVICE += [
+    dict(pid="@I242611466983@", name="Benjamin Askew", war="Revolution",
+         unit="North Carolina; by family account, part of his service under Gen. Anthony Wayne",
+         summary="A voucher for payment for service in the Revolution was issued to Benjamin Askew in August 1783; "
+                 "descendants used it to join the Daughters of the American Revolution. His great-grandson James Henry "
+                 "Askew wrote in 1926 that he served part of his time under General Anthony Wayne, once stood picket "
+                 "across a river from the American camp, and was with the troops who captured a British camp and its "
+                 "supplies. The account names no places or dates, and the voucher itself has not been seen for this map.",
+         sources=["North Carolina Revolutionary pay voucher to Benjamin Askew, Aug 1783 (as cited in the article below; not seen)",
+                  "James Henry Askew, family account written at Waldo, Arkansas, 11 Nov 1926, in \"Benjamin Askew Family\" (contributed by Margarette Stout), NCGenWeb, Jones County"],
+         stops=[]),
+]

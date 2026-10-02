@@ -58,7 +58,7 @@ svg:active { cursor: grabbing; }
 <header class="site-head">
   <a class="brand" href="index.html">Family History, Visualized</a>
   <nav class="site-nav"><a href="index.html">Ask</a><a href="map.html">Map</a><a href="tree.html" class="on">Tree</a><a href="people.html">People</a><a href="about.html">About</a></nav>
-  <span class="spacer"></span><div id="lock-slot"></div>
+  <span class="spacer"></span><div id="viewer-slot"></div><div id="lock-slot"></div>
 </header>
 <div id="bar">
   <span class="who" id="who"></span>
@@ -74,6 +74,7 @@ svg:active { cursor: grabbing; }
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="data.js"></script>
+<script src="viewer.js"></script>
 <script src="profiles.js"></script>
 <script src="site.js"></script>
 <script>
@@ -81,7 +82,7 @@ svg:active { cursor: grabbing; }
 // can appear more than once (cousins married), so nodes are keyed by their path.
 const W = 176, H = 40, GAPX = 206, GAPY = 45;
 const P = GRAPH.people;
-let root = GRAPH.james_id, open = new Set(), selected = null;
+let root = Viewer.mapId(), open = new Set(), selected = null;
 const choice = new Map();          // path -> which parent set is shown (index into psets)
 const REL = { adopted: "adoptive parents", guardian: "guardians", step: "step-parent", foster: "foster parents" };
 function parentsShown(pid, path) {
@@ -179,12 +180,12 @@ function setRoot(pid) {
   root = pid; selected = null; openTo(depthShown);
   document.getElementById("panel").classList.remove("show");
   document.getElementById("who").textContent = `${P[pid].name === "Private" ? "Family" : P[pid].name}'s ancestors`;
-  history.replaceState(null, "", pid === GRAPH.james_id ? location.pathname : "#root=" + encodeURIComponent(pid));
+  history.replaceState(null, "", pid === Viewer.mapId() ? location.pathname : "#root=" + encodeURIComponent(pid));
   render(false);
 }
 document.getElementById("more").onclick = () => { depthShown++; openTo(depthShown); render(true); };
 document.getElementById("fewer").onclick = () => { depthShown = Math.max(1, depthShown - 1); openTo(depthShown); render(true); };
-document.getElementById("home").onclick = () => { depthShown = 4; setRoot(GRAPH.james_id); };
+document.getElementById("home").onclick = () => { depthShown = 4; setRoot(Viewer.mapId()); };
 
 // choose the root by name
 const find = document.getElementById("find"), res = document.getElementById("results");
@@ -207,10 +208,13 @@ find.onkeydown = e => {
 function pick(i) { res.style.display = "none"; find.value = ""; setRoot(matches[i].id); }
 
 Family.mountLock("lock-slot");
+Viewer.mount("viewer-slot");
+Family.onChange(() => Viewer.refresh());
 Family.onChange(() => { setRoot(root); });
+Viewer.onChange(() => { depthShown = 4; setRoot(Viewer.mapId()); });
 Family.ready.then(() => {
   const m = location.hash.match(/^#root=(.+)$/);
-  const start = m && P[decodeURIComponent(m[1])] ? decodeURIComponent(m[1]) : GRAPH.james_id;
+  const start = m && P[decodeURIComponent(m[1])] ? decodeURIComponent(m[1]) : Viewer.mapId();
   openTo(depthShown); setRoot(start);
 });
 </script>

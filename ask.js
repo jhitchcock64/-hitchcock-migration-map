@@ -44,16 +44,18 @@ const Ask = (() => {
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
   // ---------------------------------------------------------------- who's asking
-  // stored per browser: {k: pid, g: 0 for the person themselves, or generations below them}
-  let me = null;
-  try { me = JSON.parse(localStorage.getItem("hm-ask-me") || "null"); } catch (e) {}
+  // the site-wide "Viewing as" person (viewer.js; chosen from the button in the header):
+  // {k: pid, g: 0 for the person themselves, or generations below them, s?: the spouse counted with k}
+  let me = Viewer.get();
   function meIdx() { return me && at.has(me.k) ? at.get(me.k) : -1; }
-  // g > 0: a descendant of k, and of k's spouse s (if one is chosen, or k had only one)
+  // set it from here (tools/check_ask.py does): g > 0 = a descendant of k, and of k's spouse s (if chosen, or k had only one)
   function setMe(k, g, s) {
-    if (k != null && g > 0 && s == null && spouses[k].length === 1) s = spouses[k][0];
-    me = k == null ? null : Object.assign({ k: pid(k), g }, s != null && s >= 0 ? { s: pid(s) } : {});
-    try { me ? localStorage.setItem("hm-ask-me", JSON.stringify(me)) : localStorage.removeItem("hm-ask-me"); } catch (e) {}
-    showMe();
+    if (k == null) return Viewer.set(null);
+    if (g > 0 && s == null && spouses[k].length === 1) s = spouses[k][0];
+    // the closest person on the map at or above the viewer, for the pages that only know the map's people
+    const M = up(k, g); if (g > 0 && s != null && s >= 0) for (const [x, v] of up(s, g)) if (!M.has(x)) M.set(x, v);
+    const near = [...M].filter(([x]) => onMap(x)).sort((a, b) => a[1].d - b[1].d)[0];
+    Viewer.set(Object.assign({ k: pid(k), g, n: R.n[k], m: near ? pid(near[0]) : null, o: near ? near[1].d : 0 }, s != null && s >= 0 ? { s: pid(s) } : {}));
   }
   function meLabel() {
     const k = meIdx();
@@ -65,8 +67,8 @@ const Ask = (() => {
     const el = document.getElementById("asking-as");
     if (!el) return;
     const k = me && R ? meIdx() : -1;
-    el.innerHTML = k >= 0 ? `Asking as <b>${E(meLabel())}</b> · <a href="#" data-act="me">change</a>`
-      : `<a href="#" data-act="me">Tell me who you are</a> for &ldquo;how am I related&rdquo; questions`;
+    el.innerHTML = k >= 0 ? `Answering for <b>${E(meLabel())}</b> · <a href="#" data-act="me">change</a>`
+      : `<a href="#" data-act="me">Say who you are</a> (&ldquo;Viewing as&rdquo;, top right) for &ldquo;how am I related&rdquo; questions`;
   }
 
   // ---------------------------------------------------------------- finding people by name
@@ -638,13 +640,14 @@ const Ask = (() => {
   let pending = null;
   function needMe(q) {
     pending = q;
-    return card("First, who are you?", `<p>Search for yourself, or for a parent or grandparent if you aren&rsquo;t in the tree yet.</p>` + pickerHTML());
+    return card("First, who are you?", pickerHTML());
   }
   function pickerHTML() {
-    return `<div class="picker"><input id="me-q" type="search" placeholder="Your name, or a parent&rsquo;s" autocomplete="off"><div id="me-list"></div>` +
+    // the picker itself is the "Viewing as" button in the header (viewer.js), shared by every page
+    return `<p>Choose yourself with the <b>Viewing as</b> button at the top right: it&rsquo;s remembered on this device and used by the map, the tree and the People page too.</p>` +
+      `<p><button class="chip" data-act="me">Choose who I am</button></p>` +
       (Family.shown ? "" : `<p class="note">Living family are listed only after the family password is entered (the lock at the top right). ` +
-        `Otherwise, choose a parent or grandparent who has died.</p>`) +
-      (me ? `<p class="note"><a href="#" data-act="forget">Forget who I am on this device</a></p>` : "") + `</div>`;
+        `Otherwise, choose a parent or grandparent who has died.</p>`);
   }
   const isMe = s => /^(me|myself|i|us|we)$/i.test(s.trim());
   const EXAMPLES = ["How am I related to John Coe?", "When was Sudie Clay born?", "Did Jared Hitchcock serve in the Revolutionary War?",
@@ -1398,28 +1401,14 @@ const Ask = (() => {
         const k = +a.dataset.pick, again = a.dataset.again;
         return show(answerFor(again, k));
       }
-      if (a.dataset.act === "me") { await load(); pending = null; return show(card("Who are you?", pickerHTML())); }
-      if (a.dataset.act === "forget") { setMe(null); return show(card("Forgotten on this device.")); }
-      if (a.dataset.me) {                             // chose themselves (g = 0) or an ancestor (g > 0)
-        const k = +a.dataset.me, g = +a.dataset.g;
-        if (g > 0 && a.dataset.s == null && spouses[k].length > 1)
-          return show(card(`Which of ${E(name(k))}&rsquo;s marriages?`, `<div class="chips">${spouses[k].map(s =>
-            `<button class="chip" data-me="${k}" data-g="${g}" data-s="${s}">with ${E(name(s))} <span class="yrs">${E(yrs(s))}</span></button>`).join("")}` +
-            `<button class="chip" data-me="${k}" data-g="${g}" data-s="-1">not sure</button></div>`));
-        setMe(k, g, a.dataset.s != null ? +a.dataset.s : null);
-        if (pending) { const p = pending; pending = null; return ask(p); }
-        return show(card(`Got it: asking as ${E(meLabel())}.`, `<p>Now try &ldquo;How am I related to John Coe?&rdquo;</p>`));
-      }
+      if (a.dataset.act === "me") { e.stopPropagation(); window.scrollTo({ top: 0, behavior: "smooth" }); return Viewer.open(); }
     });
-    document.addEventListener("input", e => {
-      if (e.target.id !== "me-q") return;
-      const list = document.getElementById("me-list"), s = e.target.value.trim();
-      if (s.length < 2) { list.innerHTML = ""; return; }
-      const hits = find(s).slice(0, 8);
-      list.innerHTML = hits.length ? hits.map(k => `<div class="me-row"><span>${E(name(k))} <span class="yrs">${E(yrs(k))}</span></span>` +
-        `<span class="me-acts">${(R.d[k] ? [] : [[0, "This is me"]]).concat([[1, "My parent"], [2, "Grandparent"], [3, "Great-grandparent"]])
-          .map(([g, t]) => `<button class="chip" data-me="${k}" data-g="${g}">${t}</button>`).join("")}</span></div>`).join("")
-        : `<p class="note">No one by that name${Family.shown ? "" : " among those who have died; living family appear after the family password is entered"}.</p>`;
+    // "Viewing as" changed (from the header button, on this page or another): answer the waiting question, or the one showing, again
+    Viewer.onChange(v => {
+      me = v; showMe();
+      const again = pending || (document.body.classList.contains("answered") && input.value);
+      pending = null;
+      if (again) ask(again);
     });
     Family.onChange(() => { if (R) unlockNames().then(showMe); });
     load().then(showMe);
