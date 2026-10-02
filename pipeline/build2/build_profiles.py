@@ -238,6 +238,9 @@ def profile(pid):
         if l.startswith('1 NOTE ') and not l[7:].startswith('http'): nts.append(l[7:].strip())
     for e in blocks(pid, ('BIRT', 'DEAT', 'BURI')):
         if e.get('NOTE') and not e['NOTE'].startswith('http') and len(e['NOTE']) > 40: nts.append(e['NOTE'].strip())
+    # a note that only says who descends from the person ("ancestor of <a cousin> (through his mother ...)") is
+    # about the living, not about him: not published (James, 2026-10-02, the note on George Pardee Jr.)
+    nts = [n for n in nts if not re.match(r'ancestors? of\b', n, re.I)]
     if nts: pr['nt'] = list(dict.fromkeys(nts))
     srcs = []
     for s in sources_of(pid):
