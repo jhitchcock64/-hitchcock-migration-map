@@ -9,7 +9,8 @@ and 897 routes spanning 1545–2026, from England, Ireland, Scotland, Germany,
 Switzerland and Sweden through colonial New England and Virginia to the
 South and Midwest.
 
-- Live: https://jhitchcock64.github.io/-hitchcock-migration-map/
+- Live: https://hitchcockgenealogy.com/ (since 2026-10-02; Cloudflare registrar and DNS, records "DNS only"; the `CNAME` file names the
+  domain to GitHub Pages; the old https://jhitchcock64.github.io/-hitchcock-migration-map/ address forwards to it)
 - Hosting: GitHub Pages, serving the root of `main` (`index.html`, `map.html`, `data.js`,
   `basemap/`, `vendor/`). Pushing to `main` deploys, usually within a minute or two.
 - Source of truth for the family data: James's Ancestry tree, exported as a
