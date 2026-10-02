@@ -647,3 +647,9 @@ titles, the About footer and the contact form's sender name. It replaced "Family
 Phones (2026-10-02, James): on screens up to 700 px the map's search/modes panel and its legend start closed behind two
 buttons ("Search & views", "Legend & layers"; `body.m-search-open` / `m-legend-open`), one open at a time, closed by a tap on the
 map; the mouse hints are hidden and the map credits keep clear of the Legend button. Desktop is unchanged.
+
+Gazetteer fallback (2026-10-02): geocoder.py falls back, after its hand tables and their name-only fallbacks, to gazetteer.json.gz
+(build_gazetteer.py: US Census places and county centres, Natural Earth places abroad; committed, so rebuilds match on any
+machine). A town must be in the state the place names and within 90 km of the county it names; a name that is both a county and
+a far-off town reads as the county ("Gordon, Georgia"). Stage 3 drops residences dated after the death. Live since 2026-10-02:
+55 ancestors' journeys changed (census wards to their towns, fewer false back-and-forth moves, Provincetown before Plymouth).
