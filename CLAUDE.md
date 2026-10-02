@@ -643,3 +643,7 @@ Arrowheads are capped at 17 px (2026-10-02): 21 people between Birmingham and Je
 Site name (2026-10-02, James): "Hitchcock Family History" in every page's header (top left, links to the Ask page), the tab
 titles, the About footer and the contact form's sender name. It replaced "Family History, Visualized". The map's tab title is
 "Family History of X" when someone is chosen; its hidden h1 (#page-title) is kept for setTarget() and screen readers.
+
+Phones (2026-10-02, James): on screens up to 700 px the map's search/modes panel and its legend start closed behind two
+buttons ("Search & views", "Legend & layers"; `body.m-search-open` / `m-legend-open`), one open at a time, closed by a tap on the
+map; the mouse hints are hidden and the map credits keep clear of the Legend button. Desktop is unchanged.

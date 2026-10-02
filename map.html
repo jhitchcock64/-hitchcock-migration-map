@@ -313,6 +313,29 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 #search-results .sr-years { color:var(--muted); font-family:var(--font-mono); font-size:10px; }
 #search-results .sr-empty { padding:10px; font-size:12px; color:var(--muted); }
 
+/* Phones (James, 2026-10-02): the search/modes panel and the legend covered the map, so each starts closed
+   behind a small button; tapping the map closes them. */
+.m-toggle { display:none; }
+@media (max-width: 700px) {
+  .m-toggle { display:block; position:absolute; left:10px; z-index:13; font-family:var(--font-mono); font-size:11px; letter-spacing:.03em;
+    color:var(--ink); background:var(--panel-bg); border:1px solid rgba(156,122,46,0.55); border-radius:6px; padding:9px 11px; cursor:pointer;
+    box-shadow:0 1px 4px rgba(0,0,0,.12); }
+  #m-search-toggle { top:10px; }
+  #m-legend-toggle { bottom:34px; }
+  .m-toggle[aria-expanded="true"] { background:var(--border-stroke); color:var(--panel-bg); border-color:var(--border-stroke); }
+  #map-wrap #search-box { display:none; top:54px; left:10px; right:64px; max-width:none; background:var(--panel-bg); border:1px solid rgba(156,122,46,0.4);
+    border-radius:8px; padding:8px; box-shadow:0 3px 12px rgba(0,0,0,.18); }
+  body.m-search-open #map-wrap #search-box { display:block; }
+  #map-wrap #legend { display:none; left:10px; right:64px; bottom:76px; max-width:none; max-height:calc(100% - 150px); overflow-y:auto;
+    box-shadow:0 3px 12px rgba(0,0,0,.18); }
+  body.m-legend-open #map-wrap #legend { display:block; }
+  #legend .hint:not(.credit) { display:none; }          /* the mouse instructions */
+  .maplibregl-ctrl-bottom-right { max-width:calc(100% - 165px); }   /* the credits, open, stay clear of the Legend button */
+  /* inside the panel: fields as wide as it, results in the flow below the field */
+  #map-wrap #search-input, #map-wrap #search-input:focus, #map-wrap #surname-input, #map-wrap #surname-input:focus,
+  #map-wrap #era-person-input, #map-wrap #era-person-input:focus { width:100%; box-sizing:border-box; }
+  #map-wrap #search-results, #map-wrap #era-person-results { position:static; width:auto; max-height:42vh; margin-top:6px; box-shadow:none; }
+}
 @media (max-width: 640px) {
   header { padding:5px 12px 4px; }
   header h1 { font-size:15px; }
@@ -424,6 +447,8 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 <div id="map-wrap">
   <aside id="profile" aria-label="Profile"><button class="pf-close" aria-label="Close profile">&times;</button><div class="pf-in"></div></aside>
   <div id="map" role="application" aria-label="Interactive migration map. Use the search box to find an ancestor, or the zoom buttons to navigate."></div>
+  <button id="m-search-toggle" class="m-toggle" type="button" aria-expanded="false" aria-controls="search-box">Search &amp; views &#9662;</button>
+  <button id="m-legend-toggle" class="m-toggle" type="button" aria-expanded="false" aria-controls="legend">Legend &amp; layers &#9652;</button>
   <div id="search-box">
     <div id="search-modes" role="group" aria-label="Search mode">
       <button class="mode-btn active" data-mode="target" title="Click a result to make them the map's target">Family journey</button>
@@ -2472,6 +2497,23 @@ openFromHash();
     if (l && GRAPH.people[l]) { document.querySelector('.mode-btn[data-mode="life"]').click(); searchResults.classList.remove("active"); showLifeJourney(l); openProfile(l); }
   };
   if (t || l) go(); }
+// phones: the search/views panel and the legend open from their buttons and close on a tap of the map
+{
+  const pairs = [["m-search-toggle", "m-search-open"], ["m-legend-toggle", "m-legend-open"]];
+  const set = (cls, on) => { document.body.classList.toggle(cls, on); const b = document.getElementById(pairs.find(p => p[1] === cls)[0]); b.setAttribute("aria-expanded", on); };
+  for (const [id, cls] of pairs) document.getElementById(id).addEventListener("click", () => {
+    const on = !document.body.classList.contains(cls);
+    for (const [, c] of pairs) set(c, false);            // one at a time: a phone has room for one
+    set(cls, on);
+    if (on && cls === "m-search-open") { const i = [...document.querySelectorAll("#search-box input")].find(x => x.offsetParent); if (i) i.focus(); }
+  });
+  document.getElementById("map").addEventListener("pointerdown", () => { for (const [, c] of pairs) set(c, false); });
+  // the map credits start folded to their (i) button on a phone (MapLibre opens them until the first drag; open, they sit under the Legend button)
+  if (matchMedia("(max-width: 700px)").matches) {
+    const fold = () => { const a = document.querySelector(".maplibregl-ctrl-attrib"); if (!a) return setTimeout(fold, 300); a.classList.remove("maplibregl-compact-show"); a.removeAttribute("open"); };
+    fold(); setTimeout(fold, 1500); setTimeout(fold, 4000);
+  }
+}
 // the site-wide "Viewing as" button: choosing someone there re-centres the map on their family journey
 Viewer.mount("viewer-slot");
 Viewer.onChange(() => { const go = () => (mapReady ? setTarget(Viewer.mapId()) : setTimeout(go, 150)); go(); });
