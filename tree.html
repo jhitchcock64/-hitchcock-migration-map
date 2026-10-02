@@ -79,6 +79,7 @@ svg:active { cursor: grabbing; }
 (function () {
   var x = false;
   try { var v = JSON.parse(localStorage.getItem("hm-viewer") || "null"); x = !!(v && v.ext); } catch (e) {}
+  if (/[?&]ext=1\b/.test(location.search)) x = true;      // a cousin opened from the map: this visit only
   window.HM_EXT = x;
   document.write('<script src="' + (x ? "data_ext.js" : "data.js") + '"><\/script>');
 })();

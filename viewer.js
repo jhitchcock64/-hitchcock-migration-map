@@ -96,6 +96,19 @@ const Viewer = (() => {
     }
     return out.sort((a, b) => b[1] - a[1]).slice(0, 8).map(x => x[0]);
   }
+  // cousins (people only in the extended data) matching q, for the map's search on the core data:
+  // [{id, name, birt, ext: true}]; the living only once the family password is entered
+  async function cousins(q) {
+    await load();
+    const qt = words(q), out = [];
+    if (!qt.length) return out;
+    for (const k of R._x) {
+      if (!R.n[k] || GRAPH.people[pid(k)]) continue;
+      if (qt.every(w => { for (const t of toks[k]) if (t.startsWith(w) || (NICK[w] && t === NICK[w])) return true; return false; }))
+        out.push({ id: pid(k), name: R.n[k], birt: R.b[k] || null, ext: true });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 15);
+  }
   // the nearest people on the map at or above k: [pid, generations up]
   function onMapFrom(starts, depth) {
     let fr = starts.filter(x => x >= 0), seen = new Set(fr);
@@ -205,5 +218,5 @@ const Viewer = (() => {
     document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
     render();
   }
-  return { get, set, mapId, offset, isSet, label, mount, open, load, choose, refresh: render, onChange: f => listeners.push(f) };
+  return { get, set, mapId, offset, isSet, label, mount, open, load, choose, cousins, refresh: render, onChange: f => listeners.push(f) };
 })();

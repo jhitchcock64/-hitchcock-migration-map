@@ -102,6 +102,11 @@ TOWN_COORDS = {
     "sporysz|poland": (49.683, 19.217), "zywiec|poland": (49.685, 19.192), "żywiec|poland": (49.685, 19.192),
     "munkacs|hungary": (48.440, 22.720),      # now Mukachevo, Ukraine
     "dupont|pennsylvania": (41.325, -75.745),
+    # Ontario and Quebec, the cousins' lines (2026-10-02)
+    "york|ontario": (43.690, -79.450), "toronto east|ontario": (43.670, -79.330), "eramosa|ontario": (43.620, -80.200),
+    "eramosa|canada": (43.620, -80.200), "guelph|canada": (43.545, -80.248), "burford|ontario": (43.100, -80.430),
+    "iberville|quebec": (45.310, -73.240), "saint-georges-de-henryville|quebec": (45.130, -73.190),
+    "ste sabine|quebec": (45.230, -73.020), "stanbridge|quebec": (45.120, -72.990),
     "bronx|new york": (40.845, -73.865),
     "rockville centre|new york": (40.658, -73.641),
     "hempstead|new york": (40.706, -73.619),
@@ -1097,7 +1102,8 @@ STATE_COORDS = {
     "tennessee": (35.747, -86.692), "texas": (31.054, -97.563), "utah": (40.150, -111.862),
     "vermont": (44.045, -72.710), "virginia": (37.769, -78.170), "washington": (47.400, -121.490),
     "west virginia": (38.491, -80.954), "wisconsin": (44.268, -89.616), "wyoming": (42.756, -107.302),
-    "ontario": (43.653, -79.383), "toronto": (43.653, -79.383),
+    "ontario": (43.653, -79.383), "toronto": (43.653, -79.383), "quebec": (46.810, -71.210),
+    "hawaii": (21.307, -157.858),
     # England historic/ceremonial counties seen in the data
     "kent": (51.278, 0.522), "essex": (51.750, 0.400), "suffolk": (52.190, 1.140),
     "warwickshire": (52.280, -1.550), "oxfordshire": (51.760, -1.240),
@@ -1106,16 +1112,20 @@ STATE_COORDS = {
     "hertfordshire": (51.800, -0.240), "derbyshire": (53.100, -1.560),
     "nottinghamshire": (53.150, -1.000), "west midlands": (52.480, -1.900),
     "norfolk": (52.630, 0.940), "dorset": (50.750, -2.340),
+    "lincolnshire": (53.100, -0.200), "yorkshire": (53.960, -1.080), "middlesex": (51.550, -0.300),
+    "shropshire": (52.650, -2.750), "midlothian": (55.880, -3.100),
     # German states
     "baden-württemberg": (48.660, 9.350), "baden-wuerttemberg": (48.660, 9.350),
     "north rhine-westphalia": (51.430, 7.660), "bavaria": (48.950, 11.400),
     "hesse": (50.650, 9.000), "rhineland-palatinate": (49.910, 7.450),
     "lower saxony": (52.900, 9.400), "niedersachsen": (52.900, 9.400),
+    "württemberg": (48.660, 9.350), "wurttemberg": (48.660, 9.350), "bayern": (48.950, 11.400),
     "baden": (48.500, 8.500), "hannover": (52.375, 9.732), "preussen": (52.520, 13.405),
     # Ireland counties
     "cavan": (54.000, -7.360), "monaghan": (54.250, -6.970), "meath": (53.650, -6.680),
     "westmeath": (53.530, -7.500), "tyrone": (54.600, -7.300), "dublin": (53.350, -6.260),
-    "armagh": (54.350, -6.650),
+    "armagh": (54.350, -6.650), "county armagh": (54.350, -6.650), "county monaghan": (54.250, -6.970),
+    "antrim": (54.860, -6.280), "county antrim": (54.860, -6.280), "ulster": (54.600, -6.900),
     # Sweden provinces (incl. historic names)
     "västra götaland": (58.180, 13.550), "jönköping": (57.780, 14.160),
     "skaraborg": (58.180, 13.550), "älvsborg": (58.180, 13.550),
@@ -1144,7 +1154,7 @@ COUNTRY_COORDS = {
 
 US_STATE_NAMES = {
     "alabama","alaska","arizona","arkansas","california","colorado","connecticut","delaware",
-    "district of columbia","florida","georgia","idaho","illinois","indiana","iowa","kansas",
+    "district of columbia","florida","georgia","hawaii","idaho","illinois","indiana","iowa","kansas",
     "kentucky","louisiana","maine","maryland","massachusetts","michigan","minnesota","mississippi",
     "missouri","montana","nebraska","nevada","new hampshire","new jersey","new mexico","new york",
     "north carolina","north dakota","ohio","oklahoma","oregon","pennsylvania","rhode island",
@@ -1154,7 +1164,7 @@ US_STATE_NAMES = {
 
 STATE_ABBREV = {
     "al":"alabama","ak":"alaska","az":"arizona","ar":"arkansas","ca":"california","co":"colorado",
-    "ct":"connecticut","de":"delaware","dc":"district of columbia","fl":"florida","ga":"georgia",
+    "ct":"connecticut","de":"delaware","dc":"district of columbia","fl":"florida","ga":"georgia","hi":"hawaii",
     "id":"idaho","il":"illinois","in":"indiana","ia":"iowa","ks":"kansas","ky":"kentucky",
     "la":"louisiana","me":"maine","md":"maryland","ma":"massachusetts","mi":"michigan",
     "mn":"minnesota","ms":"mississippi","mo":"missouri","mt":"montana","ne":"nebraska",
@@ -1330,7 +1340,6 @@ RAW_GROUND_TRUTH = {
     "Dyke, Greene, Virginia, USA": ("Dyke, Virginia", 38.25, -78.54, "town"),
     "Florence, Morgan, Missouri, USA": ("Florence, Missouri", 38.59, -92.98, "town"),
     "Graham's Station, Lewis County, Kentucky, USA": ("Graham'S Station, Kentucky", 38.55, -83.5, "town"),
-    "Hampton, Virginia, USA": None,  # left unresolved on the shipped map
     "Harris, Georgia, United States": ("Waverly Hall, Georgia", 32.75, -84.73, "town"),
     "Jamestown, James City, Virginia, USA": ("Jamestown, Virginia", 37.21, -76.78, "region"),
     "Macon, Bibb, Georgia, USA": ("Macon Co., Georgia", 32.84, -83.63, "town"),
@@ -1341,7 +1350,6 @@ RAW_GROUND_TRUTH = {
     "Prince George's County, Maryland, USA": ("Prince George'S Co., Maryland", 38.81, -76.87, "county"),
     "Rockville, Maryland, USA": ("Montgomery Co., Maryland", 39.15, -77.2, "town"),
     "Rockville, Montgomery, Maryland, USA": ("Montgomery Co., Maryland", 39.15, -77.2, "town"),
-    "Toronto East, Ontario, Canada": None,  # left unresolved on the shipped map
     "Towson, Baltimore, Maryland, USA": ("Baltimore, Maryland", 39.29, -76.61, "town"),
     "Worcester, Worcester, Massachusetts, USA": ("Worcester Co., Massachusetts", 42.35, -71.86, "county"),
 }
@@ -1400,6 +1408,11 @@ def _gazetteer(low, low_nosuffix, country):
             return ("New York City, New York", lat, lon, "town")
         if centre:
             return (f"{_title(named)} Co., {_title(st)}", centre[0], centre[1], "county")
+        # a county named alone, with no town of that name in the state: "Stewart, Tennessee", "Hennepin, Minnesota"
+        for raw, c in parts:
+            if c in counties:
+                own = G["county"][f"{gaz_norm(c)}|{st}"]
+                return (f"{_title(c)} Co., {_title(st)}", own[0], own[1], "county")
         return None
     # abroad: a place paired with its country or province ("Toronto, Ontario", "Perth, Western Australia, Australia")
     regions = [gaz_norm(c) for c in low_nosuffix] + (["united kingdom"] if country in _UK else [])

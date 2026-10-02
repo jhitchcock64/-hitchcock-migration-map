@@ -534,6 +534,7 @@ svg#overlay-svg .interactive { pointer-events:auto; }
 (function () {
   var x = false;
   try { var v = JSON.parse(localStorage.getItem("hm-viewer") || "null"); x = !!(v && v.ext); } catch (e) {}
+  if (/[?&]ext=1\b/.test(location.search)) x = true;      // a cousin looked up from the core map: this visit only
   window.HM_EXT = x;
   document.write('<script src="' + (x ? "data_ext.js" : "data.js") + '"><\/script>');
 })();
@@ -1664,6 +1665,19 @@ function runSearch(q) {
   searchSelIdx = -1;
   if (!q) { searchResults.classList.remove("active"); return; }
   searchMatches = SEARCH_INDEX.filter(p => p.nameLower.includes(q)).slice(0, 25);
+  // on the core data, cousins too (viewer.js, from relatives.js): choosing one reloads the map with the extended data
+  if (!window.HM_EXT && q.length >= 3) Viewer.cousins(q).then(more => {
+    if (!more.length || searchInput.value.trim().toLowerCase() !== q) return;
+    if (!searchMatches.length) searchResults.innerHTML = "";
+    more.forEach(p => {
+      const i = searchMatches.push(p) - 1, row = document.createElement("div");
+      row.className = "sr-item"; row.setAttribute("role", "option");
+      row.innerHTML = `<span>${p.name.replace(/</g, "")}${p.birt ? ` <span class="sr-years">b. ${p.birt}</span>` : ""} <span class="sr-years">\u00b7 cousin</span></span>`;
+      row.addEventListener("click", () => selectSearchResult(i));
+      searchResults.appendChild(row);
+    });
+    searchResults.classList.add("active");
+  }).catch(() => {});
   if (!searchMatches.length) {
     searchResults.innerHTML = '<div class="sr-empty">No ancestor matches "' + q.replace(/</g,"") + '"</div>';
     searchResults.classList.add("active");
@@ -1727,6 +1741,7 @@ function selectSearchResult(i) {
   const p = searchMatches[i];
   if (!p) return;
   searchResults.classList.remove("active");
+  if (p.ext) { location.href = "map.html?ext=1&" + (searchMode === "life" ? "life" : "target") + "=" + encodeURIComponent(p.id); return; }
   if (searchMode === "target") {
     searchInput.value = "";
     setTarget(p.id);
@@ -2434,7 +2449,7 @@ async function openProfile(pid) {
   H.push(`<div class="pf-head"><div class="pf-photo${photo ? " has" : ""}">${photo || `<div><svg viewBox="0 0 64 64"><circle cx="32" cy="22" r="12" fill="currentColor"/><path d="M8 60c2-14 12-22 24-22s22 8 24 22z" fill="currentColor"/></svg>No photo yet</div>`}</div>
     <div><h2>${esc(g.name)}</h2><div class="pf-years">${yrs[0] || "?"} &ndash; ${yrs[1] || (g.name === "Private" || familyShown && PRIVATE_PROFILES[pid] ? "" : "?")}</div>
     ${rel ? `<div class="pf-rel">${esc(rel.charAt(0).toUpperCase() + rel.slice(1))}</div>` : ""}</div></div>`);
-  H.push(`<div class="pf-btns"><button class="solid" data-act="life">Life journey</button><button data-act="family">Family journey</button><a class="pf-tree" href="tree.html#root=${encodeURIComponent(pid)}">View on tree</a></div>`);
+  H.push(`<div class="pf-btns"><button class="solid" data-act="life">Life journey</button><button data-act="family">Family journey</button><a class="pf-tree" href="tree.html${window.HM_EXT ? "?ext=1" : ""}#root=${encodeURIComponent(pid)}">View on tree</a></div>`);
   // facts
   const facts = [];
   if (pr.b[0] || pr.b[1]) facts.push(["Born", [longDate(pr.b[0]), pr.b[1]].filter(Boolean).join("<br>")]);
