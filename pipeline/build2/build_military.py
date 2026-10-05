@@ -37,6 +37,7 @@ BATTLE_AT = {(lab, yr): (name, date) for name, date, stops in BATTLES for lab, y
 OLD_ROADS = [e for e in bcr.EDGES if e['mode'] == 'road' and 1840 <= e['years'][1] < 1920]
 for _e in OLD_ROADS: _e['_years'] = (list(_e['years']), [_e['years'][0], 1920])
 bcr.MIN_KM, bcr.MAX_DETOUR, bcr.MIN_ON_NETWORK = 25, 3.0, 0.3
+bcr.SHORT_KM = 0          # marches have their own rules (the stops say water, sea or rail)
 
 OUT = HERE / 'military_prepared.json'
 CONF = {'record', 'unit', 'family', 'conjecture'}

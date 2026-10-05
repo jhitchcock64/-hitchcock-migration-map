@@ -37,7 +37,9 @@ own research; none at present) and carry a note (n) for the tooltip.
 A move is routed only if the path beats going direct (2.5/km), is no more
 than MAX_DETOUR x the direct distance (+50 km; river trips wind), and at
 least 40% of it is on the network. Moves under MIN_KM keep their direct
-lines. Ocean crossings are routed too (overland to a port, a sea lane, a port
+lines. Moves under SHORT_KM (a family moving a county or two; 2026-10-05, James) go by road only --
+no railroad, river or sea lane -- and only if the road is no more than SHORT_DETOUR x the direct
+distance (+10 km) and covers at least half the trip; otherwise they too stay direct lines. Ocean crossings are routed too (overland to a port, a sea lane, a port
 to the destination); where that fails they keep the pipeline's ocean path. A move to or from a place known only as a state,
 colony or country ("Virginia"; see REGIONS) is routed from where the map
 already puts that place, and marked approximate (a: 1) so the page can say so.
@@ -53,7 +55,9 @@ OUT = HERE / 'corridors_prepared.json'
 
 CONNECT_COST, CONNECT_KM, BOARD_COST, RAIL_BOARD_COST = 2.5, 160, 80, 40
 REGION_CONNECT_KM = 400   # a place known only as a state or country sits at its centre
-MIN_KM, MAX_DETOUR, DETOUR_SLACK_KM, MIN_ON_NETWORK = 80, 2.3, 50, 0.4
+MIN_KM, MAX_DETOUR, DETOUR_SLACK_KM, MIN_ON_NETWORK = 30, 2.3, 50, 0.4
+SHORT_KM, SHORT_DETOUR, SHORT_SLACK_KM, SHORT_ON_NETWORK = 80, 1.6, 10, 0.5   # 30-80 km: roads only, and close to direct
+NOT_SHORT = {'rail', 'river', 'sea', 'canal'}
 TRANSFER_KM = 25          # a town on the hand-made network links to a station or highway this close
 MIN_COST_PER_KM = 0.15    # the cheapest mode (trade-wind sea lane, 0.5 x 0.3): A*'s estimate of
                           # the rest of the trip; must not exceed any real cost, or A* can miss the best path
@@ -179,6 +183,8 @@ def _route(a, b, year, skip, ra, rb):
     breaks the detour or on-network guards."""
     direct = km(a, b)
     if direct < MIN_KM: return None
+    short = direct < SHORT_KM
+    if short: skip = skip | NOT_SHORT
     exits = {n: d * CONNECT_COST for n, d in near(b, abs(rb), ports_only=rb > 0)}
     if not exits: return None
     h = lambda n: km(NODE_LL[n], b) * MIN_COST_PER_KM
@@ -210,10 +216,13 @@ def _route(a, b, year, skip, ra, rb):
         u, cls, i, sign = prev[st]; steps.append(sign * (i + 1)); st = (u, cls)
     steps.reverse()
     if not steps: return None
+    if all(EDGES[abs(s) - 1]['mode'] == 'transfer' for s in steps): return None   # only the links between networks: no road
     entry, exit_ = st[0], best[0]
     on_net = sum(EDGES[abs(s) - 1]['km'] for s in steps)
     total = on_net + km(a, NODE_LL[entry]) + km(NODE_LL[exit_], b)
-    if total > direct * MAX_DETOUR + DETOUR_SLACK_KM or on_net < MIN_ON_NETWORK * total: return 'guard'
+    if short:
+        if total > direct * SHORT_DETOUR + SHORT_SLACK_KM or on_net < SHORT_ON_NETWORK * total: return 'guard'
+    elif total > direct * MAX_DETOUR + DETOUR_SLACK_KM or on_net < MIN_ON_NETWORK * total: return 'guard'
     return steps, entry, exit_
 
 
