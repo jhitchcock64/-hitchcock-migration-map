@@ -554,6 +554,48 @@ NODES = {
     'nashville_ga':   ('Nashville, GA', 31.207, -83.250),
     'thomasville':    ('Thomasville, GA', 30.837, -83.979),
     'tallahassee':    ('Tallahassee, FL', 30.438, -84.281),
+    # --- 2026-10-05: tidewater Virginia's rivers and the Eastern Shore
+    'port_royal_va':  ('Port Royal, VA', 38.170, -77.190),
+    'tappahannock':   ('Tappahannock, VA', 37.925, -76.859),
+    'urbanna':        ('Urbanna, VA', 37.638, -76.575),
+    '~rapp_mouth':    ('~', 37.570, -76.290),
+    'hanovertown':    ('Hanovertown (on the Pamunkey), VA', 37.700, -77.240),
+    '~pamunkey_mid':  ('~', 37.620, -77.020),
+    'west_point_va':  ('West Point, VA', 37.531, -76.796),
+    'yorktown':       ('Yorktown, VA', 37.237, -76.507),
+    '~york_mouth':    ('~', 37.240, -76.360),
+    'cherrystone':    ('Cherrystone (Cape Charles), VA', 37.280, -76.010),
+    # --- California
+    'benicia':        ('Benicia, CA', 38.049, -122.158),
+    '~rio_vista':     ('~', 38.155, -121.690),
+    '~sac_river_n':   ('~', 38.400, -121.560),
+    'auburn_ca':      ('Auburn, CA', 38.897, -121.077),
+    'grass_valley':   ('Grass Valley, CA', 39.219, -121.061),
+    'nevada_city':    ('Nevada City, CA', 39.262, -121.016),
+    # --- England: the Great North Road
+    'stevenage':      ('Stevenage', 51.903, -0.196),
+    'biggleswade':    ('Biggleswade', 52.087, -0.264),
+    'stamford_eng':   ('Stamford, Lincolnshire', 52.652, -0.480),
+    'grantham':       ('Grantham', 52.912, -0.642),
+    'newark_eng':     ('Newark-on-Trent', 53.076, -0.809),
+    'doncaster':      ('Doncaster', 53.523, -1.133),
+    'ferrybridge':    ('Ferrybridge', 53.711, -1.272),
+    'tadcaster':      ('Tadcaster', 53.884, -1.262),
+    'york_england':   ('York, England', 53.959, -1.082),
+    # --- Essex and Suffolk
+    'brentwood':      ('Brentwood', 51.621, 0.305),
+    'chelmsford':     ('Chelmsford', 51.736, 0.479),
+    'colchester':     ('Colchester', 51.889, 0.901),
+    'ipswich_eng':    ('Ipswich', 52.059, 1.155),
+    'epping':         ('Epping', 51.700, 0.110),
+    'bishops_stortford': ("Bishop's Stortford", 51.872, 0.159),
+    'newport_essex':  ('Newport, Essex', 51.985, 0.214),
+    'newmarket':      ('Newmarket', 52.245, 0.405),
+    'bury_st_edmunds':('Bury St Edmunds', 52.246, 0.711),
+    # --- the head of the Chesapeake
+    '~upper_bay':     ('~', 39.250, -76.330),
+    '~elk_river':     ('~', 39.470, -75.980),
+    '~harwich':       ('~', 51.940, 1.330),
 }
 
 ROAD, RIVER, SEA, CANAL = 'road', 'river', 'sea', 'canal'
@@ -561,7 +603,9 @@ ROAD, RIVER, SEA, CANAL = 'road', 'river', 'sea', 'canal'
 # Places closed to travellers in some years: every edge touching them is unusable then.
 # British-occupied New York City (September 1776 - November 1783): an American
 # going between New England or the Hudson and Pennsylvania went around it.
-CLOSED = {'new_york': (1776, 1783)}
+CLOSED = {'new_york': (1776, 1783),
+          # held by the Confederates until May 1862: McClellan's army landed at Fort Monroe and marched up
+          'yorktown': (1861, 1862)}
 
 # name, mode, (first, last year), path, optional per-segment years {(a, b): (first, last)}
 CORRIDORS = [
@@ -712,6 +756,44 @@ CORRIDORS = [
          path=['tugaloo', 'clarkesville_ga', 'nacoochee', 'unicoi_gap', 'hiawassee', 'murphy', 'maryville', 'knoxville']),
     dict(name='Coffee Road', mode=ROAD, years=(1823, 1860),
          path=['jacksonville_ga', 'nashville_ga', 'thomasville', 'tallahassee']),
+
+    # Tidewater Virginia: the Rappahannock is tidal to the falls at Fredericksburg, the York and Pamunkey to
+    # the colonial port of Hanovertown; sloops worked both ways, like the Potomac lane. The Eastern Shore
+    # crossed the bay from Cape Charles to Hampton Roads from the colonial era (virginiaplaces.org,
+    # "Ferries in Virginia").
+    dict(name='Rappahannock River', mode=SEA, years=(1640, 1900), cost_factor=0.5,
+         path=['fredericksburg', 'port_royal_va', 'tappahannock', 'urbanna', '~rapp_mouth', '~chesapeake_mid']),
+    dict(name='York and Pamunkey Rivers', mode=SEA, years=(1640, 1900), cost_factor=0.5,
+         path=['hanovertown', '~pamunkey_mid', 'west_point_va', 'yorktown', '~york_mouth', '~chesapeake_mid']),
+    dict(name='Crossing from the Eastern Shore', mode=SEA, years=(1620, 1900), cost_factor=0.5,
+         path=['cherrystone', 'hampton_roads']),
+    dict(name='Crossing from the Eastern Shore (up the bay)', mode=SEA, years=(1620, 1900), cost_factor=0.5,
+         path=['cherrystone', '~chesapeake_mid']),
+    # California: river steamers between San Francisco and Sacramento from 1849, touching at Benicia
+    # (Wikipedia, "Steamboats of California"); the stage road from Sacramento by Auburn to the Nevada City
+    # mines (the Auburn Emigrant Road; California Office of Historic Preservation).
+    dict(name='Sacramento River steamers', mode=SEA, years=(1849, 1900), cost_factor=0.5,
+         path=['sacramento', '~sac_river_n', '~rio_vista', 'benicia', 'san_francisco']),
+    dict(name='Sacramento\u2013Nevada City road', mode=ROAD, years=(1850, 1869), frontier=True,
+         path=['sacramento', 'auburn_ca', 'grass_valley', 'nevada_city']),
+    # England: the Great North Road, London to York (C. G. Harper, "The Great North Road", 1901): Barnet,
+    # Stevenage, Biggleswade, Stamford, Grantham, Newark, Doncaster, Ferrybridge, Tadcaster, York.
+    dict(name='Great North Road', mode=ROAD, years=(1600, 1850),
+         path=['london', 'stevenage', 'biggleswade', 'stamford_eng', 'grantham', 'newark_eng', 'doncaster',
+               'ferrybridge', 'tadcaster', 'york_england']),
+
+    # Essex and Suffolk: the London-Colchester-Ipswich road (the Roman road, the Great Essex Road) and the
+    # Newmarket road by Epping, Bishop's Stortford and Newport, on to Bury St Edmunds. Courses approximate.
+    dict(name='Great Essex Road', mode=ROAD, years=(1600, 1850),
+         path=['london', 'brentwood', 'chelmsford', 'colchester', 'ipswich_eng']),
+    dict(name='Newmarket road', mode=ROAD, years=(1600, 1850),
+         path=['london', 'epping', 'bishops_stortford', 'newport_essex', 'newmarket', 'bury_st_edmunds']),
+    # Ipswich and Harwich: emigrant ships sailed from them too (the Elizabeth, Ipswich, 1634)
+    dict(name='Orwell and Harwich', mode=SEA, years=(1600, 1970), cost_factor=0.5,
+         path=['ipswich_eng', '~harwich', '~thames_mouth']),
+    # the head of the bay: the 1781 allied march came down from Head of Elk by water (itineraries.py)
+    dict(name='Head of the Chesapeake', mode=SEA, years=(1620, 1900), cost_factor=0.5,
+         path=['baltimore_harbor', '~upper_bay', '~elk_river', 'elkton']),
 
     dict(name='Erie Canal', mode=CANAL, years=(1825, 1860),
          path=['albany', 'schenectady', 'utica', 'syracuse', 'rochester', 'lockport', 'buffalo']),

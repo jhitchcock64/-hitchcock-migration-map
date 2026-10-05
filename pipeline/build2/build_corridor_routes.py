@@ -55,6 +55,8 @@ OUT = HERE / 'corridors_prepared.json'
 
 CONNECT_COST, CONNECT_KM, BOARD_COST, RAIL_BOARD_COST = 2.5, 160, 80, 40
 REGION_CONNECT_KM = 400   # a place known only as a state or country sits at its centre
+REGION_PORT_KM = 401      # the same, for an ocean crossing: straight to a port, not along some road
+                          # through the middle of the country (2026-10-05: "England" took the Great North Road)
 MIN_KM, MAX_DETOUR, DETOUR_SLACK_KM, MIN_ON_NETWORK = 30, 2.3, 50, 0.4
 SHORT_KM, SHORT_DETOUR, SHORT_SLACK_KM, SHORT_ON_NETWORK = 80, 1.6, 10, 0.5   # 30-80 km: roads only, and close to direct
 NOT_SHORT = {'rail', 'river', 'sea', 'canal'}
@@ -164,6 +166,9 @@ def cost_per_km(e, sign, year, private_ok=False):
     return c * e.get('cost_factor', 1)
 
 
+WATER_NODES = {n for e in EDGES if e['mode'] in WATER for n in (e['a'], e['b'])}
+
+
 def klass(mode):
     return 1 if mode in WATER else 2 if mode in RAIL else 0
 
@@ -185,11 +190,13 @@ def _route(a, b, year, skip, ra, rb):
     if direct < MIN_KM: return None
     short = direct < SHORT_KM
     if short: skip = skip | NOT_SHORT
-    exits = {n: d * CONNECT_COST for n, d in near(b, abs(rb), ports_only=rb > 0)}
+    exits = {n: d * CONNECT_COST for n, d in near(b, abs(rb), ports_only=rb > 0)
+             if abs(rb) != REGION_PORT_KM or n in WATER_NODES}
     if not exits: return None
     h = lambda n: km(NODE_LL[n], b) * MIN_COST_PER_KM
     dist, prev, heap = {}, {}, []
     for n, d in near(a, abs(ra), ports_only=ra > 0):
+        if abs(ra) == REGION_PORT_KM and n not in WATER_NODES: continue
         s = (n, 0)
         if d * CONNECT_COST < dist.get(s, 1e18):
             dist[s] = d * CONNECT_COST; heapq.heappush(heap, (dist[s] + h(n), dist[s], n, 0))
@@ -293,8 +300,9 @@ _cache = {}
 def via(x1, y1, x2, y2, year, frm, to):
     f = forced(frm, to, year, x1, y1, x2, y2)
     if f: return f
-    ra = CONNECT_KM if precise(frm) else REGION_CONNECT_KM
-    rb = CONNECT_KM if precise(to) else REGION_CONNECT_KM
+    region = REGION_PORT_KM if ocean(x1, x2) else REGION_CONNECT_KM
+    ra = CONNECT_KM if precise(frm) else region
+    rb = CONNECT_KM if precise(to) else region
     # someone recorded as born "at sea" can join a sea lane where they were (negative radius)
     if 'at sea' in (frm or '').lower(): ra = -ra
     if 'at sea' in (to or '').lower(): rb = -rb

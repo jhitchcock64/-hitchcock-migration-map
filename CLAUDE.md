@@ -364,7 +364,12 @@ Likely routes (added 2026-09-25, James's idea; the default view; the
   over (node, by land / water / rail) with per-mode, per-era costs,
   boarding costs for boats and trains, and guards (detour limit, share on
   the network). Towns on the hand-made network link to the nearest station
-  and highway. It skips moves under 80 km. Places known only as a state or
+  and highway. It skips moves under 30 km; moves of 30-80 km (since 2026-10-05, James) go by road or
+  highway only, at most 1.6x direct (+10 km), else stay direct lines; a route of nothing but connector
+  links doesn't count. An ocean crossing from a place known only as a country ("England") goes straight
+  to a port (REGION_PORT_KM), never along a road through the middle of it. Sea lanes are drawn as smooth
+  curves in Mercator, branches leaving tangentially, straight only where a curve would cross land
+  (build_network.py, 2026-10-05). Places known only as a state or
   country ("Virginia", "Germany") are routed from where the map puts them
   (connecting up to 400 km) and flagged `a: 1`; the tooltip says it's
   approximate. If the cheapest path breaks the detour guard by going round
