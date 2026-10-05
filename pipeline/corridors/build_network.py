@@ -3,7 +3,10 @@ Turns network.py (the hand-authored corridors) into network.json: one edge
 per consecutive pair of nodes, each with its drawn geometry in lon/lat.
 
 Roads and canals: a smooth curve (centripetal Catmull-Rom) through the
-corridor's nodes. Sea lanes: straight between their offshore waypoints. Rivers: the real river line from Natural Earth 1:10m
+corridor's nodes. Sea lanes: a smooth curve through their offshore waypoints, drawn in the map's
+(Mercator) projection so it looks smooth on screen; a lane that branches off another leaves it
+tangentially, not at an angle; and any stretch whose curve would cross land (Natural Earth 1:10m)
+stays straight (2026-10-05, James: the crossings looked angular next to everything else). Rivers: the real river line from Natural Earth 1:10m
 (pipeline/basemap/cache/, see build_basemap.py for the download), cut
 between consecutive river towns (or, with geometry='spline', a curve through
 the listed points, for rivers Natural Earth doesn't cover end to end).
@@ -65,6 +68,63 @@ def catmull_rom(pts, per_seg=10):
             seg.append(lerp(B1, B2, t1, t2))
         seg[0], seg[-1] = p1, p2
         out.append(seg)
+    return out
+
+
+# ---------------------------------------------------------------- sea lanes: smooth, but never over land
+def merc(p):
+    return (p[0], math.degrees(math.log(math.tan(math.pi / 4 + math.radians(max(-85, min(85, p[1]))) / 2))))
+
+def unmerc(p):
+    return (p[0], math.degrees(2 * math.atan(math.exp(math.radians(p[1]))) - math.pi / 2))
+
+_LAND = None
+def land():
+    """Natural Earth land as [(bbox, ring)], outer rings only (lakes don't matter at sea)."""
+    global _LAND
+    if _LAND is None:
+        _LAND = []
+        for ft in json.load(open(CACHE / 'ne_10m_land.geojson', encoding='utf-8'))['features']:
+            g = ft['geometry']
+            for poly in (g['coordinates'] if g['type'] == 'MultiPolygon' else [g['coordinates']]):
+                ring = poly[0]
+                xs = [q[0] for q in ring]; ys = [q[1] for q in ring]
+                _LAND.append(((min(xs), min(ys), max(xs), max(ys)), ring))
+    return _LAND
+
+def on_land(p):
+    x, y = p
+    for (x0, y0, x1, y1), ring in land():
+        if not (x0 <= x <= x1 and y0 <= y <= y1): continue
+        inside = False
+        for (ax, ay), (bx, by) in zip(ring, ring[1:] + ring[:1]):
+            if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay): inside = not inside
+        if inside: return True
+    return False
+
+def crosses_land(seg, skip_ends_km=25):
+    """Does a drawn stretch cross land? Its first and last skip_ends_km are allowed (ports are on land)."""
+    pts = [seg[0]]
+    for a, b in zip(seg, seg[1:]):           # sample about every 5 km
+        n = max(1, int(km(a, b) / 5))
+        pts += [(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n) for k in range(1, n + 1)]
+    return any(on_land(q) for q in pts if km(q, seg[0]) > skip_ends_km and km(q, seg[-1]) > skip_ends_km)
+
+def sea_geoms(path, ll, before=None, after=None):
+    """One curve per consecutive pair of path nodes. before/after: a point to lead into the first node
+    and out of the last (the lane this one branches from), so the branch leaves it tangentially."""
+    pts = [merc(ll[n]) for n in path]
+    lead = [merc(before)] if before else [pts[0]]
+    tail = [merc(after)] if after else [pts[-1]]
+    P = lead + pts + tail
+    out = []
+    for i, (a, b) in enumerate(zip(path, path[1:])):
+        L = km(ll[a], ll[b])
+        seg = catmull_rom(P[i:i + 4], per_seg=max(8, min(60, int(L / 40))))[1]
+        curve = [unmerc(q) for q in seg]
+        straight = [ll[a], ll[b]]
+        if L > 30 and crosses_land(curve) and not crosses_land(straight): curve = straight
+        out.append(curve)
     return out
 
 
@@ -132,6 +192,29 @@ def shortest(adj, s, t):
     return path[::-1]
 
 
+def branch_tangents(c, path, ll):
+    """For a sea lane that starts or ends on another lane's waypoint: the point on that lane that
+    leads most smoothly into this one (so the branch leaves it at a tangent), or None."""
+    def best(node, toward):
+        cands = []
+        for o in CORRIDORS:
+            if o is c or o['mode'] != SEA: continue
+            op = o['path']
+            for i, n in enumerate(op):
+                if n != node: continue
+                for j in (i - 1, i + 1):
+                    if 0 <= j < len(op) and op[j] != toward: cands.append(op[j])
+        if not cands: return None
+        ax, ay = ll[node]; tx, ty = ll[toward][0] - ax, ll[toward][1] - ay
+        def turn(m):      # angle between arriving from m and leaving toward `toward`
+            mx, my = ax - ll[m][0], ay - ll[m][1]
+            d = math.hypot(mx, my) * math.hypot(tx, ty) or 1
+            return math.acos(max(-1, min(1, (mx * tx + my * ty) / d)))
+        m = min(cands, key=turn)
+        return ll[m] if turn(m) < math.radians(100) else None
+    return best(path[0], path[1]), best(path[-1], path[-2])
+
+
 def main():
     ll = {k: (v[2], v[1]) for k, v in NODES.items()}          # id -> (lon, lat)
     edges = {}                                                 # (a, b) -> edge
@@ -154,9 +237,7 @@ def main():
                     vs = [sa, sb]
                 geoms.append([ll[a]] + dp(vs, 0.012) + [ll[b]])
         elif c['mode'] == SEA:
-            # ships' tracks: straight between the offshore waypoints (a smooth
-            # curve through them can bulge over a headland or an island)
-            geoms = [[ll[a], ll[b]] for a, b in zip(path, path[1:])]
+            geoms = sea_geoms(path, ll, *branch_tangents(c, path, ll))
         else:
             geoms = catmull_rom([ll[n] for n in path], per_seg=10)
         for (a, b), g in zip(zip(path, path[1:]), geoms):
