@@ -497,6 +497,63 @@ NODES = {
     '~punta_mala':    ('~', 7.000, -80.000),
     'panama_city':    ('Panama City', 8.950, -79.530),
     'colon':          ('Colon (Aspinwall), Panama', 9.358, -79.900),
+    # --- 2026-10-05: Connecticut to the Catskills and the upper Susquehanna
+    'litchfield':     ('Litchfield, CT', 41.747, -73.189),
+    'goshen_ct':      ('Goshen, CT', 41.832, -73.225),
+    'canaan_ct':      ('Canaan, CT', 42.027, -73.329),
+    'salisbury_ct':   ('Salisbury, CT', 41.983, -73.421),
+    'ancram':         ('Ancram, NY', 42.049, -73.638),
+    'livingston_ny':  ('Livingston, NY (opposite Catskill)', 42.142, -73.778),
+    'pine_plains':    ('Pine Plains, NY', 41.980, -73.656),
+    'rhinebeck':      ('Rhinebeck, NY', 41.927, -73.912),
+    'kingston_ny':    ('Kingston, NY', 41.927, -73.997),
+    'shandaken':      ('Shandaken, NY', 42.118, -74.394),
+    'margaretville':  ('Margaretville, NY', 42.148, -74.648),
+    'andes':          ('Andes, NY', 42.188, -74.786),
+    'bainbridge':     ('Bainbridge, NY', 42.293, -75.479),
+    'durham_ny':      ('Durham, NY', 42.399, -74.172),
+    'broome_ny':      ('Broome (Livingstonville), NY', 42.497, -74.317),
+    'blenheim':       ('Blenheim, NY', 42.471, -74.441),
+    'harpersfield':   ('Harpersfield, NY', 42.440, -74.690),
+    'meredith':       ('Meredith, NY', 42.360, -74.930),
+    'sidney_ny':      ('Sidney, NY', 42.315, -75.392),
+    # --- the Connecticut River (the river's course, upstream to down: a spline through these)
+    'northfield_ma':  ('Northfield, MA', 42.700, -72.450),
+    'deerfield':      ('Deerfield, MA', 42.545, -72.590),
+    'hatfield':       ('Hatfield, MA', 42.371, -72.598),
+    'northampton':    ('Northampton, MA', 42.325, -72.630),
+    '~south_hadley':  ('~', 42.212, -72.610),
+    '~enfield_falls': ('~', 41.985, -72.600),
+    'windsor_ct':     ('Windsor, CT', 41.852, -72.640),
+    '~rocky_hill':    ('~', 41.664, -72.635),
+    'middletown_ct':  ('Middletown, CT', 41.562, -72.650),
+    '~east_haddam':   ('~', 41.455, -72.460),
+    # --- 2026-10-05: upcountry South Carolina and Georgia
+    'spartanburg':    ('Spartanburg, SC', 34.950, -81.932),
+    'greenville_sc':  ('Greenville, SC', 34.852, -82.394),
+    'tugaloo':        ('Tugaloo (Travelers Rest, near Toccoa), GA', 34.597, -83.270),
+    'athens_ga':      ('Athens, GA', 33.951, -83.357),
+    'lexington_ga':   ('Lexington, GA', 33.870, -83.112),
+    'madison_ga':     ('Madison, GA', 33.596, -83.468),
+    'eatonton':       ('Eatonton, GA', 33.327, -83.388),
+    'vanns_ferry':    ("Vann's Ferry (Chattahoochee), GA", 34.160, -84.000),
+    'spring_place':   ('Spring Place, GA', 34.762, -84.749),
+    'tellico':        ('Tellico Blockhouse, TN', 35.590, -84.190),
+    'monteagle':      ('Monteagle, TN', 35.240, -85.840),
+    'murfreesboro':   ('Murfreesboro, TN', 35.846, -86.390),
+    'clarkesville_ga':('Clarkesville, GA', 34.613, -83.525),
+    'nacoochee':      ('Nacoochee Valley, GA', 34.680, -83.700),
+    'unicoi_gap':     ('Unicoi Gap, GA', 34.800, -83.740),
+    'hiawassee':      ('Hiawassee, GA', 34.950, -83.760),
+    'murphy':         ('Murphy, NC', 35.088, -84.035),
+    'maryville':      ('Maryville, TN', 35.756, -83.970),
+    'saluda_old_town':('Saluda Old Town, SC', 34.070, -81.750),
+    'ninety_six':     ('Ninety Six, SC', 34.149, -82.025),
+    'keowee':         ('Keowee / Fort Prince George, SC', 34.870, -82.890),
+    'jacksonville_ga':('Jacksonville (on the Ocmulgee), GA', 31.812, -82.983),
+    'nashville_ga':   ('Nashville, GA', 31.207, -83.250),
+    'thomasville':    ('Thomasville, GA', 30.837, -83.979),
+    'tallahassee':    ('Tallahassee, FL', 30.438, -84.281),
 }
 
 ROAD, RIVER, SEA, CANAL = 'road', 'river', 'sea', 'canal'
@@ -602,6 +659,60 @@ CORRIDORS = [
                'independence_rock', 'south_pass', '~green_river', '~bear_river', 'soda_springs', 'fort_hall',
                'city_of_rocks', 'humboldt_wells', '~humboldt_elko', '~humboldt_winn', 'humboldt_sink', 'ragtown',
                'carson_pass', 'sacramento']),
+    # --- 2026-10-05 (James: route the moves that were still direct lines) ---
+    # Connecticut to the Catskills. Turnpike charters: List of turnpikes in New York (Wikipedia, from the
+    # session laws): Susquehanna Turnpike 1800, Salisbury CT - Catskill - Unadilla (opened 1806); Ancram
+    # Turnpike 1803, Livingston - Salisbury CT (its east end); Ulster and Delaware Turnpike 1802, the
+    # Connecticut line - Rhinebeck - Kingston - Bainbridge. The Susquehanna's towns are the 1800s stage
+    # route (Watkins & Co.): Cairo, Durham, Broome, Blenheim, Stamford, Harpersfield, Meredith, Franklin,
+    # Sidney, Unadilla. The Ulster and Delaware's course west of Kingston (the Esopus valley, Margaretville,
+    # Andes, Delhi) and the Hartford-Litchfield-Salisbury road's are approximate.
+    dict(name='Susquehanna Turnpike', mode=ROAD, years=(1800, 1860),
+         path=['catskill', 'cairo_ny', 'durham_ny', 'broome_ny', 'blenheim', 'stamford_ny', 'harpersfield', 'meredith',
+               'franklin_ny', 'sidney_ny', 'unadilla']),
+    dict(name='Ancram Turnpike', mode=ROAD, years=(1800, 1860),
+         path=['salisbury_ct', 'ancram', 'livingston_ny', 'catskill']),
+    dict(name='Ulster and Delaware Turnpike', mode=ROAD, years=(1802, 1860),
+         path=['salisbury_ct', 'pine_plains', 'rhinebeck', 'kingston_ny', 'shandaken', 'margaretville', 'andes',
+               'delhi', 'bainbridge']),
+    dict(name='Road from Hartford to Litchfield and Salisbury', mode=ROAD, years=(1740, 1860),
+         path=['hartford', 'litchfield', 'goshen_ct', 'canaan_ct', 'salisbury_ct']),
+    # The Connecticut River: Pynchon's shallops reached the Enfield falls in 1636; flatboats, unloaded and
+    # carried round each falls, worked the river above (American Antiquarian Society, "The Navigation of the
+    # Connecticut River", 1903; Enfield Falls Canal, 1829). Steamboats from the 1820s (the Barnet, 1826).
+    dict(name='Connecticut River', mode=RIVER, geometry='spline', years=(1636, 1900), upstream_from=1826, cost_factor=1.2,
+         path=['northfield_ma', 'deerfield', 'hatfield', 'northampton', '~south_hadley', 'springfield_ma',
+               '~enfield_falls', 'windsor_ct', 'hartford', '~rocky_hill', 'middletown_ct', '~east_haddam', 'saybrook']),
+    # Upcountry South Carolina and Georgia. The Upper Road south of Salisbury: Charlotte, Spartanburg,
+    # Greenville, Tugaloo, Athens (FamilySearch Wiki, "Upper Road"; the Georgia part open to settlers from
+    # the 1790s). The Cherokee Path: Charleston - the Congarees - Saluda Old Town - Ninety Six - Keowee
+    # (mapped by George Hunter, 1730; SC Encyclopedia). Augusta - Lexington - Athens, the 1790s stage road,
+    # and Milledgeville - Eatonton - Madison - Athens, the stage road north from the capital (Genealogy Trails,
+    # "History of Georgia: highways"). The Georgia Road (Federal Road through the Cherokee Nation), 1805,
+    # improved 1819: Athens - Vann's Ferry - Spring Place (Ramhurst) - Tellico - Knoxville, and from Spring
+    # Place by Ross's Landing (Chattanooga), Monteagle and Murfreesboro to Nashville (FamilySearch Wiki,
+    # "Georgia Road"). The Unicoi Turnpike, opened 1819: Tugaloo - Clarkesville - the Nacoochee valley -
+    # Unicoi Gap - Hiawassee - Murphy - Maryville (Wikipedia; Georgia Historical Society marker). The Coffee
+    # Road, 1823: Jacksonville on the Ocmulgee - Nashville - Thomasville - Tallahassee (Georgia Historical
+    # Society marker "Old Coffee Road").
+    dict(name='Upper Road', mode=ROAD, years=(1755, 1860),
+         path=['salisbury', 'charlotte', 'spartanburg', 'greenville_sc', 'tugaloo', 'athens_ga'],
+         seg_years={('greenville_sc', 'tugaloo'): (1785, 1860), ('tugaloo', 'athens_ga'): (1790, 1860)}),
+    dict(name='Cherokee Path', mode=ROAD, years=(1730, 1860),
+         path=['columbia_sc', 'saluda_old_town', 'ninety_six', 'keowee']),
+    dict(name='Augusta\u2013Athens road', mode=ROAD, years=(1790, 1860),
+         path=['augusta', 'lexington_ga', 'athens_ga']),
+    dict(name='Milledgeville\u2013Athens road', mode=ROAD, years=(1806, 1860),
+         path=['milledgeville', 'eatonton', 'madison_ga', 'athens_ga']),
+    dict(name='Georgia Road (Federal Road through the Cherokee Nation)', mode=ROAD, years=(1805, 1860),
+         path=['athens_ga', 'vanns_ferry', 'spring_place', 'tellico', 'knoxville']),
+    dict(name='Georgia Road (to Nashville)', mode=ROAD, years=(1805, 1860),
+         path=['spring_place', 'chattanooga', 'monteagle', 'murfreesboro', 'nashville']),
+    dict(name='Unicoi Turnpike', mode=ROAD, years=(1819, 1860),
+         path=['tugaloo', 'clarkesville_ga', 'nacoochee', 'unicoi_gap', 'hiawassee', 'murphy', 'maryville', 'knoxville']),
+    dict(name='Coffee Road', mode=ROAD, years=(1823, 1860),
+         path=['jacksonville_ga', 'nashville_ga', 'thomasville', 'tallahassee']),
+
     dict(name='Erie Canal', mode=CANAL, years=(1825, 1860),
          path=['albany', 'schenectady', 'utica', 'syracuse', 'rochester', 'lockport', 'buffalo']),
 

@@ -233,7 +233,7 @@ TOWN_COORDS = {
     "newtown|alabama": (32.870, -87.950),  # Greene County
     "albany|alabama": (34.580, -86.980),  # Morgan County, part of the Decatur AL area
     "jackson|georgia": (33.294, -83.962),  # Butts County
-    "nottingham|maryland": (38.800, -76.710),  # Prince George's County
+    "nottingham|maryland": (39.395, -76.492),  # Baltimore County, by Perry Hall (James, 2026-10-05; not the Patuxent town)
     "towson|maryland": (39.393, -76.609),  # Baltimore Co. seat
     "brooksville|alabama": (33.950, -86.570),  # Blount County
     "marion|alabama": (32.630, -87.320),  # Perry County seat
